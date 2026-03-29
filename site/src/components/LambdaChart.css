@@ -1,0 +1,13 @@
+.lambda-chart svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.lambda-row .lambda-hover-bg {
+  transition: fill 0.1s;
+}
+
+.lambda-row:hover .lambda-hover-bg {
+  fill: var(--bg-hover);
+}

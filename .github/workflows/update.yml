@@ -1,0 +1,43 @@
+name: Update F1 Expected Points
+
+on:
+  workflow_dispatch:
+    inputs:
+      odds_file:
+        description: 'Manual odds file (e.g. public/data/odds_input/japanese-gp-2026.json)'
+        required: false
+  schedule:
+    - cron: '0 6 * * 5'   # Fridays 6am UTC
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install -r pipeline/requirements.txt
+
+      - name: Run pipeline
+        env:
+          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+        run: |
+          MANUAL=""
+          if [ -n "${{ github.event.inputs.odds_file }}" ]; then
+            MANUAL="--manual ${{ github.event.inputs.odds_file }}"
+          else
+            LATEST=$(ls -t public/data/odds_input/*.json 2>/dev/null | head -1)
+            [ -n "$LATEST" ] && MANUAL="--manual $LATEST"
+          fi
+          python pipeline/update.py --output public/data $MANUAL
+
+      - name: Commit and push (triggers Vercel redeploy)
+        run: |
+          git config user.name "F1 Bot"
+          git config user.email "bot@f1xpts.dev"
+          git add public/data/
+          git diff --staged --quiet || git commit -m "Update: $(date -u +%Y-%m-%d) race projections"
+          git push

@@ -1,0 +1,20 @@
+.position-chart {
+  position: relative;
+}
+
+.position-chart svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+.position-chart-context {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-align: center;
+}
+
+.position-chart-context.negative {
+  color: var(--red);
+}
