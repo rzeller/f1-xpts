@@ -1,0 +1,110 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <defs>
+    <!-- Dark background gradient -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0a0a0a"/>
+      <stop offset="100%" stop-color="#111111"/>
+    </linearGradient>
+    <!-- Red accent gradient (F1-inspired) -->
+    <linearGradient id="accentGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#e10600"/>
+      <stop offset="100%" stop-color="#ff4d4d"/>
+    </linearGradient>
+    <!-- Team color stripe gradient -->
+    <linearGradient id="stripeGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%"   stop-color="#27F4D2" stop-opacity="0.9"/>
+      <stop offset="16%"  stop-color="#E8002D" stop-opacity="0.9"/>
+      <stop offset="33%"  stop-color="#3671C6" stop-opacity="0.9"/>
+      <stop offset="50%"  stop-color="#FF8000" stop-opacity="0.9"/>
+      <stop offset="66%"  stop-color="#229971" stop-opacity="0.9"/>
+      <stop offset="83%"  stop-color="#0090FF" stop-opacity="0.9"/>
+      <stop offset="100%" stop-color="#52E252" stop-opacity="0.9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="630" fill="url(#bgGrad)"/>
+
+  <!-- Subtle grid lines -->
+  <line x1="0" y1="315" x2="1200" y2="315" stroke="#1a1a1a" stroke-width="1"/>
+  <line x1="600" y1="0" x2="600" y2="630" stroke="#1a1a1a" stroke-width="1"/>
+
+  <!-- Team color bar at top -->
+  <rect x="0" y="0" width="1200" height="6" fill="url(#stripeGrad)"/>
+
+  <!-- Left accent bar -->
+  <rect x="80" y="180" width="4" height="270" fill="url(#accentGrad)" rx="2"/>
+
+  <!-- Main title: F1 xPts -->
+  <text
+    x="110"
+    y="310"
+    font-family="'Helvetica Neue', Arial, sans-serif"
+    font-weight="900"
+    font-size="128"
+    letter-spacing="-4"
+    fill="#ffffff"
+  >F1 xPts</text>
+
+  <!-- Subtitle -->
+  <text
+    x="112"
+    y="365"
+    font-family="'Courier New', Courier, monospace"
+    font-weight="400"
+    font-size="28"
+    letter-spacing="4"
+    fill="#888888"
+  >EXPECTED FANTASY POINTS</text>
+
+  <!-- Divider line -->
+  <line x1="112" y1="390" x2="680" y2="390" stroke="#333333" stroke-width="1"/>
+
+  <!-- Description line -->
+  <text
+    x="112"
+    y="420"
+    font-family="'Courier New', Courier, monospace"
+    font-size="20"
+    fill="#555555"
+    letter-spacing="1"
+  >Betting odds  ·  Plackett-Luce  ·  50K Monte Carlo simulations</text>
+
+  <!-- Right side: decorative stats panel -->
+  <rect x="820" y="180" width="300" height="270" rx="4" fill="#111111" stroke="#222222" stroke-width="1"/>
+
+  <!-- Stats panel header -->
+  <rect x="820" y="180" width="300" height="4" rx="2" fill="url(#accentGrad)"/>
+  <text x="840" y="215" font-family="'Courier New', Courier, monospace" font-size="11" letter-spacing="2" fill="#555555">DRIVER PROJECTIONS</text>
+
+  <!-- Mock driver rows -->
+  <text x="840" y="248" font-family="'Courier New', Courier, monospace" font-size="13" fill="#27F4D2">RUS</text>
+  <text x="896" y="248" font-family="'Courier New', Courier, monospace" font-size="13" fill="#cccccc">George Russell</text>
+  <text x="1072" y="248" font-family="'Courier New', Courier, monospace" font-size="13" fill="#ffffff" text-anchor="end">10.1</text>
+  <rect x="840" y="254" width="270" height="1" fill="#1e1e1e"/>
+
+  <text x="840" y="278" font-family="'Courier New', Courier, monospace" font-size="13" fill="#E8002D">LEC</text>
+  <text x="896" y="278" font-family="'Courier New', Courier, monospace" font-size="13" fill="#cccccc">Charles Leclerc</text>
+  <text x="1072" y="278" font-family="'Courier New', Courier, monospace" font-size="13" fill="#ffffff" text-anchor="end">9.4</text>
+  <rect x="840" y="284" width="270" height="1" fill="#1e1e1e"/>
+
+  <text x="840" y="308" font-family="'Courier New', Courier, monospace" font-size="13" fill="#3671C6">VER</text>
+  <text x="896" y="308" font-family="'Courier New', Courier, monospace" font-size="13" fill="#cccccc">Max Verstappen</text>
+  <text x="1072" y="308" font-family="'Courier New', Courier, monospace" font-size="13" fill="#ffffff" text-anchor="end">8.8</text>
+  <rect x="840" y="314" width="270" height="1" fill="#1e1e1e"/>
+
+  <text x="840" y="338" font-family="'Courier New', Courier, monospace" font-size="13" fill="#FF8000">NOR</text>
+  <text x="896" y="338" font-family="'Courier New', Courier, monospace" font-size="13" fill="#cccccc">Lando Norris</text>
+  <text x="1072" y="338" font-family="'Courier New', Courier, monospace" font-size="13" fill="#ffffff" text-anchor="end">8.2</text>
+  <rect x="840" y="344" width="270" height="1" fill="#1e1e1e"/>
+
+  <text x="840" y="368" font-family="'Courier New', Courier, monospace" font-size="13" fill="#E8002D">HAM</text>
+  <text x="896" y="368" font-family="'Courier New', Courier, monospace" font-size="13" fill="#cccccc">Lewis Hamilton</text>
+  <text x="1072" y="368" font-family="'Courier New', Courier, monospace" font-size="13" fill="#ffffff" text-anchor="end">7.9</text>
+  <rect x="840" y="374" width="270" height="1" fill="#1e1e1e"/>
+
+  <text x="840" y="398" font-family="'Courier New', Courier, monospace" font-size="13" fill="#555555">+17 more drivers...</text>
+
+  <!-- Bottom team color bar -->
+  <rect x="0" y="624" width="1200" height="6" fill="url(#stripeGrad)"/>
+</svg>
