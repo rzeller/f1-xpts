@@ -1,0 +1,47 @@
+{
+  "race": "Japanese Grand Prix",
+  "date": "2026-03-29",
+  "is_sprint": false,
+  "markets": {
+    "win": {
+      "Russell": -150, "Antonelli": 200, "Leclerc": 600,
+      "Hamilton": 800, "Verstappen": 1200, "Norris": 1400,
+      "Piastri": 1800, "Bearman": 3000, "Gasly": 4000,
+      "Albon": 6000, "Sainz": 7000, "Alonso": 10000,
+      "Tsunoda": 12000, "Lawson": 5000, "Hadjar": 15000,
+      "Ocon": 15000, "Colapinto": 20000, "Stroll": 25000,
+      "Hulkenberg": 30000, "Bortoleto": 40000,
+      "Doohan": 50000, "Andretti": 60000
+    },
+    "podium": {
+      "Russell": -300, "Antonelli": -200, "Leclerc": 120,
+      "Hamilton": 150, "Verstappen": 250, "Norris": 300,
+      "Piastri": 350, "Bearman": 500, "Gasly": 700,
+      "Albon": 1000, "Sainz": 1200, "Lawson": 800,
+      "Alonso": 2000, "Tsunoda": 2500, "Hadjar": 3000,
+      "Ocon": 3500, "Colapinto": 5000, "Stroll": 6000,
+      "Hulkenberg": 8000, "Bortoleto": 10000,
+      "Doohan": 15000, "Andretti": 20000
+    },
+    "top6": {
+      "Russell": -800, "Antonelli": -600, "Leclerc": -250,
+      "Hamilton": -200, "Verstappen": -120, "Norris": -100,
+      "Piastri": -80, "Bearman": 100, "Gasly": 130,
+      "Albon": 200, "Sainz": 250, "Lawson": 150,
+      "Alonso": 350, "Tsunoda": 400, "Hadjar": 500,
+      "Ocon": 550, "Colapinto": 700, "Stroll": 800,
+      "Hulkenberg": 1200, "Bortoleto": 1500,
+      "Doohan": 2000, "Andretti": 2500
+    },
+    "dnf": {
+      "Russell": 1200, "Antonelli": 900, "Leclerc": 1000,
+      "Hamilton": 1000, "Verstappen": 500, "Norris": 800,
+      "Piastri": 800, "Bearman": 700, "Gasly": 700,
+      "Albon": 600, "Sainz": 600, "Lawson": 500,
+      "Alonso": 400, "Tsunoda": 700, "Hadjar": 600,
+      "Ocon": 700, "Colapinto": 500, "Stroll": 400,
+      "Hulkenberg": 350, "Bortoleto": 350,
+      "Doohan": 300, "Andretti": 300
+    }
+  }
+}
