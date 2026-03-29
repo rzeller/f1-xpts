@@ -4,6 +4,7 @@ import CdfChart from '../components/CdfChart';
 import LambdaChart from '../components/LambdaChart';
 import PointsDecomposition from '../components/PointsDecomposition';
 import ScoringTable from '../components/ScoringTable';
+import ProbabilityPlayground from '../components/ProbabilityPlayground';
 import { simulateRaces, computeExpectedPoints } from '../lib/simulation';
 import './Methodology.css';
 
@@ -24,14 +25,98 @@ export default function Methodology({ data }) {
 
   return (
     <div className="methodology">
+      {/* ====== INTRODUCTION ====== */}
       <header className="meth-header">
-        <h1>How It Works</h1>
+        <h1>How We Pick Drivers</h1>
         <p className="meth-subtitle">
-          From betting odds to expected fantasy points, in four steps.
+          Using betting markets and statistical modeling to make smarter fantasy picks.
         </p>
       </header>
 
-      {/* Driver selector */}
+      <section className="meth-intro">
+        <h2>The Problem</h2>
+        <p>
+          Every race weekend, our family F1 fantasy league asks each player to pick 5 drivers
+          before qualifying. The scoring is simple: points for finishing in the top 10
+          (25 for a win, down to 1 for P10), and a brutal -20 penalty for a DNF. No qualifying
+          bonuses, no overtake points, no fastest lap. Just where you finish.
+        </p>
+        <p>
+          So the question is straightforward: which 5 drivers will score the most points this
+          weekend? Gut feel gets you part of the way. Everyone knows the Mercedes and Ferrari
+          drivers are strong this year. But how do you decide between a consistent midfield
+          driver and a volatile frontrunner? Is a driver with a 15% chance of winning but an
+          8% chance of DNF a better pick than someone who will reliably finish P6-P8?
+        </p>
+        <p>
+          You need expected points — and to get those, you need probability distributions over
+          finishing positions. That's where betting markets come in.
+        </p>
+
+        <h2>The Idea</h2>
+        <p>
+          Betting markets are remarkably good at aggregating information. Thousands of bettors,
+          each with their own models, insider knowledge, and informed opinions, collectively
+          set odds that reflect the true probabilities of race outcomes more accurately than
+          any individual prediction.
+        </p>
+        <p>
+          We can extract those probabilities — but it takes a few steps. Bookmaker odds aren't
+          raw probabilities; they include a margin (the "vig") that guarantees the house a profit.
+          And even after removing the vig, the odds only give us marginal probabilities for specific
+          outcomes (who wins, who finishes top 3), not the full joint distribution we need to
+          compute expected fantasy points.
+        </p>
+
+        <h2>The Pipeline</h2>
+        <p>
+          Here's how we go from raw betting odds to expected fantasy points:
+        </p>
+
+        <div className="pipeline-diagram">
+          <div className="pipeline-step">
+            <div className="pipeline-icon">1</div>
+            <div className="pipeline-content">
+              <strong>Betting Odds</strong>
+              <span>Raw lines from bookmakers (e.g., Russell -150 to win)</span>
+            </div>
+          </div>
+          <div className="pipeline-arrow">&darr;</div>
+          <div className="pipeline-step">
+            <div className="pipeline-icon">2</div>
+            <div className="pipeline-content">
+              <strong>Fair Probabilities</strong>
+              <span>Remove the vig using Shin's method to get true implied probabilities</span>
+            </div>
+          </div>
+          <div className="pipeline-arrow">&darr;</div>
+          <div className="pipeline-step">
+            <div className="pipeline-icon">3</div>
+            <div className="pipeline-content">
+              <strong>Plackett-Luce Model</strong>
+              <span>Fit a ranking model to recover the full finishing distribution for all 22 drivers</span>
+            </div>
+          </div>
+          <div className="pipeline-arrow">&darr;</div>
+          <div className="pipeline-step">
+            <div className="pipeline-icon">4</div>
+            <div className="pipeline-content">
+              <strong>Monte Carlo Simulation</strong>
+              <span>Simulate {data.meta.n_simulations.toLocaleString()} races to get position probabilities and expected fantasy points</span>
+            </div>
+          </div>
+        </div>
+
+        <p>
+          The inputs are whatever betting markets are available: race winner odds (almost always),
+          plus podium, top 6, top 10, and DNF markets when we can find them. More markets mean
+          tighter constraints on the model. The output is a full probability distribution over
+          all 23 outcomes (P1 through P22, plus DNF) for every driver — and from that, expected
+          fantasy points in our scoring system.
+        </p>
+      </section>
+
+      {/* ====== DRIVER SELECTOR ====== */}
       <div className="driver-selector">
         <label htmlFor="driver-select">Explore driver</label>
         <select
@@ -45,7 +130,7 @@ export default function Methodology({ data }) {
         </select>
       </div>
 
-      {/* Step 1 */}
+      {/* ====== STEP 1: DEVIG ====== */}
       <section className="meth-section">
         <div className="step-num">1</div>
         <h2>Convert Odds to Fair Probabilities</h2>
@@ -62,27 +147,170 @@ export default function Methodology({ data }) {
           from Oddschecker for podium, top 6, top 10, and DNF markets when available. More
           markets = tighter constraints on the model.
         </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why Shin's method?</summary>
+          <div className="deep-dive-content">
+            <h4>What is the vig?</h4>
+            <p>
+              Suppose a bookmaker offers odds on a two-horse race. Horse A is -150
+              (implied probability 60%) and Horse B is +120 (implied probability 45.5%).
+              Those probabilities sum to 105.5%, not 100%. The extra 5.5% is the bookmaker's
+              margin — the vig. They pay out less than the true odds would require, guaranteeing
+              a profit regardless of the outcome.
+            </p>
+            <p>
+              For F1, the vig is typically 15-30% across 22 drivers. To get fair probabilities,
+              we need to remove it — but how we remove it matters a lot.
+            </p>
+
+            <h4>Approach 1: Multiplicative normalization</h4>
+            <p>
+              The simplest approach: divide each implied probability by the sum of all implied
+              probabilities. If the implied probs sum to 1.20, just divide everything by 1.20.
+              This is mathematically clean but assumes the vig is distributed proportionally
+              across all outcomes. In reality, it isn't.
+            </p>
+
+            <h4>Approach 2: Power method</h4>
+            <p>
+              Find an exponent k such that the implied probabilities raised to the power k
+              sum to 1.0. This allows the vig to be distributed non-uniformly — higher-probability
+              outcomes get more of the adjustment. Better than multiplicative, but the functional
+              form is arbitrary.
+            </p>
+
+            <h4>Approach 3: Shin's method (what we use)</h4>
+            <p>
+              In 1991 and 1992, Hyun Song Shin published a model of betting markets that treats
+              the overround as a consequence of insider trading. The key insight: bookmakers
+              set odds knowing that some fraction z of bettors have inside information. To protect
+              themselves against these informed bettors, bookmakers shade the odds — but they shade
+              favorites less and longshots more, because an insider bet on a longshot is more
+              costly to the bookmaker than an insider bet on a favorite.
+            </p>
+            <p>
+              This produces exactly the favorite-longshot bias observed in real betting markets:
+              favorites tend to have odds that are closer to fair, while longshots have odds that
+              are more inflated. Shin's method solves for the insider fraction z via bisection,
+              then uses it to back out fair probabilities. The result naturally corrects for the
+              bias without any arbitrary assumptions about the functional form.
+            </p>
+            <p>
+              For F1, where the favorite might have 15% true win probability and the backmarker
+              might have 0.1%, this distinction matters. Multiplicative normalization would
+              underestimate the favorite's true probability and overestimate the longshot's.
+              Shin's method gives more accurate results, especially in the tails.
+            </p>
+
+            <div className="deep-dive-ref">
+              Shin, H. S. (1991). "Optimal Betting Odds Against Insider Traders."
+              <em>Economic Journal</em>, 101(408), 1179-1185.
+              <br />
+              Shin, H. S. (1992). "Prices of State Contingent Claims with Insider Traders,
+              and the Favourite-Longshot Bias." <em>Economic Journal</em>, 102(411), 426-435.
+            </div>
+          </div>
+        </details>
       </section>
 
-      {/* Step 2 */}
+      {/* ====== STEP 2: PLACKETT-LUCE ====== */}
       <section className="meth-section">
         <div className="step-num">2</div>
         <h2>Fit the Plackett-Luce Model</h2>
         <p>
-          The Plackett-Luce model assigns each driver a strength parameter <strong>λ</strong>.
-          The probability that driver i wins from a remaining set S is simply λ_i / Σλ_j.
+          The Plackett-Luce model assigns each driver a strength parameter <strong>{'\u03BB'}</strong> (lambda).
+          The probability that driver i wins from a remaining set S is simply {'\u03BB'}_i / {'\u03A3\u03BB'}_j.
           A full finishing order is generated by drawing winners sequentially: pick the winner
           from all drivers, then pick 2nd from the remaining set, and so on.
         </p>
         <p>
-          We decompose strength as <code>log(λ) = μ_team + δ_driver</code>, so teammates share
+          We decompose strength as <code>log({'\u03BB'}) = {'\u03BC'}_team + {'\u03B4'}_driver</code>, so teammates share
           a team component. This creates natural positive correlation — if one Mercedes is strong,
-          both are. The optimizer fits λ values by minimizing the squared error between the model's
+          both are. The optimizer fits {'\u03BB'} values by minimizing the squared error between the model's
           implied probabilities and the devigged odds. Each evaluation runs ~20K simulations,
           and the optimizer takes ~200 evaluations to converge.
         </p>
 
-        <h3>Driver Strength (λ)</h3>
+        <details className="deep-dive">
+          <summary>Deep dive: Why Plackett-Luce?</summary>
+          <div className="deep-dive-content">
+            <h4>The core problem</h4>
+            <p>
+              After devigging, we have marginal probabilities: P(Russell wins) = 14.5%,
+              P(Russell finishes top 3) = 39.5%, and so on. But fantasy points depend on the
+              exact finishing position, not just "top N" cutoffs. We need the full joint
+              distribution: what's the probability Russell finishes exactly P4? P7? P15?
+            </p>
+            <p>
+              You can't just interpolate between the marginals. Finishing positions are
+              dependent — if Russell finishes P1, Antonelli can't also finish P1. We need
+              a model that respects this structure.
+            </p>
+
+            <h4>Plackett-Luce</h4>
+            <p>
+              The Plackett-Luce model (Luce, 1959; Plackett, 1975) is a sequential choice
+              model for rankings. Each item (driver) has a strength {'\u03BB'}_i {'\u003E'} 0.
+              A ranking is generated by repeatedly choosing from the remaining set:
+            </p>
+            <ul>
+              <li>P(driver i wins) = {'\u03BB'}_i / ({'\u03BB'}_1 + {'\u03BB'}_2 + ... + {'\u03BB'}_22)</li>
+              <li>P(driver j finishes 2nd | driver i won) = {'\u03BB'}_j / (sum of remaining {'\u03BB'}s)</li>
+              <li>And so on, until all positions are filled</li>
+            </ul>
+            <p>
+              This gives us a complete probability distribution over all 22! possible finishing
+              orders, parameterized by just 22 numbers. From this, we can compute any marginal
+              we want: P(finish exactly P4), P(finish top 6), P(beat a specific rival), etc.
+            </p>
+
+            <h4>Team structure</h4>
+            <p>
+              We decompose each driver's log-strength as {'\u03BC'}_team + {'\u03B4'}_driver, where
+              teammates share the team component. This means if the optimizer determines that
+              Mercedes has a strong car this weekend, both Russell and Antonelli benefit. The
+              driver-specific {'\u03B4'} captures within-team differences. Regularization penalizes
+              large teammate gaps, reflecting the reality that most performance difference is
+              the car, not the driver.
+            </p>
+
+            <h4>Alternatives considered</h4>
+            <p>
+              <strong>Bradley-Terry model</strong> — works well for pairwise comparisons
+              (who beats whom?) but doesn't naturally extend to full rankings of 22 items.
+              You'd need to compute each finishing position by conditioning on all possible
+              higher-position outcomes, which is computationally expensive and doesn't leverage
+              the sequential structure.
+            </p>
+            <p>
+              <strong>Thurstone model</strong> — assigns each driver a latent utility drawn
+              from a normal distribution (driver i gets utility U_i ~ N({'\u03BC'}_i, {'\u03C3'}^2)).
+              Rankings are determined by sorting utilities. This is similar to PL in practice
+              but uses normal distributions instead of Gumbel (extreme value) distributions.
+              The key downside: the normal distribution produces thinner tails, making upsets
+              less likely than they actually are in F1. The PL/Gumbel setup better captures
+              the occasional chaotic race.
+            </p>
+            <p>
+              <strong>Copula approaches</strong> — model the dependence structure between
+              finishing positions directly. Extremely flexible but massively overparameterized
+              for our data. With only 4-5 market constraints per driver (win, podium, top 6,
+              top 10, DNF), we can't identify all the correlation parameters. PL gives us
+              a reasonable dependence structure (via the sequential elimination mechanism)
+              from just one parameter per driver.
+            </p>
+
+            <div className="deep-dive-ref">
+              Luce, R. D. (1959). <em>Individual Choice Behavior: A Theoretical Analysis.</em> Wiley.
+              <br />
+              Plackett, R. L. (1975). "The Analysis of Permutations."
+              <em>Journal of the Royal Statistical Society, Series C</em>, 24(2), 193-202.
+            </div>
+          </div>
+        </details>
+
+        <h3>Driver Strength ({'\u03BB'})</h3>
         <p className="muted" style={{ marginBottom: 8 }}>
           Click a driver to explore their distribution below. Teammates are connected.
         </p>
@@ -94,17 +322,54 @@ export default function Methodology({ data }) {
         />
       </section>
 
-      {/* Step 3 */}
+      {/* ====== STEP 3: SIMULATION ====== */}
       <section className="meth-section">
         <div className="step-num">3</div>
         <h2>Simulate {data.meta.n_simulations.toLocaleString()} Races</h2>
         <p>
-          With the fitted λ values and DNF probabilities, we simulate {data.meta.n_simulations.toLocaleString()} complete
+          With the fitted {'\u03BB'} values and DNF probabilities, we simulate {data.meta.n_simulations.toLocaleString()} complete
           races. In each simulation: first, each driver independently rolls for DNF (based on
           team reliability + driver risk). Then the Plackett-Luce model draws a finishing order
           for all non-DNF drivers. The result is a full probability distribution over all 23
           outcomes (P1 through P22, plus DNF) for every driver.
         </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why Monte Carlo?</summary>
+          <div className="deep-dive-content">
+            <h4>Why not compute analytically?</h4>
+            <p>
+              In principle, you can compute P(driver i finishes position k) exactly from the
+              Plackett-Luce model. For P(win), it's simple: {'\u03BB'}_i / {'\u03A3\u03BB'}_j.
+              For P(finishes 2nd), you need to sum over all possible winners:
+              {'\u03A3'}_{'{'}j{'\u2260'}i{'}'} [P(j wins) {'\u00D7'} P(i wins from remaining)].
+              For P(finishes 3rd), you need to sum over all possible (winner, runner-up) pairs.
+            </p>
+            <p>
+              By the time you get to P(finishes P11), you're summing over all possible
+              orderings of the top 10 — that's 10! = 3.6 million terms. For P(finishes P22),
+              you'd need 21! terms. This is computationally intractable for 22 drivers.
+            </p>
+
+            <h4>What simulation gives us</h4>
+            <p>
+              Monte Carlo simulation sidesteps this entirely. We just draw many random
+              races and count how often each outcome occurs. With 50K simulations:
+            </p>
+            <ul>
+              <li>The full probability distribution (P1 through P22 + DNF) for every driver</li>
+              <li>Standard deviations and confidence intervals for free</li>
+              <li>Any derived quantity: expected points, P(beat rival), P(score {'\u2265'} 10 pts), etc.</li>
+              <li>Standard error of ~0.2 percentage points for the most common outcomes</li>
+            </ul>
+            <p>
+              The 50K simulation count is a balance between precision and compute time. For
+              the model fitting (which runs inside the optimizer loop), we use ~20K sims per
+              evaluation to keep it fast while still being smooth enough for gradient-based
+              optimization.
+            </p>
+          </div>
+        </details>
 
         <h3>Position Distribution — {driver.name}</h3>
         <p className="muted" style={{ marginBottom: 8 }}>
@@ -124,16 +389,44 @@ export default function Methodology({ data }) {
         <CdfChart distribution={driverDist} color={teamColor} />
       </section>
 
-      {/* Step 4 */}
+      {/* ====== STEP 4: SCORING ====== */}
       <section className="meth-section">
         <div className="step-num">4</div>
         <h2>Compute Expected Points</h2>
         <p>
-          Expected points = Σ P(position k) × points(k) + P(DNF) × (-20). Each finishing
+          Expected points = {'\u03A3'} P(position k) {'\u00D7'} points(k) + P(DNF) {'\u00D7'} (-20). Each finishing
           position contributes its probability times its point value. The DNF penalty of -20 is
           a significant drag — drivers with high DNF risk (12%+) can have negative expected points
           even if they occasionally finish in the top 10.
         </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why this scoring changes optimal picks</summary>
+          <div className="deep-dive-content">
+            <h4>The DNF penalty dominates strategy</h4>
+            <p>
+              In our scoring system, a DNF costs -20 points. That's equivalent to losing a
+              P2 finish plus a P8 finish. If a driver has a 10% DNF chance, that's an expected
+              cost of -2.0 points per race — which is substantial when the median expected
+              points for a midfield driver might be 3-4 points.
+            </p>
+            <p>
+              This means reliability is far more important in our league than in the official
+              F1 Fantasy game (which doesn't penalize DNFs as heavily). A consistent P6-P8
+              finisher with low DNF risk can easily outscore a flashier driver who occasionally
+              wins but retires more often.
+            </p>
+
+            <h4>Variance matters for picks</h4>
+            <p>
+              Since you pick 5 drivers, diversification matters. Two teammates are positively
+              correlated (they share the same car), so picking both Mercedes drivers gives you
+              less diversification than picking one Mercedes and one Ferrari. The standard
+              deviation column on the dashboard helps identify high-variance picks — useful
+              when you're behind in the standings and need upside.
+            </p>
+          </div>
+        </details>
 
         <h3>Points Decomposition — {driver.name}</h3>
         <p className="muted" style={{ marginBottom: 8 }}>
@@ -147,7 +440,20 @@ export default function Methodology({ data }) {
         />
       </section>
 
-      {/* Scoring reference */}
+      {/* ====== PROBABILITY PLAYGROUND ====== */}
+      <section className="meth-section">
+        <h2>Probability Playground</h2>
+        <p>
+          Adjust a driver's strength parameter and see how it changes their position
+          distribution in real time. The dashed line shows the fitted model; the solid bars
+          show the result with your adjustment. Watch how the model probabilities diverge from
+          the market constraints as you move further from the fitted value — that's the fit
+          error increasing.
+        </p>
+        <ProbabilityPlayground data={data} />
+      </section>
+
+      {/* ====== SCORING REFERENCE ====== */}
       <section className="meth-section">
         <h2>Scoring Rules</h2>
         <p style={{ marginBottom: 12 }}>
