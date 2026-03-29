@@ -60,7 +60,12 @@ export default function Dashboard({ data }) {
               <th className="col-rank">#</th>
               <th className="col-driver">Driver</th>
               <th className="col-sparkline">Distribution</th>
-              <th className="col-ep">E[pts]</th>
+              <th className="col-ep">
+                E[pts]
+                {data.meta.is_sprint && (
+                  <span className="col-ep-sub"> race + sprint</span>
+                )}
+              </th>
               <th className="col-pct">Win</th>
               <th className="col-pct">Podium</th>
               <th className="col-pct">Top 10</th>
@@ -77,6 +82,7 @@ export default function Dashboard({ data }) {
                 teamColor={data.teams[driver.team_idx].color}
                 maxEP={maxEP}
                 minEP={minEP}
+                isSprint={data.meta.is_sprint}
               />
             ))}
           </tbody>

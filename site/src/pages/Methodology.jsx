@@ -134,6 +134,13 @@ export default function Methodology({ data }) {
           a significant drag — drivers with high DNF risk (12%+) can have negative expected points
           even if they occasionally finish in the top 10.
         </p>
+        <p>
+          On sprint weekends (China, Miami, Canada, Great Britain, Netherlands, Singapore),
+          sprint race expected points are computed separately using the sprint scoring scale
+          (P1=8 down to P8=1, P9+=0, DNF=−20) and added to the race total. The same
+          position distribution drives both calculations — sprint results are assumed to
+          correlate with race pace, not modeled independently.
+        </p>
 
         <h3>Points Decomposition — {driver.name}</h3>
         <p className="muted" style={{ marginBottom: 8 }}>
@@ -151,8 +158,9 @@ export default function Methodology({ data }) {
       <section className="meth-section">
         <h2>Scoring Rules</h2>
         <p style={{ marginBottom: 12 }}>
-          Our family league scoring. Each player picks 5 drivers before qualifying each weekend.
-          No budget cap, no qualifying points, no fastest lap.
+          Our family league scoring. Each player picks 5 drivers before qualifying each weekend —
+          the same lineup covers both the sprint and the Grand Prix. No budget cap,
+          no qualifying points, no positions gained, no fastest lap.
         </p>
         <ScoringTable scoring={data.scoring} />
       </section>

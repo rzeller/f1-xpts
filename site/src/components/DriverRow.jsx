@@ -9,7 +9,7 @@ function pct(n) {
   return (n * 100).toFixed(1) + '%';
 }
 
-export default function DriverRow({ driver, rank, teamColor, maxEP, minEP }) {
+export default function DriverRow({ driver, rank, teamColor, maxEP, minEP, isSprint }) {
   const ep = driver.ep_total;
   const isNeg = ep < 0;
 
@@ -26,7 +26,14 @@ export default function DriverRow({ driver, rank, teamColor, maxEP, minEP }) {
       </td>
       <td className="col-ep">
         <div className="ep-cell">
-          <span className={isNeg ? 'negative' : ''}>{fmt(ep)}</span>
+          <div className="ep-values">
+            <span className={isNeg ? 'negative' : ''}>{fmt(ep)}</span>
+            {isSprint && driver.ep_sprint > 0 && (
+              <span className="ep-breakdown">
+                {fmt(driver.ep_race)}+{fmt(driver.ep_sprint)}
+              </span>
+            )}
+          </div>
           <BarGauge value={ep} maxEP={maxEP} minEP={minEP} color={teamColor} />
         </div>
       </td>

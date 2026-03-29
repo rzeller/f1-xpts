@@ -147,6 +147,28 @@
   gap: 6px;
 }
 
+.ep-values {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+  min-width: 36px;
+}
+
+.ep-breakdown {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  font-family: var(--font-data);
+}
+
+.col-ep-sub {
+  font-size: 0.65rem;
+  font-weight: 400;
+  color: var(--text-dim);
+  text-transform: none;
+  letter-spacing: 0;
+  margin-left: 2px;
+}
+
 /* Footer */
 .dash-footer {
   display: flex;
