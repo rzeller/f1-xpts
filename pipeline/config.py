@@ -60,6 +60,15 @@ for i, d in enumerate(DRIVERS):
     DRIVER_NAME_MAP[d["name"].split()[-1].lower()] = i
     DRIVER_NAME_MAP[d["abbr"].lower()] = i
 
+# Explicit aliases for names with special characters or common alternate spellings
+_ALIASES = {
+    "hulkenberg": "hülkenberg",
+    "hulk": "hülkenberg",
+}
+for alias, canonical in _ALIASES.items():
+    if canonical in DRIVER_NAME_MAP:
+        DRIVER_NAME_MAP[alias] = DRIVER_NAME_MAP[canonical]
+
 # Sprint weekends in 2026
 SPRINT_WEEKENDS = [
     "chinese-gp",

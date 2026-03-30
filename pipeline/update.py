@@ -189,8 +189,8 @@ def main():
     parser.add_argument(
         "--fit-sims",
         type=int,
-        default=20000,
-        help="Simulations per optimizer evaluation (default: 20000)",
+        default=10000,
+        help="Simulations per optimizer evaluation (default: 10000)",
     )
     parser.add_argument(
         "--final-sims",

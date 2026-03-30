@@ -25,6 +25,10 @@ def simulate_races(
     """
     Simulate races from the Plackett-Luce model with DNFs.
 
+    Uses the Gumbel-max trick for vectorized PL sampling:
+    ranking by (log_lambda + Gumbel noise) is equivalent to sequential
+    PL draws, but runs entirely in numpy with no Python loops over sims.
+
     Parameters
     ----------
     log_lambdas : (n_drivers,) array of log-strength parameters
@@ -40,36 +44,39 @@ def simulate_races(
     """
     rng = np.random.default_rng(seed)
     n = len(log_lambdas)
-    lambdas = np.exp(log_lambdas)
+
+    # Gumbel-max trick: sample Gumbel(0,1) noise, add to log-lambdas, argsort
+    # This gives a Plackett-Luce draw in O(n log n) with full vectorization
+    gumbel_noise = rng.gumbel(size=(n_sims, n))  # (n_sims, n_drivers)
+    utilities = log_lambdas[np.newaxis, :] + gumbel_noise  # (n_sims, n_drivers)
+
+    # DNF mask: True if driver DNFs in this sim
+    dnf_mask = rng.random((n_sims, n)) < p_dnfs[np.newaxis, :]  # (n_sims, n_drivers)
+
+    # Set DNF drivers to -inf so they sort last
+    utilities[dnf_mask] = -np.inf
+
+    # Argsort descending = finishing order (highest utility = P1)
+    # rankings[s, k] = driver index who finished position k+1 in sim s
+    rankings = np.argsort(-utilities, axis=1)  # (n_sims, n_drivers)
+
+    # Convert rankings to positions: positions[s, i] = position of driver i in sim s
+    positions = np.argsort(rankings, axis=1)  # (n_sims, n_drivers)
+
+    # Count position frequencies
     position_counts = np.zeros((n, n + 1), dtype=np.float64)
+    for i in range(n):
+        driver_positions = positions[:, i]  # (n_sims,) positions for driver i
+        driver_dnfs = dnf_mask[:, i]       # (n_sims,) DNF mask for driver i
 
-    for _ in range(n_sims):
-        # Determine DNFs
-        dnf_rolls = rng.random(n)
-        finisher_mask = dnf_rolls >= p_dnfs
-        finisher_indices = np.where(finisher_mask)[0]
-        dnf_indices = np.where(~finisher_mask)[0]
+        # Count finishing positions (only for non-DNF sims)
+        finish_positions = driver_positions[~driver_dnfs]
+        if len(finish_positions) > 0:
+            counts = np.bincount(finish_positions, minlength=n)
+            position_counts[i, :n] = counts
 
-        # PL sampling for finishers
-        remaining = list(finisher_indices)
-        remaining_lambdas = lambdas[remaining].copy()
-
-        for pos in range(len(remaining)):
-            total = remaining_lambdas.sum()
-            if total <= 0:
-                break
-            probs = remaining_lambdas / total
-            chosen_local = rng.choice(len(remaining), p=probs)
-            chosen_driver = remaining[chosen_local]
-            position_counts[chosen_driver, pos] += 1
-
-            # Remove from remaining
-            remaining.pop(chosen_local)
-            remaining_lambdas = np.delete(remaining_lambdas, chosen_local)
-
-        # Record DNFs
-        for d in dnf_indices:
-            position_counts[d, -1] += 1
+        # Count DNFs
+        position_counts[i, -1] = driver_dnfs.sum()
 
     return position_counts / n_sims
 
@@ -110,8 +117,8 @@ def compute_variance(
 def fit_plackett_luce(
     observed_probs: Dict[str, Dict[str, float]],
     team_indices: np.ndarray,
-    n_sims: int = 30000,
-    method: str = "L-BFGS-B",
+    n_sims: int = 10000,
+    method: str = "Powell",
     team_reg: float = 0.1,
     smoothness_reg: float = 0.05,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
@@ -147,24 +154,28 @@ def fit_plackett_luce(
     else:
         init_log_lambdas = np.zeros(n)
 
+    # Fix DNF probabilities directly from odds (don't optimize them).
+    # This halves the parameter space and removes a major source of noise.
     if "dnf" in observed_probs:
         dnf_probs = observed_probs["dnf"]
-        init_logit_dnfs = np.array([
-            np.log(max(dnf_probs.get(i, 0.1), 0.01) / max(1 - dnf_probs.get(i, 0.1), 0.01))
-            for i in range(n)
-        ])
+        fixed_p_dnfs = np.array([dnf_probs.get(i, 0.10) for i in range(n)])
     else:
-        init_logit_dnfs = np.full(n, -2.0)  # ~12% DNF
+        fixed_p_dnfs = np.full(n, 0.10)
 
-    x0 = np.concatenate([init_log_lambdas, init_logit_dnfs])
+    # Only optimize the 22 lambda parameters (not 44 = lambda + DNF)
+    x0 = init_log_lambdas.copy()
 
+    n_params = len(x0)
     eval_count = [0]
+    step_count = [0]
+    best_loss = [float('inf')]
+    import time
+    start_time = [time.time()]
 
     def objective(x):
         eval_count[0] += 1
-        log_lambdas = x[:n]
-        logit_dnfs = x[n:]
-        p_dnfs = 1.0 / (1.0 + np.exp(-logit_dnfs))
+        log_lambdas = x
+        p_dnfs = fixed_p_dnfs
 
         # Use a different seed each eval for smoother optimization landscape
         seed = 42 + eval_count[0]
@@ -172,6 +183,9 @@ def fit_plackett_luce(
 
         loss = 0.0
         residuals = {}
+        loss_data = 0.0
+        loss_team = 0.0
+        loss_shrink = 0.0
 
         # Match observed cumulative probabilities
         market_cutoffs = {
@@ -185,50 +199,75 @@ def fit_plackett_luce(
             if market not in observed_probs:
                 continue
             for i, obs_p in observed_probs[market].items():
-                # Model probability: P(pos <= cutoff | this driver)
-                # = sum of position probs for positions 1..cutoff
-                # (excluding DNF — DNF is separate)
                 model_p = pos_probs[i, :cutoff].sum()
                 residual = model_p - obs_p
-                loss += residual ** 2
+                loss_data += residual ** 2
                 residuals[(market, i)] = residual
 
-        # Match DNF probabilities
-        if "dnf" in observed_probs:
-            for i, obs_p in observed_probs["dnf"].items():
-                model_p = pos_probs[i, -1]
-                residual = model_p - obs_p
-                loss += residual ** 2
-                residuals[("dnf", i)] = residual
+        # DNF probabilities are fixed from odds, not optimized.
+        # (No DNF loss term needed.)
 
         # Regularization: teammates should have similar lambdas
         for t in range(N_TEAMS):
             teammates = [j for j in range(n) if team_indices[j] == t]
             if len(teammates) == 2:
                 diff = log_lambdas[teammates[0]] - log_lambdas[teammates[1]]
-                loss += team_reg * diff ** 2
+                loss_team += team_reg * diff ** 2
 
         # Regularization: mild shrinkage toward mean (prevents extreme values)
         mean_ll = log_lambdas.mean()
-        loss += smoothness_reg * np.sum((log_lambdas - mean_ll) ** 2)
+        loss_shrink = smoothness_reg * np.sum((log_lambdas - mean_ll) ** 2)
 
-        if eval_count[0] % 20 == 0:
-            print(f"  Eval {eval_count[0]:4d}: loss={loss:.6f}")
+        loss = loss_data + loss_team + loss_shrink
+
+        if loss < best_loss[0]:
+            best_loss[0] = loss
+
+        # Log every eval with timing
+        elapsed = time.time() - start_time[0]
+        evals_per_sec = eval_count[0] / max(elapsed, 0.01)
+        print(
+            f"  eval {eval_count[0]:5d} | "
+            f"loss={loss:.6f} (data={loss_data:.6f} team={loss_team:.6f} shrink={loss_shrink:.6f}) | "
+            f"best={best_loss[0]:.6f} | "
+            f"{elapsed:.1f}s ({evals_per_sec:.1f} eval/s)",
+            flush=True,
+        )
 
         return loss
 
-    print("Fitting Plackett-Luce model...")
+    print(f"Fitting Plackett-Luce model...")
+    print(f"  Parameters: {n_params} (lambdas only; DNF probs fixed from odds)")
+    print(f"  Sims per eval: {n_sims:,}")
+    print(f"  Method: {method}")
+    print(flush=True)
+
+    def callback(xk):
+        step_count[0] += 1
+        elapsed = time.time() - start_time[0]
+        print(
+            f"  --- STEP {step_count[0]:3d} complete | "
+            f"{eval_count[0]} total evals | "
+            f"best loss={best_loss[0]:.6f} | "
+            f"{elapsed:.1f}s elapsed ---",
+            flush=True,
+        )
+
     result = minimize(
         objective,
         x0,
         method=method,
+        callback=callback,
         options={"maxiter": 200, "ftol": 1e-8},
     )
+    elapsed = time.time() - start_time[0]
     print(f"  Converged: {result.success}, final loss: {result.fun:.6f}")
+    print(f"  Total: {eval_count[0]} evals, {step_count[0]} steps, {elapsed:.1f}s")
+    if hasattr(result, 'message'):
+        print(f"  Message: {result.message}")
 
-    log_lambdas = result.x[:n]
-    logit_dnfs = result.x[n:]
-    p_dnfs = 1.0 / (1.0 + np.exp(-logit_dnfs))
+    log_lambdas = result.x
+    p_dnfs = fixed_p_dnfs
 
     # Normalize: set mean log_lambda to 0 (arbitrary scale)
     log_lambdas -= log_lambdas.mean()
