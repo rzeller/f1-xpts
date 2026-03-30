@@ -86,47 +86,105 @@
   height: auto;
 }
 
-/* Market input grid */
-.market-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.market-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-}
-
-.market-name {
-  font-weight: 600;
-  color: var(--text-bright);
-  text-transform: capitalize;
-  margin-bottom: 2px;
-}
-
-.market-count {
+/* Market tags (inline) */
+.market-tag {
+  display: inline-block;
   font-size: 0.75rem;
-  color: var(--text-dim);
-  margin-bottom: 8px;
-}
-
-.market-drivers {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.driver-chip {
-  font-size: 0.65rem;
   background: var(--bg-active);
   border: 1px solid var(--border);
   border-radius: 3px;
-  padding: 1px 5px;
+  padding: 1px 6px;
+  color: var(--text-bright);
+  text-transform: capitalize;
+  margin: 0 4px 2px 0;
+}
+
+/* Driver fit selector */
+.driver-fit-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.driver-fit-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  font-size: 0.75rem;
   color: var(--text-muted);
+}
+
+.driver-fit-btn:hover {
+  border-color: var(--border-light);
+  background: var(--bg-active);
+}
+
+.driver-fit-btn.active {
+  border-color: var(--text-muted);
+  background: var(--bg-active);
+  color: var(--text-bright);
+}
+
+.driver-fit-btn-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.driver-fit-btn-abbr {
+  font-weight: 600;
+}
+
+.driver-fit-btn-resid {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+}
+
+.driver-fit-btn-resid.high {
+  color: var(--red);
+}
+
+/* Driver fit detail chart */
+.driver-fit-detail {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  max-width: 540px;
+}
+
+.driver-fit-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.driver-fit-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+}
+
+.driver-fit-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--text-bright);
+}
+
+.driver-fit-chart {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
 }
 
 .config-row {

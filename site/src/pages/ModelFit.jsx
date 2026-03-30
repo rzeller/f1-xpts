@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import './ModelFit.css';
 
 function formatTime(seconds) {
@@ -217,9 +217,152 @@ function TopResiduals({ residuals }) {
   );
 }
 
+// Per-driver fit detail: grouped bar chart showing observed vs model across markets
+function DriverFitDetail({ driverAbbr, residuals, teams, drivers }) {
+  if (!driverAbbr || !residuals) return null;
+
+  const driverResids = residuals.filter(r => r.driver === driverAbbr);
+  if (driverResids.length === 0) return null;
+
+  const driverData = drivers.find(d => d.abbr === driverAbbr);
+  const teamColor = driverData ? teams[driverData.team_idx]?.color : 'var(--text-muted)';
+  const driverName = driverData?.name || driverAbbr;
+
+  const w = 500, h = 220, pad = { t: 30, r: 20, b: 40, l: 50 };
+  const plotW = w - pad.l - pad.r;
+  const plotH = h - pad.t - pad.b;
+
+  const markets = driverResids.map(r => r.market);
+  const maxVal = Math.max(...driverResids.flatMap(r => [r.observed, r.model]), 0.01);
+
+  const barGroupW = plotW / markets.length;
+  const barW = barGroupW * 0.3;
+  const gap = barGroupW * 0.06;
+
+  // Y-axis ticks
+  const nTicks = 5;
+  const yTicks = Array.from({ length: nTicks }, (_, i) => {
+    const val = (maxVal * i) / (nTicks - 1);
+    return { val, y: pad.t + (1 - val / maxVal) * plotH };
+  });
+
+  return (
+    <div className="driver-fit-detail">
+      <div className="driver-fit-header">
+        <span className="driver-fit-swatch" style={{ background: teamColor }} />
+        <span className="driver-fit-name">{driverName}</span>
+      </div>
+      <svg viewBox={`0 0 ${w} ${h}`} className="driver-fit-chart">
+        {/* Grid */}
+        {yTicks.map((t, i) => (
+          <g key={i}>
+            <line x1={pad.l} x2={w - pad.r} y1={t.y} y2={t.y} stroke="var(--border)" strokeWidth={0.5} />
+            <text x={pad.l - 8} y={t.y + 4} textAnchor="end" fill="var(--text-dim)" fontSize={10}>
+              {(t.val * 100).toFixed(0)}%
+            </text>
+          </g>
+        ))}
+
+        {/* Bars */}
+        {driverResids.map((r, i) => {
+          const cx = pad.l + barGroupW * i + barGroupW / 2;
+          const obsH = (r.observed / maxVal) * plotH;
+          const modH = (r.model / maxVal) * plotH;
+          return (
+            <g key={r.market}>
+              {/* Observed bar */}
+              <rect
+                x={cx - barW - gap / 2} y={pad.t + plotH - obsH}
+                width={barW} height={obsH}
+                fill="var(--text-muted)" opacity={0.6} rx={2}
+              />
+              {/* Model bar */}
+              <rect
+                x={cx + gap / 2} y={pad.t + plotH - modH}
+                width={barW} height={modH}
+                fill={teamColor} opacity={0.85} rx={2}
+              />
+              {/* Values */}
+              <text x={cx - barW / 2 - gap / 2} y={pad.t + plotH - obsH - 4}
+                textAnchor="middle" fill="var(--text-dim)" fontSize={9}>
+                {(r.observed * 100).toFixed(1)}%
+              </text>
+              <text x={cx + barW / 2 + gap / 2} y={pad.t + plotH - modH - 4}
+                textAnchor="middle" fill={teamColor} fontSize={9}>
+                {(r.model * 100).toFixed(1)}%
+              </text>
+              {/* Market label */}
+              <text x={cx} y={h - pad.b + 16} textAnchor="middle" fill="var(--text-muted)" fontSize={11}>
+                {r.market}
+              </text>
+              {/* Residual */}
+              <text x={cx} y={h - pad.b + 28} textAnchor="middle" fontSize={9}
+                fill={r.residual > 0 ? 'var(--red)' : '#3b82f6'}>
+                {r.residual > 0 ? '+' : ''}{(r.residual * 100).toFixed(1)}pp
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Axes */}
+        <line x1={pad.l} x2={w - pad.r} y1={pad.t + plotH} y2={pad.t + plotH} stroke="var(--border-light)" />
+        <line x1={pad.l} x2={pad.l} y1={pad.t} y2={pad.t + plotH} stroke="var(--border-light)" />
+
+        {/* Legend */}
+        <rect x={pad.l + 4} y={pad.t - 16} width={10} height={10} fill="var(--text-muted)" opacity={0.6} rx={1} />
+        <text x={pad.l + 18} y={pad.t - 8} fill="var(--text-dim)" fontSize={9}>Market</text>
+        <rect x={pad.l + 64} y={pad.t - 16} width={10} height={10} fill={teamColor} opacity={0.85} rx={1} />
+        <text x={pad.l + 78} y={pad.t - 8} fill="var(--text-dim)" fontSize={9}>Model</text>
+      </svg>
+    </div>
+  );
+}
+
+// Clickable driver list for selecting a driver to inspect
+function DriverFitSelector({ drivers, teams, residuals, selectedDriver, onSelect }) {
+  // Compute per-driver max absolute residual for sorting
+  const driverStats = useMemo(() => {
+    if (!residuals) return [];
+    const byDriver = {};
+    residuals.forEach(r => {
+      if (!byDriver[r.driver]) byDriver[r.driver] = { abbr: r.driver, maxResid: 0, totalResid: 0, n: 0 };
+      const abs = Math.abs(r.residual);
+      if (abs > byDriver[r.driver].maxResid) byDriver[r.driver].maxResid = abs;
+      byDriver[r.driver].totalResid += abs;
+      byDriver[r.driver].n++;
+    });
+    return Object.values(byDriver).sort((a, b) => b.maxResid - a.maxResid);
+  }, [residuals]);
+
+  return (
+    <div className="driver-fit-selector">
+      {driverStats.map(ds => {
+        const driverData = drivers.find(d => d.abbr === ds.abbr);
+        const teamColor = driverData ? teams[driverData.team_idx]?.color : 'var(--text-muted)';
+        const isActive = selectedDriver === ds.abbr;
+        return (
+          <button
+            key={ds.abbr}
+            className={`driver-fit-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onSelect(isActive ? null : ds.abbr)}
+          >
+            <span className="driver-fit-btn-swatch" style={{ background: teamColor }} />
+            <span className="driver-fit-btn-abbr">{ds.abbr}</span>
+            <span className={`driver-fit-btn-resid ${ds.maxResid > 0.1 ? 'high' : ''}`}>
+              {(ds.maxResid * 100).toFixed(1)}pp
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function ModelFit({ data }) {
   const fit = data.fit;
   const meta = data.meta;
+
+  const [selectedDriver, setSelectedDriver] = useState(null);
 
   if (!fit) {
     return (
@@ -288,24 +431,14 @@ export default function ModelFit({ data }) {
       <section className="fit-section">
         <h2>Input Data</h2>
         <p>
-          Market odds used as constraints for the model fit. Each market provides
-          one probability constraint per driver listed.
-        </p>
-        <div className="market-grid">
+          The model was fit against {(fit.market_inputs || []).reduce((s, m) => s + m.n_drivers, 0)} probability
+          constraints across {(fit.market_inputs || []).length} markets:{' '}
           {(fit.market_inputs || []).map(m => (
-            <div key={m.market} className="market-card">
-              <div className="market-name">{m.market}</div>
-              <div className="market-count">{m.n_drivers} drivers</div>
-              <div className="market-drivers">
-                {m.drivers.map(d => (
-                  <span key={d} className="driver-chip">{d}</span>
-                ))}
-              </div>
-            </div>
+            <span key={m.market} className="market-tag">{m.market} ({m.n_drivers})</span>
           ))}
-        </div>
+        </p>
         <div className="config-row">
-          <span>Devig method: <strong>{meta.devig_method}</strong> (win market), rescaling (placement markets)</span>
+          <span>Devig: <strong>{meta.devig_method}</strong> (win), rescaling (placement)</span>
           <span>Final sims: <strong>{meta.n_simulations?.toLocaleString()}</strong></span>
           <span>Fit sims/eval: <strong>{fit.n_sims_per_eval?.toLocaleString()}</strong></span>
           <span>Regularization: team={fit.team_reg}, shrink={fit.smoothness_reg}</span>
@@ -328,8 +461,28 @@ export default function ModelFit({ data }) {
         <p>
           Each dot is one driver in one market. A perfect fit puts every dot on the
           diagonal. Points below the line mean the model underestimates; above means overestimates.
+          Click a driver below to see their per-market fit.
         </p>
         <ResidualsChart residuals={fit.residuals} teams={data.teams} drivers={data.drivers} />
+      </section>
+
+      {/* ====== PER-DRIVER FIT ====== */}
+      <section className="fit-section">
+        <h2>Driver Fit Detail</h2>
+        <p>
+          Select a driver to compare their market-implied probabilities (grey) against model output (colored).
+          Drivers are sorted by worst residual.
+        </p>
+        <DriverFitSelector
+          drivers={data.drivers} teams={data.teams} residuals={fit.residuals}
+          selectedDriver={selectedDriver} onSelect={setSelectedDriver}
+        />
+        {selectedDriver && (
+          <DriverFitDetail
+            driverAbbr={selectedDriver} residuals={fit.residuals}
+            teams={data.teams} drivers={data.drivers}
+          />
+        )}
       </section>
 
       {/* ====== LARGEST RESIDUALS ====== */}
