@@ -94,7 +94,7 @@ export default function Methodology({ data }) {
             <div className="pipeline-icon">2</div>
             <div className="pipeline-content">
               <strong>Fair Probabilities</strong>
-              <span>Remove the vig using Shin's method to get true implied probabilities</span>
+              <span>Remove the vig to get true implied probabilities</span>
             </div>
           </div>
           <div className="pipeline-arrow">&darr;</div>
@@ -141,11 +141,23 @@ export default function Methodology({ data }) {
         <h2>Convert Odds to Fair Probabilities</h2>
         <p>
           Bookmaker odds embed a margin (the "vig"). A +200 line doesn't mean 33% — it means
-          something less, once you account for the bookmaker's edge. We use <strong>Shin's method</strong> to
-          remove the vig. Unlike simple normalization, Shin's method corrects for the
-          favorite-longshot bias: bookmakers systematically underprice favorites and overprice
-          longshots. The method solves for an "insider trading" parameter z, then backs out
-          fair probabilities. The result: probabilities that sum to exactly 1.0, with the bias removed.
+          something less, once you account for the bookmaker's edge. How we remove the vig
+          depends on the type of market.
+        </p>
+        <p>
+          For the <strong>race winner</strong> market (exactly one driver wins), we use{' '}
+          <strong>Shin's method</strong>. This is an outright market where the fair probabilities
+          must sum to 1.0. Shin's method corrects for the favorite-longshot bias: bookmakers
+          systematically underprice favorites and overprice longshots. The method solves for an
+          "insider trading" parameter z, then backs out fair probabilities with the bias removed.
+        </p>
+        <p>
+          For <strong>placement markets</strong> (podium, top 6, top 10), the structure is
+          different. Each driver's odds answer a binary question: "Will this driver finish in
+          the top N?" Since multiple drivers can place (3 podium, 6 top 6, etc.), the fair
+          probabilities should sum to N, not 1. We devig these by rescaling the implied
+          probabilities so they sum to the number of available slots. For example, the 22
+          podium implied probabilities get rescaled to sum to 3.
         </p>
         <p>
           We pull odds from The Odds API (race winner market) and supplement with manual odds
@@ -154,7 +166,7 @@ export default function Methodology({ data }) {
         </p>
 
         <details className="deep-dive">
-          <summary>Deep dive: Why Shin's method?</summary>
+          <summary>Deep dive: Devig methods and why they matter</summary>
           <div className="deep-dive-content">
             <h4>What is the vig?</h4>
             <p>
@@ -185,7 +197,7 @@ export default function Methodology({ data }) {
               form is arbitrary.
             </p>
 
-            <h4>Approach 3: Shin's method (what we use)</h4>
+            <h4>Approach 3: Shin's method (what we use for the win market)</h4>
             <p>
               In 1991 and 1992, Hyun Song Shin published a model of betting markets that treats
               the overround as a consequence of insider trading. The key insight: bookmakers
@@ -206,6 +218,27 @@ export default function Methodology({ data }) {
               might have 0.1%, this distinction matters. Multiplicative normalization would
               underestimate the favorite's true probability and overestimate the longshot's.
               Shin's method gives more accurate results, especially in the tails.
+            </p>
+
+            <h4>Why placement markets are different</h4>
+            <p>
+              Shin's method (and the other approaches above) assume a mutually exclusive
+              outright market: exactly one driver wins, so fair probabilities must sum to 1.
+              But a podium market asks "Will Russell finish top 3?" — and three drivers can
+              simultaneously podium. The fair probabilities should sum to 3, not 1.
+            </p>
+            <p>
+              If you mistakenly apply Shin's method to a podium market, you normalize
+              everything to sum to 1 — crushing a 75% podium favorite down to ~29%. This
+              gives the optimizer contradictory targets (high win probability but low podium
+              probability) and produces a poor fit.
+            </p>
+            <p>
+              Instead, we treat placement markets as collections of binary yes/no questions.
+              Each driver's implied probability carries individual vig, and the total vig is
+              spread across all 22 binary sub-markets. We remove it by rescaling the implied
+              probabilities so they sum to the correct target (3 for podium, 6 for top 6,
+              10 for top 10).
             </p>
 
             <div className="deep-dive-ref">
@@ -244,10 +277,11 @@ export default function Methodology({ data }) {
           <li style={{ marginBottom: 6 }}>Simulate ~20,000 races using those {'\u03BB'} values. From the simulated results, compute model-implied
             cumulative probabilities: P(top 1), P(top 3), P(top 6), P(top 10) for each driver.</li>
           <li style={{ marginBottom: 6 }}>Compare those model probabilities to the devigged market probabilities by computing the loss (details below).</li>
-          <li style={{ marginBottom: 6 }}>The optimizer (scipy's <strong>L-BFGS-B</strong> — a quasi-Newton method) uses the loss and its
-            approximate gradient to choose a direction in 22-dimensional parameter space and take a step.
-            L-BFGS-B approximates the Hessian from recent gradient evaluations, so it can take
-            informed steps without computing second derivatives explicitly.</li>
+          <li style={{ marginBottom: 6 }}>The optimizer (scipy's <strong>Powell's method</strong> — a derivative-free
+            direction-set method) uses the loss to search for better parameters. Powell's method
+            doesn't need gradients: it optimizes along one coordinate direction at a time, then
+            builds up conjugate directions from the pattern of improvements. This is well-suited
+            to our stochastic loss surface where finite-difference gradients would be noisy.</li>
           <li style={{ marginBottom: 6 }}>Repeat: simulate another ~20K races with the updated {'\u03BB'} values, compute loss, take another step.
             Each evaluation uses a different random seed to smooth the stochastic loss surface.</li>
         </ol>
@@ -300,8 +334,7 @@ export default function Methodology({ data }) {
         </p>
         <p>
           After ~100-200 iterations (2-4 million simulated races total), the optimizer converges.
-          The fit loss is shown in the dashboard footer — lower means the model better reproduces the
-          market odds.
+          A lower fit loss means the model better reproduces the market odds.
         </p>
 
         <details className="deep-dive">
@@ -309,8 +342,8 @@ export default function Methodology({ data }) {
           <div className="deep-dive-content">
             <h4>The core problem</h4>
             <p>
-              After devigging, we have marginal probabilities: P(Russell wins) = 14.5%,
-              P(Russell finishes top 3) = 39.5%, and so on. But fantasy points depend on the
+              After devigging, we have marginal probabilities: P(Russell wins) = 47%,
+              P(Russell finishes top 3) = 75%, and so on. But fantasy points depend on the
               exact finishing position, not just "top N" cutoffs. We need the full joint
               distribution: what's the probability Russell finishes exactly P4? P7? P15?
             </p>
