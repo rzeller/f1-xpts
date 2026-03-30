@@ -84,7 +84,7 @@ export default function Dashboard({ data }) {
       </div>
 
       <footer className="dash-footer">
-        <span>Model: Plackett-Luce | Devig: {data.meta.devig_method} | {data.meta.n_simulations.toLocaleString()} simulations</span>
+        <span>Model: Plackett-Luce | Devig: {data.meta.devig_method} | {data.meta.n_simulations.toLocaleString()} sims | Fit loss: {data.meta.fit_loss?.toFixed(5) ?? '—'}{data.meta.fit_converged === false && ' (not converged)'}</span>
         <span>Updated {new Date(data.meta.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       </footer>
     </div>

@@ -243,9 +243,7 @@ export default function Methodology({ data }) {
           <li style={{ marginBottom: 6 }}>Start with an initial guess for all 22 {'\u03BB'} values (based on the win probabilities).</li>
           <li style={{ marginBottom: 6 }}>Simulate ~20,000 races using those {'\u03BB'} values. From the simulated results, compute model-implied
             cumulative probabilities: P(top 1), P(top 3), P(top 6), P(top 10) for each driver.</li>
-          <li style={{ marginBottom: 6 }}>Compare those model probabilities to the devigged market probabilities. The loss function is the
-            sum of squared errors across all drivers and markets, plus regularization terms that penalize
-            large gaps between teammates and extreme {'\u03BB'} values.</li>
+          <li style={{ marginBottom: 6 }}>Compare those model probabilities to the devigged market probabilities by computing the loss (details below).</li>
           <li style={{ marginBottom: 6 }}>The optimizer (scipy's <strong>L-BFGS-B</strong> — a quasi-Newton method) uses the loss and its
             approximate gradient to choose a direction in 22-dimensional parameter space and take a step.
             L-BFGS-B approximates the Hessian from recent gradient evaluations, so it can take
@@ -253,10 +251,57 @@ export default function Methodology({ data }) {
           <li style={{ marginBottom: 6 }}>Repeat: simulate another ~20K races with the updated {'\u03BB'} values, compute loss, take another step.
             Each evaluation uses a different random seed to smooth the stochastic loss surface.</li>
         </ol>
+        <h3>The Objective Function</h3>
+        <p>
+          The loss function the optimizer minimizes has three terms:
+        </p>
+        <div className="objective-fn" style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '16px 20px',
+          margin: '12px 0 16px',
+          maxWidth: 640,
+          fontSize: '0.85rem',
+          lineHeight: 1.8,
+          color: 'var(--text)',
+          fontFamily: 'var(--font-data)',
+        }}>
+          <div style={{ marginBottom: 8 }}>
+            <strong style={{ color: 'var(--text-bright)' }}>L</strong> ={'  '}
+            <span style={{ color: 'var(--text-muted)' }}>
+              {'\u03A3'}<sub>market, driver</sub>{' '}
+              ( P<sub>model</sub>(driver, market) {'\u2212'} P<sub>market</sub>(driver, market) )<sup>2</sup>
+            </span>
+          </div>
+          <div style={{ marginBottom: 8, paddingLeft: 24 }}>
+            <span style={{ color: 'var(--text-dim)' }}>+{'  '}</span>
+            <span style={{ color: 'var(--text-muted)' }}>
+              {'\u03B1'}<sub>team</sub> {'\u00B7'} {'\u03A3'}<sub>teammates</sub>{' '}
+              ( log{'\u03BB'}<sub>i</sub> {'\u2212'} log{'\u03BB'}<sub>j</sub> )<sup>2</sup>
+            </span>
+            <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}> — teammate similarity</span>
+          </div>
+          <div style={{ paddingLeft: 24 }}>
+            <span style={{ color: 'var(--text-dim)' }}>+{'  '}</span>
+            <span style={{ color: 'var(--text-muted)' }}>
+              {'\u03B1'}<sub>shrink</sub> {'\u00B7'} {'\u03A3'}<sub>i</sub>{' '}
+              ( log{'\u03BB'}<sub>i</sub> {'\u2212'} <span style={{ textDecoration: 'overline' }}>log{'\u03BB'}</span> )<sup>2</sup>
+            </span>
+            <span style={{ color: 'var(--text-dim)', fontSize: '0.78rem' }}> — shrinkage toward mean</span>
+          </div>
+        </div>
+        <p>
+          The first term is the data fit: for each market (win, podium, top 6, top 10, DNF) and each
+          driver with odds in that market, the squared difference between what the model predicts
+          (via simulation) and the devigged market probability. The second term penalizes large
+          gaps between teammates — most performance difference is the car, not the driver. The third
+          term is mild shrinkage toward the mean, preventing extreme {'\u03BB'} values when data is sparse.
+        </p>
         <p>
           After ~100-200 iterations (2-4 million simulated races total), the optimizer converges.
-          The fit loss reported in the dashboard footer tells you how well the final {'\u03BB'} values
-          reproduce the market odds — lower is better.
+          The fit loss is shown in the dashboard footer — lower means the model better reproduces the
+          market odds.
         </p>
 
         <details className="deep-dive">
