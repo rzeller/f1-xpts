@@ -223,18 +223,46 @@ def process_odds_to_fair_probs(
             observed_probs["dnf"] = probs
             continue
 
-        # Standard multi-runner market: devig across all runners
-        fair = devig_market(market_odds, format="american", method=devig_method)
+        # Placement markets (podium, top6, top10) are binary yes/no per driver:
+        # "Will this driver finish in the top N?" Each driver's prob is independent,
+        # so they should sum to N (not 1). Devig each as a binary market.
+        #
+        # Win market is a true multi-runner outright: exactly one winner,
+        # probabilities should sum to 1. Use Shin's method.
+        placement_slots = {"podium": 3, "top6": 6, "top10": 10}
 
-        probs = {}
-        for name, prob in fair.items():
-            idx = resolve_driver_index(name)
-            if idx is None:
-                print(f"  Warning: could not match '{name}'")
-                continue
-            probs[idx] = prob
+        if market_name in placement_slots:
+            probs = {}
+            target_sum = placement_slots[market_name]
+            # Devig as binary markets, then rescale so they sum to target
+            raw_implied = {}
+            for name, odds_val in market_odds.items():
+                idx = resolve_driver_index(name)
+                if idx is None:
+                    print(f"  Warning: could not match '{name}'")
+                    continue
+                raw_implied[idx] = american_to_implied(odds_val)
 
-        observed_probs[market_name] = probs
+            # The overround is distributed across all runners
+            total_implied = sum(raw_implied.values())
+            scale = target_sum / total_implied
+            for idx, imp in raw_implied.items():
+                probs[idx] = imp * scale
+
+            observed_probs[market_name] = probs
+        else:
+            # Win market: true multi-runner outright, devig with Shin's method
+            fair = devig_market(market_odds, format="american", method=devig_method)
+
+            probs = {}
+            for name, prob in fair.items():
+                idx = resolve_driver_index(name)
+                if idx is None:
+                    print(f"  Warning: could not match '{name}'")
+                    continue
+                probs[idx] = prob
+
+            observed_probs[market_name] = probs
 
     return observed_probs
 

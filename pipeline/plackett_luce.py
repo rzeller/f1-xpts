@@ -53,23 +53,28 @@ def simulate_races(
     # DNF mask: True if driver DNFs in this sim
     dnf_mask = rng.random((n_sims, n)) < p_dnfs[np.newaxis, :]  # (n_sims, n_drivers)
 
-    # Set DNF drivers to -inf so they sort last
-    utilities[dnf_mask] = -np.inf
+    # For the PL ranking, exclude DNF drivers by setting utility to -inf
+    utilities_for_sort = utilities.copy()
+    utilities_for_sort[dnf_mask] = -np.inf
 
     # Argsort descending = finishing order (highest utility = P1)
-    # rankings[s, k] = driver index who finished position k+1 in sim s
-    rankings = np.argsort(-utilities, axis=1)  # (n_sims, n_drivers)
+    rankings = np.argsort(-utilities_for_sort, axis=1)  # (n_sims, n_drivers)
 
-    # Convert rankings to positions: positions[s, i] = position of driver i in sim s
+    # Convert rankings to positions: positions[s, i] = raw rank of driver i
     positions = np.argsort(rankings, axis=1)  # (n_sims, n_drivers)
+
+    # Count finishers per sim to know how many real positions exist
+    n_finishers = (~dnf_mask).sum(axis=1)  # (n_sims,)
 
     # Count position frequencies
     position_counts = np.zeros((n, n + 1), dtype=np.float64)
     for i in range(n):
-        driver_positions = positions[:, i]  # (n_sims,) positions for driver i
+        driver_positions = positions[:, i]  # (n_sims,) raw rank for driver i
         driver_dnfs = dnf_mask[:, i]       # (n_sims,) DNF mask for driver i
 
         # Count finishing positions (only for non-DNF sims)
+        # DNF drivers sort last but their positions are meaningless —
+        # only count positions for drivers who actually finished
         finish_positions = driver_positions[~driver_dnfs]
         if len(finish_positions) > 0:
             counts = np.bincount(finish_positions, minlength=n)
@@ -119,8 +124,8 @@ def fit_plackett_luce(
     team_indices: np.ndarray,
     n_sims: int = 10000,
     method: str = "Powell",
-    team_reg: float = 0.1,
-    smoothness_reg: float = 0.05,
+    team_reg: float = 0.02,
+    smoothness_reg: float = 0.005,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -143,14 +148,16 @@ def fit_plackett_luce(
     """
     n = len(team_indices)
 
-    # Initial guess: roughly ordered by win probability if available
+    # Initial guess: in PL, P(i wins) ≈ λ_i / Σ λ_j, so log(P_win) is a
+    # good starting point for log(λ). This preserves the full spread of the
+    # odds rather than compressing it.
     if "win" in observed_probs:
         win_probs = observed_probs["win"]
-        # Higher win prob → higher lambda
         init_log_lambdas = np.array([
-            np.log(max(win_probs.get(i, 0.01), 0.001) * 100 + 1)
+            np.log(max(win_probs.get(i, 0.0001), 0.0001))
             for i in range(n)
         ])
+        init_log_lambdas -= init_log_lambdas.mean()  # center at 0
     else:
         init_log_lambdas = np.zeros(n)
 
