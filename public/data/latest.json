@@ -892,8 +892,8 @@
       ]
     },
     {
-      "name": "Jack Doohan",
-      "abbr": "DOO",
+      "name": "Sergio Perez",
+      "abbr": "PER",
       "team_idx": 10,
       "lambda": -1.0,
       "p_dnf": 0.18,
@@ -933,8 +933,8 @@
       ]
     },
     {
-      "name": "Mario Andretti Jr",
-      "abbr": "AND",
+      "name": "Valtteri Bottas",
+      "abbr": "BOT",
       "team_idx": 10,
       "lambda": -1.1,
       "p_dnf": 0.18,
