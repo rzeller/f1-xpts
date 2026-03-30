@@ -229,10 +229,10 @@ Odds are in **American format**. Not every driver needs to appear in every marke
 | Esteban Ocon | Haas | OCO |
 | Nico Hülkenberg | Kick Sauber (Audi) | HUL |
 | Gabriel Bortoleto | Kick Sauber (Audi) | BOR |
-| Jack Doohan | Cadillac | DOO |
-| Mario Andretti Jr | Cadillac | AND |
+| Sergio Perez | Cadillac | PER |
+| Valtteri Bottas | Cadillac | BOT |
 
-**NOTE:** The Cadillac drivers may need updating — verify current roster.
+**Verified March 2026** — Cadillac roster confirmed: Sergio Perez and Valtteri Bottas.
 
 ## Setup Instructions for Claude Code
 

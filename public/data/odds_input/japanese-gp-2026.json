@@ -11,7 +11,7 @@
       "Tsunoda": 12000, "Lawson": 5000, "Hadjar": 15000,
       "Ocon": 15000, "Colapinto": 20000, "Stroll": 25000,
       "Hulkenberg": 30000, "Bortoleto": 40000,
-      "Doohan": 50000, "Andretti": 60000
+      "Perez": 50000, "Bottas": 60000
     },
     "podium": {
       "Russell": -300, "Antonelli": -200, "Leclerc": 120,
@@ -21,7 +21,7 @@
       "Alonso": 2000, "Tsunoda": 2500, "Hadjar": 3000,
       "Ocon": 3500, "Colapinto": 5000, "Stroll": 6000,
       "Hulkenberg": 8000, "Bortoleto": 10000,
-      "Doohan": 15000, "Andretti": 20000
+      "Perez": 15000, "Bottas": 20000
     },
     "top6": {
       "Russell": -800, "Antonelli": -600, "Leclerc": -250,
@@ -31,7 +31,7 @@
       "Alonso": 350, "Tsunoda": 400, "Hadjar": 500,
       "Ocon": 550, "Colapinto": 700, "Stroll": 800,
       "Hulkenberg": 1200, "Bortoleto": 1500,
-      "Doohan": 2000, "Andretti": 2500
+      "Perez": 2000, "Bottas": 2500
     },
     "dnf": {
       "Russell": 1200, "Antonelli": 900, "Leclerc": 1000,
@@ -41,7 +41,7 @@
       "Alonso": 400, "Tsunoda": 700, "Hadjar": 600,
       "Ocon": 700, "Colapinto": 500, "Stroll": 400,
       "Hulkenberg": 350, "Bortoleto": 350,
-      "Doohan": 300, "Andretti": 300
+      "Perez": 300, "Bottas": 300
     }
   }
 }

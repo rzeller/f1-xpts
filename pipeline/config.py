@@ -44,8 +44,8 @@ DRIVERS = [
     {"name": "Esteban Ocon", "team_idx": 8, "abbr": "OCO"},
     {"name": "Nico Hülkenberg", "team_idx": 9, "abbr": "HUL"},
     {"name": "Gabriel Bortoleto", "team_idx": 9, "abbr": "BOR"},
-    {"name": "Jack Doohan", "team_idx": 10, "abbr": "DOO"},
-    {"name": "Mario Andretti Jr", "team_idx": 10, "abbr": "AND"},
+    {"name": "Sergio Perez", "team_idx": 10, "abbr": "PER"},
+    {"name": "Valtteri Bottas", "team_idx": 10, "abbr": "BOT"},
 ]
 
 N_DRIVERS = len(DRIVERS)
@@ -59,6 +59,15 @@ for i, d in enumerate(DRIVERS):
     DRIVER_NAME_MAP[d["name"].lower()] = i
     DRIVER_NAME_MAP[d["name"].split()[-1].lower()] = i
     DRIVER_NAME_MAP[d["abbr"].lower()] = i
+
+# Explicit aliases for names with special characters or common alternate spellings
+_ALIASES = {
+    "hulkenberg": "hülkenberg",
+    "hulk": "hülkenberg",
+}
+for alias, canonical in _ALIASES.items():
+    if canonical in DRIVER_NAME_MAP:
+        DRIVER_NAME_MAP[alias] = DRIVER_NAME_MAP[canonical]
 
 # Sprint weekends in 2026
 SPRINT_WEEKENDS = [
