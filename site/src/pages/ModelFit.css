@@ -1,0 +1,212 @@
+.model-fit {
+  padding-bottom: 48px;
+}
+
+.fit-header {
+  margin-bottom: 24px;
+}
+
+.fit-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: var(--text-bright);
+  letter-spacing: -0.5px;
+}
+
+.fit-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* Overview cards */
+.fit-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+
+.fit-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.card-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.card-value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.card-detail {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+/* Sections */
+.fit-section {
+  margin-bottom: 36px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.fit-section h2 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+
+.fit-section > p {
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  margin-bottom: 16px;
+  line-height: 1.6;
+  max-width: 700px;
+}
+
+/* Charts */
+.loss-chart,
+.residuals-chart {
+  width: 100%;
+  max-width: 700px;
+  height: auto;
+}
+
+/* Market input grid */
+.market-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.market-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+}
+
+.market-name {
+  font-weight: 600;
+  color: var(--text-bright);
+  text-transform: capitalize;
+  margin-bottom: 2px;
+}
+
+.market-count {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-bottom: 8px;
+}
+
+.market-drivers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.driver-chip {
+  font-size: 0.65rem;
+  background: var(--bg-active);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 1px 5px;
+  color: var(--text-muted);
+}
+
+.config-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+.config-row strong {
+  color: var(--text-muted);
+}
+
+/* Top residuals */
+.top-residuals {
+  max-width: 500px;
+}
+
+.resid-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  font-size: 0.78rem;
+}
+
+.resid-label {
+  width: 80px;
+  flex-shrink: 0;
+  color: var(--text);
+  font-weight: 500;
+}
+
+.resid-market {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 0.7rem;
+}
+
+.resid-bar-wrap {
+  flex: 1;
+  height: 10px;
+  background: var(--bg-surface);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.resid-bar {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s;
+}
+
+.resid-bar.over {
+  background: var(--red);
+}
+
+.resid-bar.under {
+  background: #3b82f6;
+}
+
+.resid-val {
+  width: 60px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.75rem;
+}
+
+.resid-val.over {
+  color: var(--red);
+}
+
+.resid-val.under {
+  color: #3b82f6;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .fit-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

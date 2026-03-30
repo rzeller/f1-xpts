@@ -45,8 +45,21 @@ def build_output_json(
     fit_info: dict,
     log_lambdas: np.ndarray,
     p_dnfs: np.ndarray,
+    observed_probs: dict = None,
+    n_final_sims: int = 50000,
+    devig_method: str = "shin",
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
+    # Build market input summary
+    market_inputs = []
+    if observed_probs:
+        for market, probs in observed_probs.items():
+            market_inputs.append({
+                "market": market,
+                "n_drivers": len(probs),
+                "drivers": [DRIVERS[i]["abbr"] for i in sorted(probs.keys())],
+            })
+
     return {
         "meta": {
             "generated_at": datetime.now(timezone.utc).isoformat(),
@@ -54,8 +67,8 @@ def build_output_json(
             "date": race_info.get("date", ""),
             "is_sprint": race_info.get("is_sprint", False),
             "model": "plackett-luce",
-            "n_simulations": 50000,
-            "devig_method": "shin",
+            "n_simulations": n_final_sims,
+            "devig_method": devig_method,
             "fit_loss": fit_info.get("loss", None),
             "fit_converged": fit_info.get("success", None),
         },
@@ -69,6 +82,23 @@ def build_output_json(
             "dnf_penalty": DNF_PENALTY,
         },
         "drivers": drivers_data,
+        "fit": {
+            "method": fit_info.get("method", "unknown"),
+            "converged": fit_info.get("success", None),
+            "final_loss": fit_info.get("loss", None),
+            "n_evals": fit_info.get("n_evals", None),
+            "n_steps": fit_info.get("n_steps", None),
+            "elapsed_seconds": fit_info.get("elapsed_seconds", None),
+            "n_sims_per_eval": fit_info.get("n_sims_per_eval", None),
+            "n_params": fit_info.get("n_params", None),
+            "team_reg": fit_info.get("team_reg", None),
+            "smoothness_reg": fit_info.get("smoothness_reg", None),
+            "message": fit_info.get("message", ""),
+            "loss_history": fit_info.get("loss_history", []),
+            "step_losses": fit_info.get("step_losses", []),
+            "residuals": fit_info.get("residuals", []),
+            "market_inputs": market_inputs,
+        },
     }
 
 
@@ -149,7 +179,12 @@ def run_pipeline(
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "races").mkdir(exist_ok=True)
 
-    output = build_output_json(drivers_data, race_info, fit_info, log_lambdas, p_dnfs)
+    output = build_output_json(
+        drivers_data, race_info, fit_info, log_lambdas, p_dnfs,
+        observed_probs=observed_probs,
+        n_final_sims=n_final_sims,
+        devig_method=devig_method,
+    )
 
     # Write latest.json (what the frontend reads)
     latest_path = output_dir / "latest.json"
