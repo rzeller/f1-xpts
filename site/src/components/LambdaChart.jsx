@@ -48,10 +48,12 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
           const yB = pad.top + b.sortIdx * rowH + rowH / 2;
           const xA = toX(a.lambda);
           const xB = toX(b.lambda);
+          const selectedTeamIdx = selectedIdx != null ? drivers[selectedIdx]?.team_idx : null;
+          const pairSelected = a.team_idx === selectedTeamIdx;
           return (
             <line key={`${a.abbr}-${b.abbr}`}
               x1={xA} y1={yA} x2={xB} y2={yB}
-              stroke={color} strokeWidth={1} opacity={0.25}
+              stroke={color} strokeWidth={pairSelected ? 2 : 1} opacity={pairSelected ? 0.7 : 0.25}
             />
           );
         })}
@@ -61,7 +63,8 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
           const y = pad.top + i * rowH + rowH / 2;
           const x = toX(d.lambda);
           const color = teams[d.team_idx].color;
-          const isSelected = d.origIdx === selectedIdx;
+          const selectedTeamIdx = selectedIdx != null ? drivers[selectedIdx]?.team_idx : null;
+          const isSelected = d.origIdx === selectedIdx || (selectedTeamIdx != null && d.team_idx === selectedTeamIdx);
 
           return (
             <g key={d.abbr}
@@ -88,7 +91,7 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
 
               {/* Lambda value */}
               <text x={x + 10} y={y + 4}
-                fill="var(--text-dim)" fontSize={10} fontFamily="var(--font-data)">
+                fill={isSelected ? 'var(--text-bright)' : 'var(--text-dim)'} fontSize={10} fontFamily="var(--font-data)" fontWeight={isSelected ? 600 : 400}>
                 {d.lambda.toFixed(2)}
               </text>
             </g>
