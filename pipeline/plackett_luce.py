@@ -176,6 +176,8 @@ def fit_plackett_luce(
     eval_count = [0]
     step_count = [0]
     best_loss = [float('inf')]
+    loss_history = []  # (eval_num, loss, loss_data, loss_team, loss_shrink)
+    step_losses = []   # loss at each optimizer step
     import time
     start_time = [time.time()]
 
@@ -230,6 +232,16 @@ def fit_plackett_luce(
         if loss < best_loss[0]:
             best_loss[0] = loss
 
+        # Record loss history (subsample to keep JSON manageable)
+        if eval_count[0] <= 50 or eval_count[0] % 10 == 0:
+            loss_history.append({
+                "eval": eval_count[0],
+                "loss": round(loss, 6),
+                "data": round(loss_data, 6),
+                "team": round(loss_team, 6),
+                "shrink": round(loss_shrink, 6),
+            })
+
         # Log every eval with timing
         elapsed = time.time() - start_time[0]
         evals_per_sec = eval_count[0] / max(elapsed, 0.01)
@@ -252,6 +264,12 @@ def fit_plackett_luce(
     def callback(xk):
         step_count[0] += 1
         elapsed = time.time() - start_time[0]
+        step_losses.append({
+            "step": step_count[0],
+            "eval": eval_count[0],
+            "best_loss": round(best_loss[0], 6),
+            "elapsed": round(elapsed, 1),
+        })
         print(
             f"  --- STEP {step_count[0]:3d} complete | "
             f"{eval_count[0]} total evals | "
@@ -279,11 +297,39 @@ def fit_plackett_luce(
     # Normalize: set mean log_lambda to 0 (arbitrary scale)
     log_lambdas -= log_lambdas.mean()
 
+    # Compute final residuals with a large simulation for accuracy
+    final_pos_probs = simulate_races(log_lambdas, p_dnfs, n_sims=50000, seed=99999)
+    market_cutoffs = {"win": 1, "podium": 3, "top6": 6, "top10": 10}
+    residuals = []
+    for market, cutoff in market_cutoffs.items():
+        if market not in observed_probs:
+            continue
+        for i, obs_p in observed_probs[market].items():
+            model_p = float(final_pos_probs[i, :cutoff].sum())
+            residuals.append({
+                "market": market,
+                "driver_idx": i,
+                "driver": DRIVERS[i]["abbr"],
+                "observed": round(obs_p, 4),
+                "model": round(model_p, 4),
+                "residual": round(model_p - obs_p, 4),
+            })
+
     fit_info = {
         "loss": float(result.fun),
         "success": result.success,
         "n_evals": eval_count[0],
+        "n_steps": step_count[0],
+        "elapsed_seconds": round(time.time() - start_time[0], 1),
+        "method": method,
+        "n_sims_per_eval": n_sims,
+        "n_params": n_params,
+        "team_reg": team_reg,
+        "smoothness_reg": smoothness_reg,
         "message": result.message if hasattr(result, "message") else "",
+        "loss_history": loss_history,
+        "step_losses": step_losses,
+        "residuals": residuals,
     }
 
     return log_lambdas, p_dnfs, fit_info

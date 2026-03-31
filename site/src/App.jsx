@@ -3,6 +3,7 @@ import { useData } from './hooks/useData';
 import Nav from './components/Nav';
 import Dashboard from './pages/Dashboard';
 import Methodology from './pages/Methodology';
+import ModelFit from './pages/ModelFit';
 
 export default function App() {
   const { data, loading, error } = useData();
@@ -29,8 +30,10 @@ export default function App() {
       <Nav page={page} setPage={setPage} race={data.meta.race} />
       {page === 'dashboard' ? (
         <Dashboard data={data} />
-      ) : (
+      ) : page === 'methodology' ? (
         <Methodology data={data} />
+      ) : (
+        <ModelFit data={data} />
       )}
     </>
   );

@@ -20,6 +20,12 @@ export default function Nav({ page, setPage, race }) {
         >
           Methodology
         </button>
+        <button
+          className={`nav-link ${page === 'model-fit' ? 'active' : ''}`}
+          onClick={() => setPage('model-fit')}
+        >
+          Model Fit
+        </button>
       </div>
     </nav>
   );
