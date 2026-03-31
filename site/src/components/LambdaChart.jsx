@@ -48,10 +48,12 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
           const yB = pad.top + b.sortIdx * rowH + rowH / 2;
           const xA = toX(a.lambda);
           const xB = toX(b.lambda);
+          const selectedTeamIdx = selectedIdx != null ? drivers[selectedIdx]?.team_idx : null;
+          const pairSelected = a.team_idx === selectedTeamIdx;
           return (
             <line key={`${a.abbr}-${b.abbr}`}
               x1={xA} y1={yA} x2={xB} y2={yB}
-              stroke={color} strokeWidth={1} opacity={0.25}
+              stroke={color} strokeWidth={pairSelected ? 2 : 1} opacity={pairSelected ? 0.7 : 0.25}
             />
           );
         })}
@@ -61,7 +63,9 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
           const y = pad.top + i * rowH + rowH / 2;
           const x = toX(d.lambda);
           const color = teams[d.team_idx].color;
+          const selectedTeamIdx = selectedIdx != null ? drivers[selectedIdx]?.team_idx : null;
           const isSelected = d.origIdx === selectedIdx;
+          const isTeammate = !isSelected && selectedTeamIdx != null && d.team_idx === selectedTeamIdx;
 
           return (
             <g key={d.abbr}
@@ -75,20 +79,21 @@ export default function LambdaChart({ drivers, teams, selectedIdx, onSelect }) {
 
               {/* Name */}
               <text x={pad.left - 8} y={y + 4} textAnchor="end"
-                fill={isSelected ? 'var(--text-bright)' : 'var(--text-muted)'}
-                fontSize={11} fontFamily="var(--font-data)" fontWeight={isSelected ? 600 : 400}>
+                fill={isSelected ? 'var(--text-bright)' : isTeammate ? '#888' : 'var(--text-muted)'}
+                fontSize={11} fontFamily="var(--font-data)" fontWeight={isSelected || isTeammate ? 600 : 400}>
                 {d.abbr}
               </text>
 
               {/* Dot */}
-              <circle cx={x} cy={y} r={isSelected ? 6 : 4.5}
-                fill={color} opacity={isSelected ? 1 : 0.7}
-                stroke={isSelected ? 'var(--text-bright)' : 'none'} strokeWidth={1.5}
+              <circle cx={x} cy={y} r={isSelected || isTeammate ? 6 : 4.5}
+                fill={color} opacity={isSelected || isTeammate ? 1 : 0.7}
+                stroke={isSelected ? 'var(--text-bright)' : isTeammate ? '#888' : 'none'} strokeWidth={1.5}
               />
 
               {/* Lambda value */}
               <text x={x + 10} y={y + 4}
-                fill="var(--text-dim)" fontSize={10} fontFamily="var(--font-data)">
+                fill={isSelected ? 'var(--text-bright)' : isTeammate ? '#888' : 'var(--text-dim)'}
+                fontSize={10} fontFamily="var(--font-data)" fontWeight={isSelected || isTeammate ? 600 : 400}>
                 {d.lambda.toFixed(2)}
               </text>
             </g>
