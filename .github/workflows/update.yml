@@ -46,4 +46,6 @@ jobs:
           git config user.email "bot@f1xpts.dev"
           git add public/data/
           git diff --staged --quiet || git commit -m "Update: $(date -u +%Y-%m-%d) race projections"
-          git push origin master
+          git fetch origin master
+          git rebase origin/master
+          git push origin HEAD:master
