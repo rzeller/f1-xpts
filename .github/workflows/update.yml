@@ -41,10 +41,9 @@ jobs:
           python pipeline/update.py --output public/data $MANUAL
 
       - name: Commit and push (triggers Vercel redeploy)
-        run: |
-          git config user.name "F1 Bot"
-          git config user.email "bot@f1xpts.dev"
-          git add public/data/
-          git diff --staged --quiet || git commit -m "Update: $(date -u +%Y-%m-%d) race projections"
-          git pull --rebase origin master
-          git push origin master
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update: race projections"
+          file_pattern: "public/data/**"
+          commit_user_name: "F1 Bot"
+          commit_user_email: "bot@f1xpts.dev"
