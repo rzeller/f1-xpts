@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-03-30T05:12:21.395120+00:00",
+    "generated_at": "2026-04-04T02:46:16.725345+00:00",
     "race": "Japanese Grand Prix",
     "date": "2026-03-29",
     "is_sprint": false,
@@ -991,7 +991,7 @@
     "final_loss": 0.28006718721405716,
     "n_evals": 1733,
     "n_steps": 5,
-    "elapsed_seconds": 22.7,
+    "elapsed_seconds": 28.2,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.02,
@@ -2530,31 +2530,31 @@
         "step": 1,
         "eval": 247,
         "best_loss": 0.890902,
-        "elapsed": 3.1
+        "elapsed": 4.1
       },
       {
         "step": 2,
         "eval": 585,
         "best_loss": 0.369096,
-        "elapsed": 7.5
+        "elapsed": 9.6
       },
       {
         "step": 3,
         "eval": 966,
         "best_loss": 0.287154,
-        "elapsed": 12.6
+        "elapsed": 15.8
       },
       {
         "step": 4,
         "eval": 1321,
         "best_loss": 0.279002,
-        "elapsed": 17.2
+        "elapsed": 21.5
       },
       {
         "step": 5,
         "eval": 1733,
         "best_loss": 0.277576,
-        "elapsed": 22.6
+        "elapsed": 28.2
       }
     ],
     "residuals": [
