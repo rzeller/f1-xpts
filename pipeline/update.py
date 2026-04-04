@@ -48,6 +48,7 @@ def build_output_json(
     observed_probs: dict = None,
     n_final_sims: int = 50000,
     devig_method: str = "shin",
+    run_type: str = "",
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
     # Build market input summary
@@ -71,6 +72,7 @@ def build_output_json(
             "devig_method": devig_method,
             "fit_loss": fit_info.get("loss", None),
             "fit_converged": fit_info.get("success", None),
+            "run_type": run_type,
         },
         "teams": [
             {"name": t["name"], "color": t["color"]}
@@ -109,6 +111,7 @@ def run_pipeline(
     n_fit_sims: int = 20000,
     n_final_sims: int = 50000,
     devig_method: str = "shin",
+    run_type: str = "",
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
@@ -184,6 +187,7 @@ def run_pipeline(
         observed_probs=observed_probs,
         n_final_sims=n_final_sims,
         devig_method=devig_method,
+        run_type=run_type,
     )
 
     # Write latest.json (what the frontend reads)
@@ -239,6 +243,11 @@ def main():
         choices=["shin", "multiplicative", "power"],
         help="Devigorization method (default: shin)",
     )
+    parser.add_argument(
+        "--run-type",
+        default="",
+        help="Run type label (pre_weekend, pre_qualifying, manual)",
+    )
 
     args = parser.parse_args()
 
@@ -265,6 +274,7 @@ def main():
         n_fit_sims=args.fit_sims,
         n_final_sims=args.final_sims,
         devig_method=args.devig_method,
+        run_type=args.run_type,
     )
 
 

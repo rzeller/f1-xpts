@@ -36,6 +36,7 @@ export default function Dashboard({ data }) {
         <div className="dash-title-row">
           <h1>{data.meta.race}</h1>
           {data.meta.is_sprint && <span className="sprint-badge">Sprint Weekend</span>}
+          {data.meta.run_type === 'pre_qualifying' && <span className="picks-ready-badge">Ready for picks</span>}
         </div>
         <p className="dash-subtitle">{date}</p>
       </header>
