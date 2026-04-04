@@ -11,6 +11,7 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
 
 jobs:
   update:
@@ -37,30 +38,21 @@ jobs:
           fi
           python pipeline/update.py --output public/data $MANUAL
 
-      - name: Commit and push (triggers Vercel redeploy)
+      - name: Create PR and merge (triggers Vercel redeploy)
+        uses: peter-evans/create-pull-request@v7
+        id: create-pr
+        with:
+          commit-message: "Update: race projections"
+          title: "Update: race projections"
+          body: "Automated update from pipeline run."
+          branch: bot/update-projections
+          delete-branch: true
+          committer: "F1 Bot <bot@f1xpts.dev>"
+
+      - name: Auto-merge PR
+        if: steps.create-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "F1 Bot"
-          git config user.email "bot@f1xpts.dev"
-          git add public/data/
-          git diff --staged --quiet && echo "No changes to commit" && exit 0
-
-          echo "=== Debug: before commit ==="
-          echo "HEAD: $(git rev-parse HEAD)"
-          echo "Branch: $(git branch --show-current)"
-          echo "GITHUB_SHA: $GITHUB_SHA"
-          echo "GITHUB_REF: $GITHUB_REF"
-
-          git commit -m "Update: $(date -u +%Y-%m-%d) race projections"
-
-          echo "=== Debug: fetching remote ==="
-          git fetch origin
-          echo "Local HEAD: $(git rev-parse HEAD)"
-          echo "Remote master: $(git rev-parse origin/master)"
-          echo "HEAD~1: $(git rev-parse HEAD~1)"
-
-          echo "=== Debug: rebasing ==="
-          git rebase origin/master
-
-          echo "=== Debug: pushing ==="
-          echo "Final HEAD: $(git rev-parse HEAD)"
-          git push origin HEAD:refs/heads/master
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} \
+            --squash --delete-branch
