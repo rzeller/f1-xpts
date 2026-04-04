@@ -102,6 +102,40 @@ def build_output_json(
     }
 
 
+def _write_race_index(races_dir: Path):
+    """Scan race snapshot files and write an index.json manifest."""
+    races = []
+    for race_file in sorted(races_dir.glob("*.json")):
+        if race_file.name == "index.json":
+            continue
+        try:
+            with open(race_file) as f:
+                meta = json.load(f).get("meta", {})
+            races.append({
+                "slug": race_file.stem,
+                "name": meta.get("race", race_file.stem),
+                "date": meta.get("date", ""),
+                "is_sprint": meta.get("is_sprint", False),
+                "generated_at": meta.get("generated_at", ""),
+            })
+        except (json.JSONDecodeError, OSError):
+            continue
+
+    # Sort by race date
+    races.sort(key=lambda r: r["date"])
+
+    # Latest = most recently generated
+    latest_slug = ""
+    if races:
+        latest_slug = max(races, key=lambda r: r["generated_at"])["slug"]
+
+    index = {"races": races, "latest": latest_slug}
+    index_path = races_dir / "index.json"
+    with open(index_path, "w") as f:
+        json.dump(index, f, indent=2)
+    print(f"  Wrote {index_path}")
+
+
 def run_pipeline(
     manual_file: str = None,
     api_key: str = None,
@@ -198,6 +232,9 @@ def run_pipeline(
     with open(race_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"  Wrote {race_path}")
+
+    # Write races/index.json manifest (scan all race snapshots)
+    _write_race_index(output_dir / "races")
 
     print("\n" + "=" * 60)
     print("Pipeline complete!")
