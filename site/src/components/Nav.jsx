@@ -5,7 +5,7 @@ export default function Nav({ page, setPage, race, races, selectedRace, onRaceCh
     <nav className="nav">
       <div className="nav-left">
         <span className="nav-logo">F1 xPts</span>
-        {races.length > 1 ? (
+        {races && races.length > 1 ? (
           <select
             className="nav-race-select"
             value={selectedRace || ''}
@@ -33,6 +33,12 @@ export default function Nav({ page, setPage, race, races, selectedRace, onRaceCh
           onClick={() => setPage('methodology')}
         >
           Methodology
+        </button>
+        <button
+          className={`nav-link ${page === 'schedule' ? 'active' : ''}`}
+          onClick={() => setPage('schedule')}
+        >
+          Schedule
         </button>
       </div>
     </nav>

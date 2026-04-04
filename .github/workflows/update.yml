@@ -7,7 +7,20 @@ on:
         description: 'Manual odds file (e.g. public/data/odds_input/japanese-gp-2026.json)'
         required: false
   schedule:
-    - cron: '0 6 * * 5'   # Fridays 6am UTC
+    # Run at various UTC hours to cover race weekends across all timezones.
+    # The check-schedule step determines if this is actually a race weekend
+    # that needs a pipeline run. Most runs will exit early (no-op).
+    #
+    # Covers before-FP1 and after-FP3 windows for:
+    #   - Asia-Pacific races (sessions ~01:00-07:00 UTC)
+    #   - European races (sessions ~09:00-15:00 UTC)
+    #   - Americas races (sessions ~16:00-22:00 UTC)
+    - cron: '0 0 * * 4,5,6'    # 00:00 UTC Thu/Fri/Sat — before FP1 for Asia-Pacific
+    - cron: '0 5 * * 5,6'      # 05:00 UTC Fri/Sat — after FP3 for Asia-Pacific
+    - cron: '0 8 * * 4,5,6'    # 08:00 UTC Thu/Fri/Sat — before FP1 for Europe
+    - cron: '0 13 * * 5,6'     # 13:00 UTC Fri/Sat — after FP3 for Europe
+    - cron: '0 15 * * 4,5,6'   # 15:00 UTC Thu/Fri/Sat — before FP1 for Americas
+    - cron: '0 20 * * 5,6'     # 20:00 UTC Fri/Sat — after FP3 for Americas
 
 permissions:
   contents: write
@@ -19,15 +32,91 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check if pipeline should run
+        id: check
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          from datetime import datetime, timedelta, timezone
+
+          now = datetime.now(timezone.utc)
+
+          with open("public/data/schedule.json") as f:
+              schedule = json.load(f)
+
+          # For manual dispatch, always run
+          if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
+              print("Manual dispatch — running pipeline")
+              with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+                  f.write("should_run=true\n")
+                  f.write("run_type=manual\n")
+              raise SystemExit(0)
+
+          should_run = False
+          run_type = ""
+          reason = ""
+
+          for race in schedule["races"]:
+              sessions = race["sessions"]
+              fp1_time = datetime.fromisoformat(sessions["fp1"].replace("Z", "+00:00"))
+
+              # Window 1: 3h to 30min before FP1
+              window1_start = fp1_time - timedelta(hours=3)
+              window1_end = fp1_time - timedelta(minutes=30)
+
+              # Window 2: between last practice end and first qualifying start.
+              # Standard weekend: after FP3 (1h session), before Qualifying.
+              # Sprint weekend: after FP1 (1h session), before Sprint Qualifying.
+              if race.get("is_sprint"):
+                  last_practice_end = fp1_time + timedelta(hours=1)
+                  first_quali = datetime.fromisoformat(sessions["sprint_qualifying"].replace("Z", "+00:00"))
+              elif "fp3" in sessions:
+                  fp3_time = datetime.fromisoformat(sessions["fp3"].replace("Z", "+00:00"))
+                  last_practice_end = fp3_time + timedelta(hours=1)
+                  first_quali = datetime.fromisoformat(sessions["qualifying"].replace("Z", "+00:00"))
+              else:
+                  # Saturday-race formats without FP3 (e.g. Baku): use qualifying time
+                  last_practice_end = fp1_time + timedelta(hours=1)
+                  first_quali = datetime.fromisoformat(sessions["qualifying"].replace("Z", "+00:00"))
+
+              window2_start = last_practice_end + timedelta(minutes=15)
+              window2_end = first_quali - timedelta(minutes=15)
+
+              if window1_start <= now <= window1_end:
+                  should_run = True
+                  run_type = "pre_weekend"
+                  reason = f"Before FP1 for {race['name']} (FP1 at {fp1_time.isoformat()})"
+                  break
+              elif window2_start <= now <= window2_end:
+                  should_run = True
+                  run_type = "pre_qualifying"
+                  reason = f"After last practice, before qualifying for {race['name']}"
+                  break
+
+          with open(os.environ["GITHUB_OUTPUT"], "a") as f:
+              f.write(f"should_run={'true' if should_run else 'false'}\n")
+              f.write(f"run_type={run_type}\n")
+
+          if should_run:
+              print(f"Pipeline triggered ({run_type}): {reason}")
+          else:
+              print(f"Not a race weekend window — skipping (checked {len(schedule['races'])} races)")
+          PYEOF
+
       - uses: actions/setup-python@v5
+        if: steps.check.outputs.should_run == 'true'
         with:
           python-version: '3.12'
 
-      - run: pip install -r pipeline/requirements.txt
+      - name: Install dependencies
+        if: steps.check.outputs.should_run == 'true'
+        run: pip install -r pipeline/requirements.txt
 
       - name: Run pipeline
+        if: steps.check.outputs.should_run == 'true'
         env:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
+          RUN_TYPE: ${{ steps.check.outputs.run_type }}
         run: |
           MANUAL=""
           if [ -n "${{ github.event.inputs.odds_file }}" ]; then
@@ -36,9 +125,10 @@ jobs:
             LATEST=$(ls -t public/data/odds_input/*.json 2>/dev/null | head -1)
             [ -n "$LATEST" ] && MANUAL="--manual $LATEST"
           fi
-          python pipeline/update.py --output public/data $MANUAL
+          python pipeline/update.py --output public/data --run-type "$RUN_TYPE" $MANUAL
 
       - name: Create PR and merge (triggers Vercel redeploy)
+        if: steps.check.outputs.should_run == 'true'
         uses: peter-evans/create-pull-request@v7
         id: create-pr
         with:
@@ -50,7 +140,7 @@ jobs:
           committer: "F1 Bot <bot@f1xpts.dev>"
 
       - name: Auto-merge PR
-        if: steps.create-pr.outputs.pull-request-number
+        if: steps.check.outputs.should_run == 'true' && steps.create-pr.outputs.pull-request-number
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

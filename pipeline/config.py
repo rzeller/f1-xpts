@@ -81,8 +81,26 @@ SPRINT_WEEKENDS = [
 
 # 2026 Calendar (for scheduling)
 CALENDAR = [
-    {"round": 1, "name": "Australian GP", "slug": "australian-gp", "date": "2026-03-08"},
-    {"round": 2, "name": "Chinese GP", "slug": "chinese-gp", "date": "2026-03-22"},
-    {"round": 3, "name": "Japanese GP", "slug": "japanese-gp", "date": "2026-03-29"},
-    # ... add remaining races
+    {"round": 1,  "name": "Australian GP",           "slug": "australian-gp",  "date": "2026-03-08"},
+    {"round": 2,  "name": "Chinese GP",              "slug": "chinese-gp",     "date": "2026-03-15"},
+    {"round": 3,  "name": "Japanese GP",             "slug": "japanese-gp",    "date": "2026-03-29"},
+    {"round": 4,  "name": "Miami GP",                "slug": "miami-gp",       "date": "2026-05-03"},
+    {"round": 5,  "name": "Canadian GP",             "slug": "canadian-gp",    "date": "2026-05-24"},
+    {"round": 6,  "name": "Monaco GP",               "slug": "monaco-gp",      "date": "2026-06-07"},
+    {"round": 7,  "name": "Barcelona-Catalunya GP",  "slug": "barcelona-gp",   "date": "2026-06-14"},
+    {"round": 8,  "name": "Austrian GP",             "slug": "austrian-gp",    "date": "2026-06-28"},
+    {"round": 9,  "name": "British GP",              "slug": "british-gp",     "date": "2026-07-05"},
+    {"round": 10, "name": "Belgian GP",              "slug": "belgian-gp",     "date": "2026-07-19"},
+    {"round": 11, "name": "Hungarian GP",            "slug": "hungarian-gp",   "date": "2026-07-26"},
+    {"round": 12, "name": "Dutch GP",                "slug": "dutch-gp",       "date": "2026-08-23"},
+    {"round": 13, "name": "Italian GP",              "slug": "italian-gp",     "date": "2026-09-06"},
+    {"round": 14, "name": "Spanish GP",              "slug": "spanish-gp",     "date": "2026-09-13"},
+    {"round": 15, "name": "Azerbaijan GP",           "slug": "azerbaijan-gp",  "date": "2026-09-26"},
+    {"round": 16, "name": "Singapore GP",            "slug": "singapore-gp",   "date": "2026-10-11"},
+    {"round": 17, "name": "United States GP",        "slug": "us-gp",          "date": "2026-10-25"},
+    {"round": 18, "name": "Mexico City GP",          "slug": "mexico-gp",      "date": "2026-11-01"},
+    {"round": 19, "name": "São Paulo GP",            "slug": "sao-paulo-gp",   "date": "2026-11-08"},
+    {"round": 20, "name": "Las Vegas GP",            "slug": "las-vegas-gp",   "date": "2026-11-22"},
+    {"round": 21, "name": "Qatar GP",                "slug": "qatar-gp",       "date": "2026-11-29"},
+    {"round": 22, "name": "Abu Dhabi GP",            "slug": "abu-dhabi-gp",   "date": "2026-12-06"},
 ]
