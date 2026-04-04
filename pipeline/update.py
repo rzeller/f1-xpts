@@ -34,6 +34,7 @@ from odds_fetcher import get_observed_probs
 from plackett_luce import (
     fit_plackett_luce,
     generate_full_output,
+    find_optimal_lineup,
     simulate_races,
     compute_expected_points,
 )
@@ -45,6 +46,7 @@ def build_output_json(
     fit_info: dict,
     log_lambdas: np.ndarray,
     p_dnfs: np.ndarray,
+    optimal_lineup: dict = None,
     observed_probs: dict = None,
     n_final_sims: int = 50000,
     devig_method: str = "shin",
@@ -84,6 +86,7 @@ def build_output_json(
             "dnf_penalty": DNF_PENALTY,
         },
         "drivers": drivers_data,
+        "optimal_lineup": optimal_lineup,
         "fit": {
             "method": fit_info.get("method", "unknown"),
             "converged": fit_info.get("success", None),
@@ -210,6 +213,18 @@ def run_pipeline(
     for rank, d in enumerate(drivers_data[:10], 1):
         print(f"  {rank:4d} {d['name']:20s} {d['ep_race']:8.2f} {d['ep_sprint']:9.2f} {d['ep_total']:8.2f} {d['std_dev']:6.1f} {d['p_win']:7.3f} {d['p_dnf']:7.3f}")
 
+    # Step 3b: Find optimal lineup
+    print("\n[3b/4] Finding optimal 5-driver lineup...")
+    is_sprint = race_info.get("is_sprint", False)
+    points_map = RACE_POINTS if not is_sprint else {
+        k: RACE_POINTS.get(k, 0) + SPRINT_POINTS.get(k, 0) for k in set(list(RACE_POINTS.keys()) + list(SPRINT_POINTS.keys()))
+    }
+    optimal_lineup = find_optimal_lineup(drivers_data, points_map)
+    print(f"  Optimal lineup ({optimal_lineup['n_candidates']} candidates considered):")
+    for pick in optimal_lineup["picks"]:
+        print(f"    Pick {pick['slot']}: {pick['name']:20s} base={pick['ep_base']:6.2f}  slot_bonus={pick['slot_bonus_ev']:.3f}")
+    print(f"  Total: base={optimal_lineup['ep_base_total']:.2f} + bonus={optimal_lineup['ep_bonus_total']:.3f} = {optimal_lineup['ep_grand_total']:.2f}")
+
     # Step 4: Write output
     print("\n[4/4] Writing output files...")
     output_dir = Path(output_dir)
@@ -218,6 +233,7 @@ def run_pipeline(
 
     output = build_output_json(
         drivers_data, race_info, fit_info, log_lambdas, p_dnfs,
+        optimal_lineup=optimal_lineup,
         observed_probs=observed_probs,
         n_final_sims=n_final_sims,
         devig_method=devig_method,

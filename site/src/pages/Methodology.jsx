@@ -46,7 +46,7 @@ export default function Methodology({ data }) {
         <p>
           Every race weekend, our family F1 fantasy league asks each player to pick 5 drivers
           before qualifying. The scoring is simple: points for finishing in the top 10
-          (25 for a win, down to 1 for P10), and a brutal -20 penalty for a DNF. No qualifying
+          (25 for a win, down to 1 for P10), and a -10 penalty for a DNF. No qualifying
           bonuses, no overtake points, no fastest lap. Just where you finish.
         </p>
         <p>
@@ -131,7 +131,7 @@ export default function Methodology({ data }) {
         <ScoringTable scoring={scoringWithSprint} />
         <p style={{ marginTop: 12 }}>
           Sprint weekends (China, Miami, Canada, Great Britain, Netherlands, Singapore) add sprint
-          race points on top of the Grand Prix points. A DNF in either race costs -20.
+          race points on top of the Grand Prix points. A DNF in either race costs -10.
         </p>
       </section>
 
@@ -499,21 +499,21 @@ export default function Methodology({ data }) {
         <div className="step-num">4</div>
         <h2>Compute Expected Points</h2>
         <p>
-          Expected points = {'\u03A3'} P(position k) {'\u00D7'} points(k) + P(DNF) {'\u00D7'} (-20). Each finishing
-          position contributes its probability times its point value. The DNF penalty of -20 is
-          a significant drag — drivers with high DNF risk (12%+) can have negative expected points
+          Expected points = {'\u03A3'} P(position k) {'\u00D7'} points(k) + P(DNF) {'\u00D7'} ({data.scoring.dnf_penalty}). Each finishing
+          position contributes its probability times its point value. The DNF penalty of {data.scoring.dnf_penalty} is
+          a significant drag — drivers with high DNF risk (20%+) can have negative expected points
           even if they occasionally finish in the top 10.
         </p>
 
         <details className="deep-dive">
           <summary>Deep dive: Why this scoring changes optimal picks</summary>
           <div className="deep-dive-content">
-            <h4>The DNF penalty dominates strategy</h4>
+            <h4>The DNF penalty and exact position bonus</h4>
             <p>
-              In our scoring system, a DNF costs -20 points. That's equivalent to losing a
-              P2 finish plus a P8 finish. If a driver has a 10% DNF chance, that's an expected
-              cost of -2.0 points per race — which is substantial when the median expected
-              points for a midfield driver might be 3-4 points.
+              In our scoring system, a DNF costs -10 points. If a driver has a 10% DNF chance,
+              that's an expected cost of -1.0 points per race. Additionally, if a driver finishes
+              in the exact same slot as their pick position (e.g., your Pick 3 finishes P3), you
+              earn a +10 bonus — equal in magnitude to the DNF penalty.
             </p>
             <p>
               This means reliability is far more important in our league than in the official

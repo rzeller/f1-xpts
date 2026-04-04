@@ -33,8 +33,12 @@ export default function ScoringTable({ scoring }) {
               <td style={tdStyle}>0</td>
             </tr>
             <tr>
-              <td style={tdStyle}>DNF</td>
+              <td style={tdStyle}>DNF/DNS</td>
               <td style={{ ...tdStyle, color: 'var(--red)' }}>{scoring.dnf_penalty}</td>
+            </tr>
+            <tr>
+              <td style={{ ...tdStyle, color: 'var(--text-dim)', fontStyle: 'italic' }}>Exact pos bonus</td>
+              <td style={{ ...tdStyle, color: '#4ade80', fontStyle: 'italic' }}>+10</td>
             </tr>
           </tbody>
         </table>
@@ -64,8 +68,12 @@ export default function ScoringTable({ scoring }) {
                 <td style={tdStyle}>0</td>
               </tr>
               <tr>
-                <td style={tdStyle}>DNF</td>
+                <td style={tdStyle}>DNF/DNS</td>
                 <td style={{ ...tdStyle, color: 'var(--red)' }}>{scoring.dnf_penalty}</td>
+              </tr>
+              <tr>
+                <td style={{ ...tdStyle, color: 'var(--text-dim)', fontStyle: 'italic' }}>Exact pos bonus</td>
+                <td style={{ ...tdStyle, color: '#4ade80', fontStyle: 'italic' }}>+10</td>
               </tr>
             </tbody>
           </table>
