@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import DriverRow from '../components/DriverRow';
+import ModelFit from './ModelFit';
 import './Dashboard.css';
 
 const SORT_MODES = [
@@ -11,6 +12,7 @@ const SORT_MODES = [
 
 export default function Dashboard({ data }) {
   const [sortKey, setSortKey] = useState('ep_total');
+  const [showModelFit, setShowModelFit] = useState(false);
 
   const sortMode = SORT_MODES.find(m => m.key === sortKey);
 
@@ -88,6 +90,15 @@ export default function Dashboard({ data }) {
         <span>Model: Plackett-Luce | Devig: {data.meta.devig_method} | {data.meta.n_simulations.toLocaleString()} sims | Fit loss: {data.meta.fit_loss?.toFixed(5) ?? '—'}{data.meta.fit_converged === false && ' (not converged)'}</span>
         <span>Updated {new Date(data.meta.generated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
       </footer>
+
+      <button
+        className="model-fit-toggle"
+        onClick={() => setShowModelFit(v => !v)}
+      >
+        <span className={`chevron ${showModelFit ? 'open' : ''}`}>&#9662;</span>
+        Model Fit Diagnostics
+      </button>
+      {showModelFit && <ModelFit data={data} />}
     </div>
   );
 }

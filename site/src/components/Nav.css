@@ -57,3 +57,26 @@
   background: var(--bg-surface);
   border-color: var(--border);
 }
+
+.nav-race-select {
+  font-family: var(--font-data);
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.nav-race-select:hover,
+.nav-race-select:focus {
+  border-color: var(--text-muted);
+}
+
+.nav-race-select option {
+  background: var(--bg-surface);
+  color: var(--text);
+}

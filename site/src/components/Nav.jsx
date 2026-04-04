@@ -1,11 +1,25 @@
 import './Nav.css';
 
-export default function Nav({ page, setPage, race }) {
+export default function Nav({ page, setPage, race, races, selectedRace, onRaceChange }) {
   return (
     <nav className="nav">
       <div className="nav-left">
         <span className="nav-logo">F1 xPts</span>
-        <span className="nav-race">{race}</span>
+        {races && races.length > 1 ? (
+          <select
+            className="nav-race-select"
+            value={selectedRace || ''}
+            onChange={e => onRaceChange(e.target.value)}
+          >
+            {races.map(r => (
+              <option key={r.slug} value={r.slug}>
+                {r.name}{r.is_sprint ? ' (Sprint)' : ''}
+              </option>
+            ))}
+          </select>
+        ) : (
+          <span className="nav-race">{race}</span>
+        )}
       </div>
       <div className="nav-links">
         <button
@@ -19,12 +33,6 @@ export default function Nav({ page, setPage, race }) {
           onClick={() => setPage('methodology')}
         >
           Methodology
-        </button>
-        <button
-          className={`nav-link ${page === 'model-fit' ? 'active' : ''}`}
-          onClick={() => setPage('model-fit')}
-        >
-          Model Fit
         </button>
         <button
           className={`nav-link ${page === 'schedule' ? 'active' : ''}`}
