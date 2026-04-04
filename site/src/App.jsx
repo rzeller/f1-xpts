@@ -3,10 +3,9 @@ import { useData } from './hooks/useData';
 import Nav from './components/Nav';
 import Dashboard from './pages/Dashboard';
 import Methodology from './pages/Methodology';
-import ModelFit from './pages/ModelFit';
 
 export default function App() {
-  const { data, loading, error } = useData();
+  const { data, loading, error, races, selectedRace, setSelectedRace } = useData();
   const [page, setPage] = useState('dashboard');
 
   if (loading) {
@@ -27,13 +26,18 @@ export default function App() {
 
   return (
     <>
-      <Nav page={page} setPage={setPage} race={data.meta.race} />
+      <Nav
+        page={page}
+        setPage={setPage}
+        race={data.meta.race}
+        races={races}
+        selectedRace={selectedRace}
+        onRaceChange={setSelectedRace}
+      />
       {page === 'dashboard' ? (
         <Dashboard data={data} />
-      ) : page === 'methodology' ? (
-        <Methodology data={data} />
       ) : (
-        <ModelFit data={data} />
+        <Methodology data={data} />
       )}
     </>
   );

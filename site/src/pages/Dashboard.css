@@ -157,3 +157,35 @@
   font-size: 0.75rem;
   color: var(--text-dim);
 }
+
+/* Model Fit toggle */
+.model-fit-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 32px;
+  padding: 12px 0;
+  border: none;
+  border-top: 1px solid var(--border);
+  background: none;
+  color: var(--text-muted);
+  font-family: var(--font-data);
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+
+.model-fit-toggle:hover {
+  color: var(--text);
+}
+
+.chevron {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 0.75rem;
+}
+
+.chevron.open {
+  transform: rotate(180deg);
+}
