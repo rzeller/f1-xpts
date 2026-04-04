@@ -38,9 +38,29 @@ jobs:
           python pipeline/update.py --output public/data $MANUAL
 
       - name: Commit and push (triggers Vercel redeploy)
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update: race projections"
-          file_pattern: "public/data/**"
-          commit_user_name: "F1 Bot"
-          commit_user_email: "bot@f1xpts.dev"
+        run: |
+          git config user.name "F1 Bot"
+          git config user.email "bot@f1xpts.dev"
+          git add public/data/
+          git diff --staged --quiet && echo "No changes to commit" && exit 0
+
+          echo "=== Debug: before commit ==="
+          echo "HEAD: $(git rev-parse HEAD)"
+          echo "Branch: $(git branch --show-current)"
+          echo "GITHUB_SHA: $GITHUB_SHA"
+          echo "GITHUB_REF: $GITHUB_REF"
+
+          git commit -m "Update: $(date -u +%Y-%m-%d) race projections"
+
+          echo "=== Debug: fetching remote ==="
+          git fetch origin
+          echo "Local HEAD: $(git rev-parse HEAD)"
+          echo "Remote master: $(git rev-parse origin/master)"
+          echo "HEAD~1: $(git rev-parse HEAD~1)"
+
+          echo "=== Debug: rebasing ==="
+          git rebase origin/master
+
+          echo "=== Debug: pushing ==="
+          echo "Final HEAD: $(git rev-parse HEAD)"
+          git push origin HEAD:refs/heads/master
