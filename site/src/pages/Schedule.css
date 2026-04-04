@@ -1,0 +1,209 @@
+.schedule {
+  padding-bottom: 48px;
+}
+
+.schedule-header h1 {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.75rem;
+  color: var(--text-bright);
+  letter-spacing: -0.5px;
+  margin-bottom: 4px;
+}
+
+.schedule-subtitle {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin-bottom: 24px;
+}
+
+/* Race cards */
+.race-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.race-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.race-card.past {
+  opacity: 0.45;
+}
+
+.race-card.next {
+  border-color: var(--border-light);
+  box-shadow: 0 0 0 1px var(--border-light);
+}
+
+.race-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.1s;
+}
+
+.race-card-header:hover {
+  background: var(--bg-hover);
+}
+
+.race-card-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.race-round {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.race-name {
+  font-weight: 600;
+  color: var(--text-bright);
+  font-size: 0.9rem;
+}
+
+.race-location {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  margin-left: 8px;
+}
+
+.race-badges {
+  display: flex;
+  gap: 6px;
+  margin-left: 8px;
+}
+
+.badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-sprint {
+  background: rgba(255, 128, 0, 0.15);
+  color: #ff8000;
+  border: 1px solid rgba(255, 128, 0, 0.3);
+}
+
+.badge-next {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--green);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.badge-saturday {
+  background: rgba(102, 146, 255, 0.15);
+  color: #6692ff;
+  border: 1px solid rgba(102, 146, 255, 0.3);
+}
+
+.race-card-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.race-date {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.expand-arrow {
+  color: var(--text-dim);
+  font-size: 0.7rem;
+  transition: transform 0.15s;
+  width: 16px;
+  text-align: center;
+}
+
+.expand-arrow.open {
+  transform: rotate(90deg);
+}
+
+/* Session details */
+.race-card-body {
+  border-top: 1px solid var(--border);
+  padding: 12px 16px 16px;
+}
+
+.sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px;
+}
+
+.session-item {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--bg);
+  border-radius: var(--radius-sm);
+}
+
+.session-label {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.session-label-wide {
+  width: 54px;
+}
+
+.session-day {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  width: 36px;
+  flex-shrink: 0;
+}
+
+.session-time {
+  font-size: 0.85rem;
+  color: var(--text-bright);
+  font-weight: 500;
+}
+
+.session-time-local {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin-left: 4px;
+}
+
+/* Circuit info */
+.circuit-info {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+}
+
+@media (max-width: 640px) {
+  .race-location {
+    display: none;
+  }
+  .sessions-grid {
+    grid-template-columns: 1fr;
+  }
+}

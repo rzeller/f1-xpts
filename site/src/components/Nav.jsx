@@ -26,6 +26,12 @@ export default function Nav({ page, setPage, race }) {
         >
           Model Fit
         </button>
+        <button
+          className={`nav-link ${page === 'schedule' ? 'active' : ''}`}
+          onClick={() => setPage('schedule')}
+        >
+          Schedule
+        </button>
       </div>
     </nav>
   );
