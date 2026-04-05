@@ -33,9 +33,11 @@ export default function ProbabilityPlayground({ data }) {
       i === selectedIdx ? adjustedLambda : d.lambda
     );
     const pDnfs = data.drivers.map(d => d.p_dnf);
-    const allDists = simulateRaces(logLambdas, pDnfs, 8000, 77);
+    const teamIndices = data.drivers.map(d => d.team_idx);
+    const correlation = data.meta?.correlation || null;
+    const allDists = simulateRaces(logLambdas, pDnfs, 8000, 77, teamIndices, correlation);
     return allDists[selectedIdx];
-  }, [data.drivers, selectedIdx, adjustedLambda]);
+  }, [data.drivers, selectedIdx, adjustedLambda, data.meta]);
 
   // Compute CDF from sim result
   const cdf = useMemo(() => {

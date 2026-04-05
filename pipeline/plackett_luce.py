@@ -14,7 +14,7 @@ import numpy as np
 from itertools import combinations, permutations
 from scipy.optimize import minimize, linear_sum_assignment
 from typing import Dict, List, Tuple, Optional
-from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, N_DRIVERS, N_TEAMS, DRIVERS
+from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, N_DRIVERS, N_TEAMS, DRIVERS, CORRELATION_DEFAULTS
 
 
 def simulate_races(
@@ -22,6 +22,8 @@ def simulate_races(
     p_dnfs: np.ndarray,
     n_sims: int = 50000,
     seed: int = 42,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
 ) -> np.ndarray:
     """
     Simulate races from the Plackett-Luce model with DNFs.
@@ -36,6 +38,9 @@ def simulate_races(
     p_dnfs : (n_drivers,) array of DNF probabilities
     n_sims : number of races to simulate
     seed : random seed
+    team_indices : (n_drivers,) array mapping driver index to team index
+    correlation : dict with keys sigma_team, sigma_global, sigma_dnf
+        If None, no correlation noise is applied (backward compatible).
 
     Returns
     -------
@@ -49,10 +54,47 @@ def simulate_races(
     # Gumbel-max trick: sample Gumbel(0,1) noise, add to log-lambdas, argsort
     # This gives a Plackett-Luce draw in O(n log n) with full vectorization
     gumbel_noise = rng.gumbel(size=(n_sims, n))  # (n_sims, n_drivers)
-    utilities = log_lambdas[np.newaxis, :] + gumbel_noise  # (n_sims, n_drivers)
+
+    # --- Correlated noise layers ---
+    # Use a separate RNG so that when correlation is disabled, the Gumbel
+    # stream (and thus results) are identical to the non-correlation code path.
+    if correlation is not None and team_indices is not None:
+        corr_rng = np.random.default_rng(seed + 1_000_000)
+        sigma_team = correlation.get("sigma_team", 0.0)
+        sigma_global = correlation.get("sigma_global", 0.0)
+        sigma_dnf = correlation.get("sigma_dnf", 0.0)
+        n_teams = int(team_indices.max()) + 1
+
+        # 1. Team race-day noise: one z per team per sim, shared by teammates
+        team_noise = 0.0
+        if sigma_team > 0:
+            z_team = corr_rng.standard_normal((n_sims, n_teams))  # (n_sims, n_teams)
+            team_noise = sigma_team * z_team[:, team_indices]       # (n_sims, n_drivers)
+
+        # 2. Chaos scaling: log-normal multiplier on Gumbel noise
+        #    Higher chaos_scale → more upsets; lower → favorites dominate.
+        #    Using exp() keeps the scale strictly positive.
+        chaos_scale = 1.0
+        if sigma_global > 0:
+            z_global = corr_rng.standard_normal(n_sims)              # (n_sims,)
+            chaos_scale = np.exp(sigma_global * z_global)[:, np.newaxis]  # (n_sims, 1)
+
+        # 3. Correlated DNFs: log-normal multiplier on DNF probabilities
+        #    Some races have more incidents than others.
+        if sigma_dnf > 0:
+            z_dnf = corr_rng.standard_normal(n_sims)                 # (n_sims,)
+            dnf_multiplier = np.exp(sigma_dnf * z_dnf)[:, np.newaxis]  # (n_sims, 1)
+            effective_p_dnfs = np.clip(p_dnfs[np.newaxis, :] * dnf_multiplier, 0.0, 0.5)
+        else:
+            effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
+
+        utilities = (log_lambdas[np.newaxis, :] + team_noise) + chaos_scale * gumbel_noise
+    else:
+        utilities = log_lambdas[np.newaxis, :] + gumbel_noise  # (n_sims, n_drivers)
+        effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
 
     # DNF mask: True if driver DNFs in this sim
-    dnf_mask = rng.random((n_sims, n)) < p_dnfs[np.newaxis, :]  # (n_sims, n_drivers)
+    dnf_mask = rng.random((n_sims, n)) < effective_p_dnfs  # (n_sims, n_drivers)
 
     # For the PL ranking, exclude DNF drivers by setting utility to -inf
     utilities_for_sort = utilities.copy()
@@ -127,6 +169,7 @@ def fit_plackett_luce(
     method: str = "Powell",
     team_reg: float = 0.02,
     smoothness_reg: float = 0.005,
+    correlation: dict = None,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -189,7 +232,10 @@ def fit_plackett_luce(
 
         # Use a different seed each eval for smoother optimization landscape
         seed = 42 + eval_count[0]
-        pos_probs = simulate_races(log_lambdas, p_dnfs, n_sims=n_sims, seed=seed)
+        pos_probs = simulate_races(
+            log_lambdas, p_dnfs, n_sims=n_sims, seed=seed,
+            team_indices=team_indices, correlation=correlation,
+        )
 
         loss = 0.0
         residuals = {}
@@ -299,7 +345,10 @@ def fit_plackett_luce(
     log_lambdas -= log_lambdas.mean()
 
     # Compute final residuals with a large simulation for accuracy
-    final_pos_probs = simulate_races(log_lambdas, p_dnfs, n_sims=50000, seed=99999)
+    final_pos_probs = simulate_races(
+        log_lambdas, p_dnfs, n_sims=50000, seed=99999,
+        team_indices=team_indices, correlation=correlation,
+    )
     market_cutoffs = {"win": 1, "podium": 3, "top6": 6, "top10": 10}
     residuals = []
     for market, cutoff in market_cutoffs.items():
@@ -331,6 +380,7 @@ def fit_plackett_luce(
         "loss_history": loss_history,
         "step_losses": step_losses,
         "residuals": residuals,
+        "correlation": correlation,
     }
 
     return log_lambdas, p_dnfs, fit_info
@@ -341,6 +391,8 @@ def generate_full_output(
     p_dnfs: np.ndarray,
     is_sprint: bool = False,
     n_sims: int = 50000,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
 ) -> List[dict]:
     """
     Generate the complete output for all drivers.
@@ -348,7 +400,10 @@ def generate_full_output(
     Returns a list of driver dicts with all computed statistics,
     ready to be serialized to JSON.
     """
-    pos_probs = simulate_races(log_lambdas, p_dnfs, n_sims=n_sims, seed=12345)
+    pos_probs = simulate_races(
+        log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
+        team_indices=team_indices, correlation=correlation,
+    )
 
     drivers_output = []
     for i in range(len(log_lambdas)):
@@ -520,8 +575,11 @@ if __name__ == "__main__":
     ])
     fake_dnfs = np.full(N_DRIVERS, 0.10)
 
-    print("Simulating with fake parameters...")
-    pos_probs = simulate_races(np.log(fake_lambdas), fake_dnfs, n_sims=50000)
+    print("Simulating with fake parameters (with correlation)...")
+    pos_probs = simulate_races(
+        np.log(fake_lambdas), fake_dnfs, n_sims=50000,
+        team_indices=team_idx, correlation=CORRELATION_DEFAULTS,
+    )
 
     print("\nExpected Race Points:")
     for i, d in enumerate(DRIVERS):
@@ -531,6 +589,9 @@ if __name__ == "__main__":
         print(f"  {d['name']:20s} E[pts]={ep:6.2f}  P(win)={p_win:.3f}  P(DNF)={p_dnf:.3f}")
 
     print("\nGenerating full output...")
-    output = generate_full_output(np.log(fake_lambdas), fake_dnfs, is_sprint=False)
+    output = generate_full_output(
+        np.log(fake_lambdas), fake_dnfs, is_sprint=False,
+        team_indices=team_idx, correlation=CORRELATION_DEFAULTS,
+    )
     for d in output[:5]:
         print(f"  {d['name']:20s} E[pts]={d['ep_race']:6.2f}  σ={d['std_dev']:.1f}")

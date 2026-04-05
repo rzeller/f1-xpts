@@ -70,6 +70,18 @@ for alias, canonical in _ALIASES.items():
         DRIVER_NAME_MAP[alias] = DRIVER_NAME_MAP[canonical]
 
 # Sprint weekends in 2026
+# Race-day correlation parameters (hierarchical noise model)
+# Calibrated via pipeline/calibrate_correlation.py against F1 summary statistics.
+# Re-run with --data flag on real historical results for precise values.
+# sigma_team: Team race-day volatility (shared by teammates in each sim)
+# sigma_global: Field-wide chaos scaling (log-normal multiplier on Gumbel noise)
+# sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
+CORRELATION_DEFAULTS = {
+    "sigma_team": 0.6634,
+    "sigma_global": 1.1715,
+    "sigma_dnf": 0.3285,
+}
+
 SPRINT_WEEKENDS = [
     "chinese-gp",
     "miami-gp",

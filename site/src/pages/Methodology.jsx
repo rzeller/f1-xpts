@@ -17,9 +17,11 @@ export default function Methodology({ data }) {
   const simDistribution = useMemo(() => {
     const logLambdas = data.drivers.map(d => d.lambda);
     const pDnfs = data.drivers.map(d => d.p_dnf);
-    const result = simulateRaces(logLambdas, pDnfs, 15000, 123);
+    const teamIndices = data.drivers.map(d => d.team_idx);
+    const correlation = data.meta?.correlation || null;
+    const result = simulateRaces(logLambdas, pDnfs, 15000, 123, teamIndices, correlation);
     return result;
-  }, [data.drivers]);
+  }, [data.drivers, data.meta]);
 
   const driverDist = simDistribution[selectedIdx];
 
@@ -451,11 +453,134 @@ export default function Methodology({ data }) {
         <h2>Simulate {data.meta.n_simulations.toLocaleString()} Races</h2>
         <p>
           With the fitted {'\u03BB'} values and DNF probabilities, we simulate {data.meta.n_simulations.toLocaleString()} complete
-          races. In each simulation: first, each driver independently rolls for DNF (based on
-          team reliability + driver risk). Then the Plackett-Luce model draws a finishing order
-          for all non-DNF drivers. The result is a full probability distribution over all 23
+          races. But we don't just draw independent results for each driver — real F1 races have
+          correlated outcomes. If Mercedes has a good car day, both drivers benefit. If it rains or
+          there's a first-lap pileup, the entire finishing order gets scrambled. We model these
+          dynamics with three layers of race-day noise.
+        </p>
+
+        <h3>Race-Day Correlation Model</h3>
+        <p>
+          Before drawing finishing positions, each simulated race gets random perturbations that
+          create realistic correlation patterns:
+        </p>
+        <div className="correlation-layers" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+          margin: '16px 0',
+          maxWidth: 640,
+        }}>
+          <div className="corr-layer" style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+          }}>
+            <div style={{ color: 'var(--text-bright)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 4 }}>
+              Team Race-Day Form
+              {data.meta.correlation && (
+                <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
+                  {'\u03C3'}<sub>team</sub> = {data.meta.correlation.sigma_team}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+              Each team draws a random "car performance" factor for this race. Both teammates
+              share it — if the Mercedes is quick today, both Russell and Antonelli get a boost.
+              This is the dominant source of correlation in F1: the car matters more than the driver.
+            </p>
+          </div>
+          <div className="corr-layer" style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+          }}>
+            <div style={{ color: 'var(--text-bright)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 4 }}>
+              Chaos Scaling
+              {data.meta.correlation && (
+                <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
+                  {'\u03C3'}<sub>global</sub> = {data.meta.correlation.sigma_global}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+              Each race draws a "chaos level" that scales the randomness in finishing positions.
+              High chaos (rain, safety cars, multi-car incidents) means more upsets and the
+              pre-race pecking order matters less. Low chaos means the favorites dominate.
+              This is applied as a log-normal multiplier on the Gumbel noise.
+            </p>
+          </div>
+          <div className="corr-layer" style={{
+            background: 'var(--bg-surface)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '12px 16px',
+          }}>
+            <div style={{ color: 'var(--text-bright)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 4 }}>
+              Correlated DNFs
+              {data.meta.correlation && (
+                <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
+                  {'\u03C3'}<sub>dnf</sub> = {data.meta.correlation.sigma_dnf}
+                </span>
+              )}
+            </div>
+            <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
+              DNFs aren't independent. Some races have zero retirements; others have five.
+              Each simulated race draws an "incident intensity" that scales everyone's DNF
+              probability up or down together.
+            </p>
+          </div>
+        </div>
+        <p>
+          After applying these perturbations, the Plackett-Luce model draws a finishing order
+          for all surviving drivers. The result is a full probability distribution over all 23
           outcomes (P1 through P22, plus DNF) for every driver.
         </p>
+        <p>
+          Crucially, the same correlation model is used during the fitting step (Step 2) and in
+          the final simulation. This ensures the fitted {'\u03BB'} values produce marginal probabilities
+          that match the betting odds, even though the race-day noise is introducing correlation.
+        </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why correlation matters for picks</summary>
+          <div className="deep-dive-content">
+            <h4>Teammates are correlated bets</h4>
+            <p>
+              Without the correlation model, the simulation would treat each driver independently.
+              But in reality, picking both Mercedes drivers is a concentrated bet on the Mercedes
+              car. If the car is strong, both score big; if it's weak, both disappoint. The team
+              noise layer captures this — your portfolio of 5 drivers is better diversified when
+              you spread across teams.
+            </p>
+            <h4>Chaos creates fat tails</h4>
+            <p>
+              The chaos scaling means some simulated races are very predictable (favorites dominate)
+              and others are wild (upsets everywhere). This creates fatter tails in the position
+              distributions compared to a model without chaos variation. For midfield and backmarker
+              drivers, this slightly increases expected points — they have more paths to a surprise
+              result — while for favorites, it slightly decreases expected points.
+            </p>
+            <h4>DNF clustering is real</h4>
+            <p>
+              In the last 3 seasons, the per-race DNF count varies much more than independent coin
+              flips would predict (overdispersion ratio {'\u2248'} 1.8). First-lap incidents can take out
+              multiple drivers simultaneously. Correlated DNFs mean that the -10 penalty risk is
+              more "lumpy" — some races are much more dangerous than others.
+            </p>
+            <h4>How the parameters are calibrated</h4>
+            <p>
+              The three sigma values are calibrated from historical F1 results by matching three
+              summary statistics: teammate finishing-position residual correlation (constrains{' '}
+              {'\u03C3'}<sub>team</sub>), the coefficient of variation of per-race finishing spread
+              (constrains {'\u03C3'}<sub>global</sub>), and the DNF count overdispersion ratio
+              (constrains {'\u03C3'}<sub>dnf</sub>). These are structural properties of F1 racing that
+              are relatively stable across seasons.
+            </p>
+          </div>
+        </details>
 
         <details className="deep-dive">
           <summary>Deep dive: Why Monte Carlo?</summary>
