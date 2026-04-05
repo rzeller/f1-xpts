@@ -567,7 +567,7 @@ export default function Methodology({ data }) {
             <p>
               In the last 3 seasons, the per-race DNF count varies much more than independent coin
               flips would predict (overdispersion ratio {'\u2248'} 1.8). First-lap incidents can take out
-              multiple drivers simultaneously. Correlated DNFs mean that the -20 penalty risk is
+              multiple drivers simultaneously. Correlated DNFs mean that the -10 penalty risk is
               more "lumpy" — some races are much more dangerous than others.
             </p>
             <h4>How the parameters are calibrated</h4>
