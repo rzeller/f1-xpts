@@ -26,12 +26,6 @@ export default function Nav({ page, setPage, race, races, selectedRace, onRaceCh
       </div>
       <div className="nav-links">
         <button
-          className={`nav-link ${page === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setPage('dashboard')}
-        >
-          Dashboard
-        </button>
-        <button
           className={`nav-link ${page === 'methodology' ? 'active' : ''}`}
           onClick={() => setPage('methodology')}
         >
