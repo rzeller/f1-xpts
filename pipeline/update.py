@@ -28,7 +28,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from config import (
     DRIVERS, TEAMS, N_DRIVERS, N_TEAMS,
     RACE_POINTS, SPRINT_POINTS, DNF_PENALTY,
-    SPRINT_WEEKENDS,
+    SPRINT_WEEKENDS, CORRELATION_DEFAULTS,
 )
 from odds_fetcher import get_observed_probs
 from plackett_luce import (
@@ -51,6 +51,7 @@ def build_output_json(
     n_final_sims: int = 50000,
     devig_method: str = "shin",
     run_type: str = "",
+    correlation: dict = None,
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
     # Build market input summary
@@ -75,6 +76,7 @@ def build_output_json(
             "fit_loss": fit_info.get("loss", None),
             "fit_converged": fit_info.get("success", None),
             "run_type": run_type,
+            "correlation": correlation,
         },
         "teams": [
             {"name": t["name"], "color": t["color"]}
@@ -149,12 +151,25 @@ def run_pipeline(
     n_final_sims: int = 50000,
     devig_method: str = "shin",
     run_type: str = "",
+    sigma_team: float = None,
+    sigma_global: float = None,
+    sigma_dnf: float = None,
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
+
+    # Build correlation parameters (CLI overrides or defaults)
+    correlation = {
+        "sigma_team": sigma_team if sigma_team is not None else CORRELATION_DEFAULTS["sigma_team"],
+        "sigma_global": sigma_global if sigma_global is not None else CORRELATION_DEFAULTS["sigma_global"],
+        "sigma_dnf": sigma_dnf if sigma_dnf is not None else CORRELATION_DEFAULTS["sigma_dnf"],
+    }
 
     print("=" * 60)
     print("F1 Expected Points Pipeline")
     print("=" * 60)
+    print(f"  Correlation: sigma_team={correlation['sigma_team']}, "
+          f"sigma_global={correlation['sigma_global']}, "
+          f"sigma_dnf={correlation['sigma_dnf']}")
 
     # Step 1: Get observed probabilities
     print("\n[1/4] Loading odds data...")
@@ -193,6 +208,7 @@ def run_pipeline(
         observed_probs=observed_probs,
         team_indices=team_indices,
         n_sims=n_fit_sims,
+        correlation=correlation,
     )
 
     print(f"\n  Fit complete. Loss: {fit_info['loss']:.6f}")
@@ -204,6 +220,8 @@ def run_pipeline(
         p_dnfs,
         is_sprint=race_info.get("is_sprint", False),
         n_sims=n_final_sims,
+        team_indices=team_indices,
+        correlation=correlation,
     )
 
     # Print summary
@@ -233,6 +251,7 @@ def run_pipeline(
         n_final_sims=n_final_sims,
         devig_method=devig_method,
         run_type=run_type,
+        correlation=correlation,
     )
 
     # Write latest.json (what the frontend reads)
@@ -296,6 +315,18 @@ def main():
         default="",
         help="Run type label (pre_weekend, pre_qualifying, manual)",
     )
+    parser.add_argument(
+        "--sigma-team", type=float, default=None,
+        help=f"Team race-day noise (default: {CORRELATION_DEFAULTS['sigma_team']})",
+    )
+    parser.add_argument(
+        "--sigma-global", type=float, default=None,
+        help=f"Global chaos scaling (default: {CORRELATION_DEFAULTS['sigma_global']})",
+    )
+    parser.add_argument(
+        "--sigma-dnf", type=float, default=None,
+        help=f"DNF correlation (default: {CORRELATION_DEFAULTS['sigma_dnf']})",
+    )
 
     args = parser.parse_args()
 
@@ -323,6 +354,9 @@ def main():
         n_final_sims=args.final_sims,
         devig_method=args.devig_method,
         run_type=args.run_type,
+        sigma_team=args.sigma_team,
+        sigma_global=args.sigma_global,
+        sigma_dnf=args.sigma_dnf,
     )
 
 

@@ -17,9 +17,11 @@ export default function Methodology({ data }) {
   const simDistribution = useMemo(() => {
     const logLambdas = data.drivers.map(d => d.lambda);
     const pDnfs = data.drivers.map(d => d.p_dnf);
-    const result = simulateRaces(logLambdas, pDnfs, 15000, 123);
+    const teamIndices = data.drivers.map(d => d.team_idx);
+    const correlation = data.meta?.correlation || null;
+    const result = simulateRaces(logLambdas, pDnfs, 15000, 123, teamIndices, correlation);
     return result;
-  }, [data.drivers]);
+  }, [data.drivers, data.meta]);
 
   const driverDist = simDistribution[selectedIdx];
 

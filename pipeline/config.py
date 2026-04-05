@@ -70,6 +70,16 @@ for alias, canonical in _ALIASES.items():
         DRIVER_NAME_MAP[alias] = DRIVER_NAME_MAP[canonical]
 
 # Sprint weekends in 2026
+# Race-day correlation parameters (hierarchical noise model)
+# sigma_team: Team race-day volatility (shared by teammates in each sim)
+# sigma_global: Field-wide chaos scaling (log-normal multiplier on Gumbel noise)
+# sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
+CORRELATION_DEFAULTS = {
+    "sigma_team": 0.20,
+    "sigma_global": 0.15,
+    "sigma_dnf": 0.30,
+}
+
 SPRINT_WEEKENDS = [
     "chinese-gp",
     "miami-gp",
