@@ -45,9 +45,11 @@ export default function Methodology({ data }) {
         <h2>The Problem</h2>
         <p>
           Every race weekend, our family F1 fantasy league asks each player to pick 5 drivers
-          before qualifying. The scoring is simple: points for finishing in the top 10
-          (25 for a win, down to 1 for P10), and a -10 penalty for a DNF. No qualifying
-          bonuses, no overtake points, no fastest lap. Just where you finish.
+          <strong> in ranked order</strong> before qualifying. Points come from finishing in
+          the top 10 (25 for a win, down to 1 for P10), a -10 penalty for a DNF, and a{' '}
+          <strong>+10 exact-position bonus</strong> when a driver finishes in the same slot
+          as their pick number (e.g., your Pick 3 finishes P3). No qualifying bonuses, no
+          overtake points, no fastest lap.
         </p>
         <p>
           So the question is straightforward: which 5 drivers will score the most points this
@@ -113,6 +115,14 @@ export default function Methodology({ data }) {
               <span>Simulate {data.meta.n_simulations.toLocaleString()} races to get position probabilities and expected fantasy points</span>
             </div>
           </div>
+          <div className="pipeline-arrow">&darr;</div>
+          <div className="pipeline-step">
+            <div className="pipeline-icon">5</div>
+            <div className="pipeline-content">
+              <strong>Lineup Optimizer</strong>
+              <span>Solve a rectangular linear assignment to find the optimal 5-driver ordered lineup including the exact-position bonus</span>
+            </div>
+          </div>
         </div>
 
         <p>
@@ -125,13 +135,21 @@ export default function Methodology({ data }) {
 
         <h2>Scoring Rules</h2>
         <p>
-          Each player picks 5 drivers before qualifying each weekend (same drivers for sprint + race).
-          No budget cap, no qualifying points, no fastest lap. Just finishing position.
+          Each player picks <strong>5 drivers in ranked order</strong> before qualifying each
+          weekend (same picks apply to both sprint and race on sprint weekends). No budget cap,
+          no qualifying points, no fastest lap.
         </p>
         <ScoringTable scoring={scoringWithSprint} />
         <p style={{ marginTop: 12 }}>
           Sprint weekends (China, Miami, Canada, Great Britain, Netherlands, Singapore) add sprint
           race points on top of the Grand Prix points. A DNF in either race costs -10.
+        </p>
+        <p style={{ marginTop: 8 }}>
+          The <strong>exact-position bonus</strong> rewards picking the right driver <em>and</em>{' '}
+          placing them in the right slot. If your Pick 2 finishes P2, you earn +10 on top of
+          their base points. If your Pick 2 finishes P1, no bonus — the slot matters. This means
+          just picking the five best drivers isn't enough; you also need to order them optimally.
+          That's what Step 5 solves.
         </p>
       </section>
 
@@ -543,6 +561,123 @@ export default function Methodology({ data }) {
           dnfPenalty={data.scoring.dnf_penalty}
           color={teamColor}
         />
+      </section>
+
+      {/* ====== STEP 5: LINEUP OPTIMIZER ====== */}
+      <section className="meth-section">
+        <div className="step-num">5</div>
+        <h2>Find the Optimal Lineup</h2>
+        <p>
+          Once we have expected points and full position distributions for every driver, we
+          need to answer: which 5 drivers should you pick, and in what order? The exact-position
+          bonus means the ordering matters — placing a driver in the wrong slot loses you up to
+          10 expected points.
+        </p>
+        <p>
+          The naive approach — enumerate all ways to choose 5 drivers from 22 and try every
+          ordering — would be C(22,5) × 5! = 3.2 million combinations. We can do much better.
+        </p>
+
+        <h3>Reducing to a Single Assignment Problem</h3>
+        <p>
+          Define a <strong>(22 × 5) score matrix</strong> where each entry is:
+        </p>
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '14px 20px',
+          margin: '12px 0 16px',
+          maxWidth: 600,
+          fontSize: '0.85rem',
+          fontFamily: 'var(--font-data)',
+          color: 'var(--text-muted)',
+          lineHeight: 1.8,
+        }}>
+          score[driver][slot] = E[base points for driver] + P(driver finishes position slot) × 10
+        </div>
+        <p>
+          Choosing 5 drivers and assigning each to a slot is exactly a{' '}
+          <strong>rectangular linear assignment problem</strong>: pick one entry per column
+          (slot), at most one entry per row (driver), to maximise the total. This is solved in
+          a single pass by the <strong>Hungarian algorithm</strong> — no enumeration needed.
+        </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why this formulation is exact</summary>
+          <div className="deep-dive-content">
+            <h4>The key insight</h4>
+            <p>
+              Total expected points for a lineup = Σ E[base points for driver k] + Σ P(driver k
+              finishes in slot k) × 10. The base-points term depends only on <em>which</em>{' '}
+              drivers are picked; the bonus term depends on both who is picked and how they are
+              ordered. Combining them into a single score per (driver, slot) pair means the two
+              decisions become one: choosing an entry in the matrix simultaneously selects the
+              driver and assigns their slot.
+            </p>
+            <h4>Why C(22,5) enumeration is unnecessary</h4>
+            <p>
+              The earlier pruning approach kept only drivers whose base EP was within 10 points
+              of the 5th-best driver (the max bonus), then enumerated subsets of those candidates.
+              For this race that was still all 22 drivers. The assignment formulation avoids
+              enumeration entirely: scipy's <code>linear_sum_assignment</code> solves a 22×5
+              rectangular matrix in O(n·m²) ≈ O(22 × 25) operations — effectively instant.
+            </p>
+            <h4>The Hungarian algorithm</h4>
+            <p>
+              The Hungarian algorithm works by manufacturing zeros in the cost matrix. It subtracts
+              row and column minimums (which preserves the optimal assignment), then finds a perfect
+              matching through zero-cost cells. When no perfect matching exists, it adds a small
+              delta to create new zeros, repeating until the matching covers all columns. Each step
+              is O(n²); at most n steps are needed, giving O(n³) overall. For rectangular matrices,
+              scipy pads the shorter dimension with zeros and strips dummy assignments from the result.
+            </p>
+          </div>
+        </details>
+
+        {data.optimal_lineup && (
+          <div style={{ marginTop: 16 }}>
+            <h3>Current Optimal Lineup — {data.meta.race}</h3>
+            <p className="muted" style={{ marginBottom: 12 }}>
+              The assignment that maximises expected points including the exact-position bonus.
+              Slot bonus E[pts] = P(driver finishes in that exact position) × 10.
+            </p>
+            <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', fontFamily: 'var(--font-data)', width: '100%', maxWidth: 560 }}>
+              <thead>
+                <tr>
+                  {['Pick', 'Driver', 'Base E[pts]', 'Slot bonus E[pts]', 'Total'].map(h => (
+                    <th key={h} style={{ padding: '6px 14px 6px 0', textAlign: h === 'Pick' || h === 'Driver' ? 'left' : 'right', color: 'var(--text-dim)', fontWeight: 500, borderBottom: '1px solid var(--border)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.optimal_lineup.picks.map(pick => {
+                  const tc = data.teams[pick.team_idx]?.color ?? '#888';
+                  return (
+                    <tr key={pick.slot} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '9px 14px 9px 0', color: 'var(--text-dim)' }}>Pick {pick.slot}</td>
+                      <td style={{ padding: '9px 14px 9px 0' }}>
+                        <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: tc, marginRight: 8 }} />
+                        <span style={{ color: 'var(--text-bright)', fontWeight: 500 }}>{pick.name}</span>
+                      </td>
+                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-muted)' }}>{pick.ep_base.toFixed(2)}</td>
+                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: '#4ade80' }}>+{pick.slot_bonus_ev.toFixed(2)}</td>
+                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: 600 }}>{(pick.ep_base + pick.slot_bonus_ev).toFixed(2)}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={2} style={{ padding: '9px 14px 9px 0', color: 'var(--text-dim)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.4px', borderTop: '2px solid var(--border-light)' }}>Expected total</td>
+                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-muted)', borderTop: '2px solid var(--border-light)' }}>{data.optimal_lineup.ep_base_total.toFixed(2)}</td>
+                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: '#4ade80', borderTop: '2px solid var(--border-light)' }}>+{data.optimal_lineup.ep_bonus_total.toFixed(2)}</td>
+                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: 700, fontSize: '1rem', borderTop: '2px solid var(--border-light)' }}>{data.optimal_lineup.ep_grand_total.toFixed(2)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* ====== PROBABILITY PLAYGROUND ====== */}
