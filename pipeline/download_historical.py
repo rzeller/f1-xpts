@@ -17,7 +17,7 @@ import sys
 import requests
 
 
-API_BASE = "https://api.jolpica.com/ergast/f1"
+API_BASE = "https://api.jolpi.ca/ergast/f1"
 
 
 def fetch_season_results(season: int, retries: int = 3) -> list:
