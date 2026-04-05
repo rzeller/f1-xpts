@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-04-04T17:49:20.280092+00:00",
+    "generated_at": "2026-04-05T00:54:38.548900+00:00",
     "race": "Japanese Grand Prix",
     "date": "2026-03-29",
     "is_sprint": false,
@@ -986,62 +986,505 @@
       ]
     }
   ],
-  "optimal_lineup": {
-    "picks": [
-      {
-        "slot": 1,
-        "name": "George Russell",
-        "abbr": "RUS",
-        "team_idx": 0,
-        "ep_base": 14.0,
-        "slot_bonus_ev": 2.413
-      },
-      {
-        "slot": 2,
-        "name": "Kimi Antonelli",
-        "abbr": "ANT",
-        "team_idx": 0,
-        "ep_base": 11.5,
-        "slot_bonus_ev": 1.573
-      },
-      {
-        "slot": 3,
-        "name": "Charles Leclerc",
-        "abbr": "LEC",
-        "team_idx": 1,
-        "ep_base": 8.22,
-        "slot_bonus_ev": 0.982
-      },
-      {
-        "slot": 4,
-        "name": "Lewis Hamilton",
-        "abbr": "HAM",
-        "team_idx": 1,
-        "ep_base": 6.84,
-        "slot_bonus_ev": 0.838
-      },
-      {
-        "slot": 5,
-        "name": "Max Verstappen",
-        "abbr": "VER",
-        "team_idx": 2,
-        "ep_base": 4.54,
-        "slot_bonus_ev": 0.671
-      }
-    ],
-    "ep_base_total": 45.1,
-    "ep_bonus_total": 6.477,
-    "ep_grand_total": 51.58,
-    "n_candidates": 22,
-    "exact_pos_bonus": 10.0
-  },
+  "top_lineups": [
+    {
+      "rank": 1,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 2,
+          "ep_base": 4.54,
+          "slot_bonus_ev": 0.671
+        }
+      ],
+      "ep_base_total": 45.1,
+      "ep_bonus_total": 6.477,
+      "ep_grand_total": 51.58,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 2,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 4.53,
+          "slot_bonus_ev": 0.618
+        }
+      ],
+      "ep_base_total": 45.09,
+      "ep_bonus_total": 6.424,
+      "ep_grand_total": 51.51,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 3,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Oscar Piastri",
+          "abbr": "PIA",
+          "team_idx": 3,
+          "ep_base": 3.73,
+          "slot_bonus_ev": 0.543
+        }
+      ],
+      "ep_base_total": 44.29,
+      "ep_bonus_total": 6.349,
+      "ep_grand_total": 50.64,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 4,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Pierre Gasly",
+          "abbr": "GAS",
+          "team_idx": 5,
+          "ep_base": 3.54,
+          "slot_bonus_ev": 0.551
+        }
+      ],
+      "ep_base_total": 44.1,
+      "ep_bonus_total": 6.357,
+      "ep_grand_total": 50.46,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 5,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Liam Lawson",
+          "abbr": "LAW",
+          "team_idx": 2,
+          "ep_base": 3.24,
+          "slot_bonus_ev": 0.53
+        }
+      ],
+      "ep_base_total": 43.8,
+      "ep_bonus_total": 6.336,
+      "ep_grand_total": 50.14,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 6,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Oliver Bearman",
+          "abbr": "BEA",
+          "team_idx": 8,
+          "ep_base": 2.79,
+          "slot_bonus_ev": 0.469
+        }
+      ],
+      "ep_base_total": 43.35,
+      "ep_bonus_total": 6.275,
+      "ep_grand_total": 49.62,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 7,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 2,
+          "ep_base": 4.54,
+          "slot_bonus_ev": 0.666
+        },
+        {
+          "slot": 5,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 4.53,
+          "slot_bonus_ev": 0.618
+        }
+      ],
+      "ep_base_total": 42.79,
+      "ep_bonus_total": 6.253,
+      "ep_grand_total": 49.04,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 8,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Alexander Albon",
+          "abbr": "ALB",
+          "team_idx": 6,
+          "ep_base": 2.18,
+          "slot_bonus_ev": 0.412
+        }
+      ],
+      "ep_base_total": 42.74,
+      "ep_bonus_total": 6.218,
+      "ep_grand_total": 48.96,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 9,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 6.84,
+          "slot_bonus_ev": 0.838
+        },
+        {
+          "slot": 5,
+          "name": "Carlos Sainz",
+          "abbr": "SAI",
+          "team_idx": 6,
+          "ep_base": 1.92,
+          "slot_bonus_ev": 0.378
+        }
+      ],
+      "ep_base_total": 42.48,
+      "ep_bonus_total": 6.184,
+      "ep_grand_total": 48.66,
+      "exact_pos_bonus": 10.0
+    },
+    {
+      "rank": 10,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 0,
+          "ep_base": 14.0,
+          "slot_bonus_ev": 2.413
+        },
+        {
+          "slot": 2,
+          "name": "Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 0,
+          "ep_base": 11.5,
+          "slot_bonus_ev": 1.573
+        },
+        {
+          "slot": 3,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.22,
+          "slot_bonus_ev": 0.982
+        },
+        {
+          "slot": 4,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 2,
+          "ep_base": 4.54,
+          "slot_bonus_ev": 0.666
+        },
+        {
+          "slot": 5,
+          "name": "Oscar Piastri",
+          "abbr": "PIA",
+          "team_idx": 3,
+          "ep_base": 3.73,
+          "slot_bonus_ev": 0.543
+        }
+      ],
+      "ep_base_total": 41.99,
+      "ep_bonus_total": 6.177,
+      "ep_grand_total": 48.17,
+      "exact_pos_bonus": 10.0
+    }
+  ],
   "fit": {
     "method": "Powell",
     "converged": true,
     "final_loss": 0.2788882570386641,
     "n_evals": 2055,
     "n_steps": 6,
-    "elapsed_seconds": 29.9,
+    "elapsed_seconds": 28.8,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.02,
@@ -2804,37 +3247,37 @@
         "step": 1,
         "eval": 247,
         "best_loss": 0.890902,
-        "elapsed": 3.6
+        "elapsed": 3.5
       },
       {
         "step": 2,
         "eval": 570,
         "best_loss": 0.362984,
-        "elapsed": 8.2
+        "elapsed": 7.9
       },
       {
         "step": 3,
         "eval": 927,
         "best_loss": 0.283814,
-        "elapsed": 13.3
+        "elapsed": 12.9
       },
       {
         "step": 4,
         "eval": 1357,
         "best_loss": 0.277966,
-        "elapsed": 19.5
+        "elapsed": 18.9
       },
       {
         "step": 5,
         "eval": 1695,
         "best_loss": 0.270414,
-        "elapsed": 24.5
+        "elapsed": 23.6
       },
       {
         "step": 6,
         "eval": 2055,
         "best_loss": 0.270002,
-        "elapsed": 29.8
+        "elapsed": 28.5
       }
     ],
     "residuals": [

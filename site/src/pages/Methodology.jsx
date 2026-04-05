@@ -615,13 +615,14 @@ export default function Methodology({ data }) {
               decisions become one: choosing an entry in the matrix simultaneously selects the
               driver and assigns their slot.
             </p>
-            <h4>Why C(22,5) enumeration is unnecessary</h4>
+            <h4>Finding the top N lineups</h4>
             <p>
-              The earlier pruning approach kept only drivers whose base EP was within 10 points
-              of the 5th-best driver (the max bonus), then enumerated subsets of those candidates.
-              For this race that was still all 22 drivers. The assignment formulation avoids
-              enumeration entirely: scipy's <code>linear_sum_assignment</code> solves a 22×5
-              rectangular matrix in O(n·m²) ≈ O(22 × 25) operations — effectively instant.
+              The rectangular assignment gives only the single best lineup. For the top 10 we
+              enumerate all C(22,5) = 26,334 driver selections and score each against all
+              5! = 120 slot permutations — but entirely in numpy without a Python inner loop.
+              The sum of five (26,334 × 120) slices of the bonus tensor gives every
+              (selection, permutation) score at once. We then sort and take the top 10.
+              The full computation is effectively instant.
             </p>
             <h4>The Hungarian algorithm</h4>
             <p>
@@ -635,46 +636,42 @@ export default function Methodology({ data }) {
           </div>
         </details>
 
-        {data.optimal_lineup && (
+        {data.top_lineups?.length > 0 && (
           <div style={{ marginTop: 16 }}>
-            <h3>Current Optimal Lineup — {data.meta.race}</h3>
+            <h3>Top {data.top_lineups.length} Lineups — {data.meta.race}</h3>
             <p className="muted" style={{ marginBottom: 12 }}>
-              The assignment that maximises expected points including the exact-position bonus.
-              Slot bonus E[pts] = P(driver finishes in that exact position) × 10.
+              Each row is a distinct set of 5 drivers with their optimal slot assignment.
+              Slot bonus = P(driver finishes in that exact position) × 10. The difference
+              between adjacent lineups illustrates how much the exact-position bonus matters.
             </p>
-            <table style={{ borderCollapse: 'collapse', fontSize: '0.85rem', fontFamily: 'var(--font-data)', width: '100%', maxWidth: 560 }}>
+            {/* Summary: one row per lineup */}
+            <table style={{ borderCollapse: 'collapse', fontSize: '0.82rem', fontFamily: 'var(--font-data)', width: '100%', maxWidth: 700, marginBottom: 20 }}>
               <thead>
                 <tr>
-                  {['Pick', 'Driver', 'Base E[pts]', 'Slot bonus E[pts]', 'Total'].map(h => (
-                    <th key={h} style={{ padding: '6px 14px 6px 0', textAlign: h === 'Pick' || h === 'Driver' ? 'left' : 'right', color: 'var(--text-dim)', fontWeight: 500, borderBottom: '1px solid var(--border)', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{h}</th>
+                  {['#', 'Slot 1', 'Slot 2', 'Slot 3', 'Slot 4', 'Slot 5', 'Base', '+Bonus', 'Total'].map((h, i) => (
+                    <th key={h} style={{ padding: '5px 12px 5px 0', textAlign: i >= 6 ? 'right' : 'left', color: 'var(--text-dim)', fontWeight: 500, borderBottom: '1px solid var(--border)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
-                {data.optimal_lineup.picks.map(pick => {
-                  const tc = data.teams[pick.team_idx]?.color ?? '#888';
-                  return (
-                    <tr key={pick.slot} style={{ borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '9px 14px 9px 0', color: 'var(--text-dim)' }}>Pick {pick.slot}</td>
-                      <td style={{ padding: '9px 14px 9px 0' }}>
-                        <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: tc, marginRight: 8 }} />
-                        <span style={{ color: 'var(--text-bright)', fontWeight: 500 }}>{pick.name}</span>
-                      </td>
-                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-muted)' }}>{pick.ep_base.toFixed(2)}</td>
-                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: '#4ade80' }}>+{pick.slot_bonus_ev.toFixed(2)}</td>
-                      <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: 600 }}>{(pick.ep_base + pick.slot_bonus_ev).toFixed(2)}</td>
-                    </tr>
-                  );
-                })}
+                {data.top_lineups.map(lineup => (
+                  <tr key={lineup.rank} style={{ borderBottom: '1px solid var(--border)', background: lineup.rank === 1 ? 'rgba(255,255,255,0.04)' : undefined }}>
+                    <td style={{ padding: '8px 12px 8px 0', color: 'var(--text-dim)', fontSize: '0.78rem' }}>{lineup.rank}</td>
+                    {lineup.picks.map(pick => {
+                      const tc = data.teams[pick.team_idx]?.color ?? '#888';
+                      return (
+                        <td key={pick.slot} style={{ padding: '8px 12px 8px 0', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: tc, marginRight: 5, verticalAlign: 'middle' }} />
+                          <span style={{ color: 'var(--text-bright)' }}>{pick.abbr}</span>
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: 'var(--text-muted)' }}>{lineup.ep_base_total.toFixed(2)}</td>
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: '#4ade80' }}>+{lineup.ep_bonus_total.toFixed(2)}</td>
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: lineup.rank === 1 ? 700 : 500 }}>{lineup.ep_grand_total.toFixed(2)}</td>
+                  </tr>
+                ))}
               </tbody>
-              <tfoot>
-                <tr>
-                  <td colSpan={2} style={{ padding: '9px 14px 9px 0', color: 'var(--text-dim)', fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.4px', borderTop: '2px solid var(--border-light)' }}>Expected total</td>
-                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-muted)', borderTop: '2px solid var(--border-light)' }}>{data.optimal_lineup.ep_base_total.toFixed(2)}</td>
-                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: '#4ade80', borderTop: '2px solid var(--border-light)' }}>+{data.optimal_lineup.ep_bonus_total.toFixed(2)}</td>
-                  <td style={{ padding: '9px 14px 9px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: 700, fontSize: '1rem', borderTop: '2px solid var(--border-light)' }}>{data.optimal_lineup.ep_grand_total.toFixed(2)}</td>
-                </tr>
-              </tfoot>
             </table>
           </div>
         )}

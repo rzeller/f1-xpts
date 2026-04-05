@@ -330,3 +330,96 @@
 .grand-total {
   font-size: 1rem;
 }
+
+/* Lineup summary table (one row per lineup) */
+.lineup-summary-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-data);
+  font-size: 0.82rem;
+  margin-bottom: 20px;
+}
+
+.lineup-summary-table thead th {
+  padding: 5px 10px 5px 0;
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: 500;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  white-space: nowrap;
+}
+
+.lineup-summary-table thead th.ls-num {
+  text-align: right;
+}
+
+.ls-row {
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.ls-row:hover {
+  background: var(--bg-hover, rgba(255,255,255,0.03));
+}
+
+.ls-row-selected {
+  background: rgba(255,255,255,0.05) !important;
+  outline: 1px solid var(--border-light);
+}
+
+.ls-rank {
+  padding: 8px 12px 8px 0;
+  color: var(--text-dim);
+  width: 28px;
+  font-size: 0.78rem;
+}
+
+.ls-slot {
+  padding: 8px 12px 8px 0;
+  color: var(--text-bright);
+  white-space: nowrap;
+}
+
+.ls-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-right: 5px;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.ls-num {
+  padding: 8px 12px 8px 0;
+  text-align: right;
+  color: var(--text-muted);
+  width: 70px;
+}
+
+.ls-bonus {
+  color: #4ade80 !important;
+}
+
+.ls-total {
+  color: var(--text-bright) !important;
+  font-weight: 600;
+}
+
+/* Detail panel for selected lineup */
+.lineup-detail {
+  border-top: 1px solid var(--border);
+  padding-top: 14px;
+}
+
+.lineup-detail-header {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}

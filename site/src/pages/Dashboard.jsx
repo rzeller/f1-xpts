@@ -87,8 +87,8 @@ export default function Dashboard({ data }) {
         </table>
       </div>
 
-      {data.optimal_lineup && (
-        <OptimalLineup lineup={data.optimal_lineup} teams={data.teams} />
+      {data.top_lineups?.length > 0 && (
+        <OptimalLineup lineups={data.top_lineups} teams={data.teams} />
       )}
 
       <footer className="dash-footer">
