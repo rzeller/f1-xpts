@@ -11,7 +11,6 @@ observed odds, then simulate to get full position distributions.
 """
 
 import numpy as np
-from itertools import combinations
 from scipy.optimize import minimize, linear_sum_assignment
 from typing import Dict, List, Tuple, Optional
 from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, N_DRIVERS, N_TEAMS, DRIVERS
@@ -398,7 +397,6 @@ def generate_full_output(
 
 def find_optimal_lineup(
     drivers_data: List[dict],
-    points_map: Dict[int, int],
     n_picks: int = 5,
     exact_pos_bonus: float = 10.0,
 ) -> dict:
@@ -409,95 +407,70 @@ def find_optimal_lineup(
     Scoring: For each pick slot s (1..n_picks), if your assigned driver
     finishes exactly in position s, you earn +exact_pos_bonus points.
 
-    Algorithm:
-    - Candidate pruning: only consider drivers with base EP within
-      exact_pos_bonus of the 5th-best driver's EP (they can never beat
-      the top 5 otherwise, since the max bonus is exact_pos_bonus).
-    - Enumerate C(candidates, n_picks) subsets.
-    - For each subset, solve the n_picks × n_picks assignment problem
-      (maximize bonus via linear_sum_assignment) to find optimal slot ordering.
-    - Return the best lineup.
+    This reduces to a single rectangular linear assignment problem.
+    Define a (n_drivers × n_picks) score matrix:
+
+        score[d][s] = ep_base[d] + P(driver d finishes P{s+1}) * exact_pos_bonus
+
+    Assigning 5 drivers (rows) to 5 slots (columns) — one driver per slot,
+    each driver used at most once — and maximising the total score gives the
+    globally optimal lineup. scipy.optimize.linear_sum_assignment solves this
+    in O(n * m²) ≈ O(22 * 25) — far cheaper than enumerating C(22,5) subsets.
 
     Parameters
     ----------
     drivers_data : list of driver dicts from generate_full_output,
         each with 'ep_total', 'position_distribution', 'name', 'abbr', 'team_idx'
-    points_map : the scoring map used for ep_total (race or total)
     n_picks : number of picks (default 5)
     exact_pos_bonus : bonus points for exact position match (default 10)
 
     Returns
     -------
     dict with keys:
-        picks: list of {slot, driver_idx, name, abbr, team_idx, ep_base, slot_bonus_ev}
-        ep_base_total: sum of base EPs for the 5 picks
+        picks: list of {slot, name, abbr, team_idx, ep_base, slot_bonus_ev}
+            sorted by slot ascending
+        ep_base_total: sum of base EPs for the chosen picks
         ep_bonus_total: expected bonus from exact position matches
         ep_grand_total: ep_base_total + ep_bonus_total
     """
-    # Build arrays indexed by driver_data index (not original driver index)
+    n = len(drivers_data)
     ep_totals = np.array([d["ep_total"] for d in drivers_data])
 
-    # Sort by EP descending to find the threshold
-    sorted_eps = np.sort(ep_totals)[::-1]
-    ep_5th = sorted_eps[n_picks - 1] if len(sorted_eps) >= n_picks else sorted_eps[-1]
-    ep_threshold = ep_5th - exact_pos_bonus
+    # score[d][s] = ep_base[d] + P(d finishes position s+1) * bonus
+    # shape: (n_drivers, n_picks)
+    pos_bonus = np.array([
+        [d["position_distribution"][s] * exact_pos_bonus for s in range(n_picks)]
+        for d in drivers_data
+    ])
+    score_matrix = ep_totals[:, np.newaxis] + pos_bonus  # broadcast
 
-    # Candidates: drivers with EP above the threshold
-    candidate_indices = [i for i, ep in enumerate(ep_totals) if ep >= ep_threshold]
+    # Solve: scipy picks n_picks rows from n_drivers to assign to n_picks columns,
+    # maximising total score (we minimise the negation).
+    row_ind, col_ind = linear_sum_assignment(-score_matrix)
+    # row_ind: chosen driver indices (length n_picks)
+    # col_ind: assigned slot indices 0..n_picks-1 (length n_picks)
 
-    # Bonus matrix: bonus_matrix[local_i][slot_0idx] = P(driver finishes in slot+1) * bonus
-    # slot_0idx 0..n_picks-1 corresponds to finishing positions 1..n_picks
-    bonus_matrix = np.array([
-        [drivers_data[i]["position_distribution"][s] * exact_pos_bonus for s in range(n_picks)]
-        for i in candidate_indices
-    ])  # shape: (n_candidates, n_picks)
+    picks = []
+    for driver_idx, slot_0idx in zip(row_ind, col_ind):
+        d = drivers_data[driver_idx]
+        picks.append({
+            "slot": int(slot_0idx + 1),
+            "name": d["name"],
+            "abbr": d["abbr"],
+            "team_idx": d["team_idx"],
+            "ep_base": round(float(ep_totals[driver_idx]), 2),
+            "slot_bonus_ev": round(float(pos_bonus[driver_idx, slot_0idx]), 3),
+        })
+    picks.sort(key=lambda p: p["slot"])
 
-    best_total = -np.inf
-    best_lineup = None
-
-    for combo in combinations(range(len(candidate_indices)), n_picks):
-        # combo is n_picks indices into candidate_indices
-        local_bonus = bonus_matrix[list(combo), :]  # (n_picks, n_picks)
-        ep_base_sum = sum(ep_totals[candidate_indices[ci]] for ci in combo)
-
-        # Solve assignment: maximize total bonus
-        # linear_sum_assignment minimizes, so negate
-        row_ind, col_ind = linear_sum_assignment(-local_bonus)
-        bonus_sum = local_bonus[row_ind, col_ind].sum()
-
-        total = ep_base_sum + bonus_sum
-        if total > best_total:
-            best_total = total
-            # col_ind[k] = slot assigned to driver k in combo
-            # Build picks: slot s → driver combo[row_ind[s]] ... actually
-            # row_ind is just 0..n_picks-1, col_ind[k] is the slot assigned to driver k
-            picks_unordered = []
-            for k, slot_0idx in zip(row_ind, col_ind):
-                di = candidate_indices[combo[k]]
-                d = drivers_data[di]
-                picks_unordered.append({
-                    "slot": int(slot_0idx + 1),
-                    "driver_data_idx": di,
-                    "name": d["name"],
-                    "abbr": d["abbr"],
-                    "team_idx": d["team_idx"],
-                    "ep_base": round(float(ep_totals[di]), 2),
-                    "slot_bonus_ev": round(float(d["position_distribution"][slot_0idx] * exact_pos_bonus), 3),
-                })
-            best_lineup = sorted(picks_unordered, key=lambda p: p["slot"])
-            best_ep_base = round(float(ep_base_sum), 2)
-            best_ep_bonus = round(float(bonus_sum), 3)
-
-    # Clean up internal key
-    for p in best_lineup:
-        del p["driver_data_idx"]
+    ep_base_total = round(float(ep_totals[row_ind].sum()), 2)
+    ep_bonus_total = round(float(pos_bonus[row_ind, col_ind].sum()), 3)
 
     return {
-        "picks": best_lineup,
-        "ep_base_total": best_ep_base,
-        "ep_bonus_total": best_ep_bonus,
-        "ep_grand_total": round(best_ep_base + best_ep_bonus, 2),
-        "n_candidates": len(candidate_indices),
+        "picks": picks,
+        "ep_base_total": ep_base_total,
+        "ep_bonus_total": ep_bonus_total,
+        "ep_grand_total": round(ep_base_total + ep_bonus_total, 2),
         "exact_pos_bonus": exact_pos_bonus,
     }
 

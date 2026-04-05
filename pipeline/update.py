@@ -215,11 +215,7 @@ def run_pipeline(
 
     # Step 3b: Find optimal lineup
     print("\n[3b/4] Finding optimal 5-driver lineup...")
-    is_sprint = race_info.get("is_sprint", False)
-    points_map = RACE_POINTS if not is_sprint else {
-        k: RACE_POINTS.get(k, 0) + SPRINT_POINTS.get(k, 0) for k in set(list(RACE_POINTS.keys()) + list(SPRINT_POINTS.keys()))
-    }
-    optimal_lineup = find_optimal_lineup(drivers_data, points_map)
+    optimal_lineup = find_optimal_lineup(drivers_data)
     print(f"  Optimal lineup ({optimal_lineup['n_candidates']} candidates considered):")
     for pick in optimal_lineup["picks"]:
         print(f"    Pick {pick['slot']}: {pick['name']:20s} base={pick['ep_base']:6.2f}  slot_bonus={pick['slot_bonus_ev']:.3f}")
