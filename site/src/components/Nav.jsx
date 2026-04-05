@@ -9,7 +9,10 @@ export default function Nav({ page, setPage, race, races, selectedRace, onRaceCh
           <select
             className="nav-race-select"
             value={selectedRace || ''}
-            onChange={e => onRaceChange(e.target.value)}
+            onChange={e => {
+              onRaceChange(e.target.value);
+              setPage('dashboard');
+            }}
           >
             {races.map(r => (
               <option key={r.slug} value={r.slug}>
@@ -18,10 +21,16 @@ export default function Nav({ page, setPage, race, races, selectedRace, onRaceCh
             ))}
           </select>
         ) : (
-          <span className="nav-race">{race}</span>
+          <button className="nav-race nav-link" onClick={() => setPage('dashboard')}>{race}</button>
         )}
       </div>
       <div className="nav-links">
+        <button
+          className={`nav-link ${page === 'dashboard' ? 'active' : ''}`}
+          onClick={() => setPage('dashboard')}
+        >
+          Dashboard
+        </button>
         <button
           className={`nav-link ${page === 'methodology' ? 'active' : ''}`}
           onClick={() => setPage('methodology')}
