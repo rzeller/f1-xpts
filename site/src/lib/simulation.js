@@ -121,8 +121,9 @@ export function simulateRaces(
     // PL sequential draw
     const remaining = [...finishers];
     const remLambdas = remaining.map(i => simLambdas[i]);
+    const nFinishers = remaining.length;
 
-    for (let pos = 0; pos < remaining.length; pos++) {
+    for (let pos = 0; pos < nFinishers; pos++) {
       const chosenLocal = weightedChoice(remLambdas, rand);
       const chosenDriver = remaining[chosenLocal];
       counts[chosenDriver][pos] += 1;
