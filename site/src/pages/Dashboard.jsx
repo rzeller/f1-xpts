@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import DriverRow from '../components/DriverRow';
+import OptimalLineup from '../components/OptimalLineup';
 import ModelFit from './ModelFit';
 import './Dashboard.css';
 
@@ -85,6 +86,10 @@ export default function Dashboard({ data }) {
           </tbody>
         </table>
       </div>
+
+      {data.top_lineups?.length > 0 && (
+        <OptimalLineup lineups={data.top_lineups} teams={data.teams} />
+      )}
 
       <footer className="dash-footer">
         <span>Model: Plackett-Luce | Devig: {data.meta.devig_method} | {data.meta.n_simulations.toLocaleString()} sims | Fit loss: {data.meta.fit_loss?.toFixed(5) ?? '—'}{data.meta.fit_converged === false && ' (not converged)'}</span>

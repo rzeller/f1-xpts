@@ -11,7 +11,8 @@ observed odds, then simulate to get full position distributions.
 """
 
 import numpy as np
-from scipy.optimize import minimize
+from itertools import combinations, permutations
+from scipy.optimize import minimize, linear_sum_assignment
 from typing import Dict, List, Tuple, Optional
 from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, N_DRIVERS, N_TEAMS, DRIVERS
 
@@ -393,6 +394,109 @@ def generate_full_output(
     drivers_output.sort(key=lambda d: -d["ep_total"])
 
     return drivers_output
+
+
+def find_top_lineups(
+    drivers_data: List[dict],
+    n_picks: int = 5,
+    exact_pos_bonus: float = 10.0,
+    top_n: int = 10,
+) -> List[dict]:
+    """
+    Find the top_n highest-scoring ordered lineups by expected points
+    including the exact-position bonus, returned in descending order.
+
+    For each selection of n_picks drivers from the grid, the optimal slot
+    ordering maximises Σ P(driver finishes in their pick slot) * bonus.
+    We enumerate all C(n_drivers, n_picks) selections and score them against
+    all n_picks! permutations in a single vectorised numpy operation, then
+    sort and return the top_n.
+
+    At 22 drivers / 5 picks: C(22,5)=26,334 selections × 5!=120 permutations.
+    The inner product is computed entirely in numpy with no Python inner loop.
+
+    Score matrix identity
+    ---------------------
+    total[combo, perm] = Σ_i  ep_base[combo[i]] + pos_bonus[combo[i], perm[i]]
+                       = ep_base_sum[combo]  +  Σ_i B[combo, i, perm[i]]
+
+    where B[c,i,s] = pos_bonus[combo_c_driver_i, slot_s].
+
+    Parameters
+    ----------
+    drivers_data : list of driver dicts from generate_full_output
+    n_picks : number of picks (default 5)
+    exact_pos_bonus : bonus for exact position match (default 10)
+    top_n : number of lineups to return (default 10)
+
+    Returns
+    -------
+    List of dicts (length top_n), each with:
+        rank, picks, ep_base_total, ep_bonus_total, ep_grand_total
+    """
+    n = len(drivers_data)
+    ep_totals = np.array([d["ep_total"] for d in drivers_data])
+
+    # pos_bonus[d, s] = P(driver d finishes position s+1) * exact_pos_bonus
+    pos_bonus = np.array([
+        [d["position_distribution"][s] * exact_pos_bonus for s in range(n_picks)]
+        for d in drivers_data
+    ])  # (n_drivers, n_picks)
+
+    # All C(n, n_picks) driver-index combinations: shape (n_combos, n_picks)
+    all_combos = np.array(list(combinations(range(n), n_picks)))  # (26334, 5)
+
+    # Bonus submatrix for every combo: B_all[c, i, s] = pos_bonus for the
+    # i-th driver of combo c assigned to slot s.
+    B_all = pos_bonus[all_combos, :]  # (n_combos, n_picks, n_picks)
+
+    # All n_picks! slot permutations: all_perms[p, i] = slot assigned to
+    # driver i under permutation p.
+    all_perms = np.array(list(permutations(range(n_picks))))  # (120, 5)
+
+    # bonus_scores[c, p] = Σ_i B_all[c, i, all_perms[p, i]]
+    # Computed without a Python loop by summing n_picks (n_combos, n_perms) slices.
+    bonus_scores = sum(
+        B_all[:, i, all_perms[:, i]]   # (n_combos, n_perms)
+        for i in range(n_picks)
+    )  # (n_combos, n_perms)
+
+    best_perm_idx = bonus_scores.argmax(axis=1)        # (n_combos,)
+    best_bonus    = bonus_scores.max(axis=1)            # (n_combos,)
+    ep_base       = ep_totals[all_combos].sum(axis=1)  # (n_combos,)
+    totals        = ep_base + best_bonus               # (n_combos,)
+
+    top_combo_indices = np.argsort(-totals)[:top_n]
+
+    lineups = []
+    for rank_0, combo_idx in enumerate(top_combo_indices):
+        combo = all_combos[combo_idx]                   # (n_picks,) driver indices
+        perm  = all_perms[best_perm_idx[combo_idx]]     # (n_picks,) slot assignments
+
+        picks = []
+        for local_i, slot_0idx in enumerate(perm):
+            driver_idx = int(combo[local_i])
+            d = drivers_data[driver_idx]
+            picks.append({
+                "slot": int(slot_0idx + 1),
+                "name": d["name"],
+                "abbr": d["abbr"],
+                "team_idx": d["team_idx"],
+                "ep_base": round(float(ep_totals[driver_idx]), 2),
+                "slot_bonus_ev": round(float(pos_bonus[driver_idx, slot_0idx]), 3),
+            })
+        picks.sort(key=lambda p: p["slot"])
+
+        lineups.append({
+            "rank": rank_0 + 1,
+            "picks": picks,
+            "ep_base_total": round(float(ep_base[combo_idx]), 2),
+            "ep_bonus_total": round(float(best_bonus[combo_idx]), 3),
+            "ep_grand_total": round(float(totals[combo_idx]), 2),
+            "exact_pos_bonus": exact_pos_bonus,
+        })
+
+    return lineups
 
 
 if __name__ == "__main__":

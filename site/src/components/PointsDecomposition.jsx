@@ -2,7 +2,7 @@
  * Stacked horizontal bar showing expected points contribution by position.
  * Each segment: P(pos) * points(pos). Red segment for DNF penalty.
  */
-export default function PointsDecomposition({ distribution, scoring, dnfPenalty = -20, color }) {
+export default function PointsDecomposition({ distribution, scoring, dnfPenalty = -10, color }) {
   // Build segments: position 1-10 contribute points, 11-22 contribute 0, DNF contributes penalty
   const segments = [];
   let totalPositive = 0;

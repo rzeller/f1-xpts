@@ -45,9 +45,11 @@ export default function Methodology({ data }) {
         <h2>The Problem</h2>
         <p>
           Every race weekend, our family F1 fantasy league asks each player to pick 5 drivers
-          before qualifying. The scoring is simple: points for finishing in the top 10
-          (25 for a win, down to 1 for P10), and a brutal -20 penalty for a DNF. No qualifying
-          bonuses, no overtake points, no fastest lap. Just where you finish.
+          <strong> in ranked order</strong> before qualifying. Points come from finishing in
+          the top 10 (25 for a win, down to 1 for P10), a -10 penalty for a DNF, and a{' '}
+          <strong>+10 exact-position bonus</strong> when a driver finishes in the same slot
+          as their pick number (e.g., your Pick 3 finishes P3). No qualifying bonuses, no
+          overtake points, no fastest lap.
         </p>
         <p>
           So the question is straightforward: which 5 drivers will score the most points this
@@ -113,6 +115,14 @@ export default function Methodology({ data }) {
               <span>Simulate {data.meta.n_simulations.toLocaleString()} races to get position probabilities and expected fantasy points</span>
             </div>
           </div>
+          <div className="pipeline-arrow">&darr;</div>
+          <div className="pipeline-step">
+            <div className="pipeline-icon">5</div>
+            <div className="pipeline-content">
+              <strong>Lineup Optimizer</strong>
+              <span>Solve a rectangular linear assignment to find the optimal 5-driver ordered lineup including the exact-position bonus</span>
+            </div>
+          </div>
         </div>
 
         <p>
@@ -125,13 +135,21 @@ export default function Methodology({ data }) {
 
         <h2>Scoring Rules</h2>
         <p>
-          Each player picks 5 drivers before qualifying each weekend (same drivers for sprint + race).
-          No budget cap, no qualifying points, no fastest lap. Just finishing position.
+          Each player picks <strong>5 drivers in ranked order</strong> before qualifying each
+          weekend (same picks apply to both sprint and race on sprint weekends). No budget cap,
+          no qualifying points, no fastest lap.
         </p>
         <ScoringTable scoring={scoringWithSprint} />
         <p style={{ marginTop: 12 }}>
           Sprint weekends (China, Miami, Canada, Great Britain, Netherlands, Singapore) add sprint
-          race points on top of the Grand Prix points. A DNF in either race costs -20.
+          race points on top of the Grand Prix points. A DNF in either race costs -10.
+        </p>
+        <p style={{ marginTop: 8 }}>
+          The <strong>exact-position bonus</strong> rewards picking the right driver <em>and</em>{' '}
+          placing them in the right slot. If your Pick 2 finishes P2, you earn +10 on top of
+          their base points. If your Pick 2 finishes P1, no bonus — the slot matters. This means
+          just picking the five best drivers isn't enough; you also need to order them optimally.
+          That's what Step 5 solves.
         </p>
       </section>
 
@@ -499,21 +517,21 @@ export default function Methodology({ data }) {
         <div className="step-num">4</div>
         <h2>Compute Expected Points</h2>
         <p>
-          Expected points = {'\u03A3'} P(position k) {'\u00D7'} points(k) + P(DNF) {'\u00D7'} (-20). Each finishing
-          position contributes its probability times its point value. The DNF penalty of -20 is
-          a significant drag — drivers with high DNF risk (12%+) can have negative expected points
+          Expected points = {'\u03A3'} P(position k) {'\u00D7'} points(k) + P(DNF) {'\u00D7'} ({data.scoring.dnf_penalty}). Each finishing
+          position contributes its probability times its point value. The DNF penalty of {data.scoring.dnf_penalty} is
+          a significant drag — drivers with high DNF risk (20%+) can have negative expected points
           even if they occasionally finish in the top 10.
         </p>
 
         <details className="deep-dive">
           <summary>Deep dive: Why this scoring changes optimal picks</summary>
           <div className="deep-dive-content">
-            <h4>The DNF penalty dominates strategy</h4>
+            <h4>The DNF penalty and exact position bonus</h4>
             <p>
-              In our scoring system, a DNF costs -20 points. That's equivalent to losing a
-              P2 finish plus a P8 finish. If a driver has a 10% DNF chance, that's an expected
-              cost of -2.0 points per race — which is substantial when the median expected
-              points for a midfield driver might be 3-4 points.
+              In our scoring system, a DNF costs -10 points. If a driver has a 10% DNF chance,
+              that's an expected cost of -1.0 points per race. Additionally, if a driver finishes
+              in the exact same slot as their pick position (e.g., your Pick 3 finishes P3), you
+              earn a +10 bonus — equal in magnitude to the DNF penalty.
             </p>
             <p>
               This means reliability is far more important in our league than in the official
@@ -543,6 +561,120 @@ export default function Methodology({ data }) {
           dnfPenalty={data.scoring.dnf_penalty}
           color={teamColor}
         />
+      </section>
+
+      {/* ====== STEP 5: LINEUP OPTIMIZER ====== */}
+      <section className="meth-section">
+        <div className="step-num">5</div>
+        <h2>Find the Optimal Lineup</h2>
+        <p>
+          Once we have expected points and full position distributions for every driver, we
+          need to answer: which 5 drivers should you pick, and in what order? The exact-position
+          bonus means the ordering matters — placing a driver in the wrong slot loses you up to
+          10 expected points.
+        </p>
+        <p>
+          The naive approach — enumerate all ways to choose 5 drivers from 22 and try every
+          ordering — would be C(22,5) × 5! = 3.2 million combinations. We can do much better.
+        </p>
+
+        <h3>Reducing to a Single Assignment Problem</h3>
+        <p>
+          Define a <strong>(22 × 5) score matrix</strong> where each entry is:
+        </p>
+        <div style={{
+          background: 'var(--bg-surface)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius)',
+          padding: '14px 20px',
+          margin: '12px 0 16px',
+          maxWidth: 600,
+          fontSize: '0.85rem',
+          fontFamily: 'var(--font-data)',
+          color: 'var(--text-muted)',
+          lineHeight: 1.8,
+        }}>
+          score[driver][slot] = E[base points for driver] + P(driver finishes position slot) × 10
+        </div>
+        <p>
+          Choosing 5 drivers and assigning each to a slot is exactly a{' '}
+          <strong>rectangular linear assignment problem</strong>: pick one entry per column
+          (slot), at most one entry per row (driver), to maximise the total. This is solved in
+          a single pass by the <strong>Hungarian algorithm</strong> — no enumeration needed.
+        </p>
+
+        <details className="deep-dive">
+          <summary>Deep dive: Why this formulation is exact</summary>
+          <div className="deep-dive-content">
+            <h4>The key insight</h4>
+            <p>
+              Total expected points for a lineup = Σ E[base points for driver k] + Σ P(driver k
+              finishes in slot k) × 10. The base-points term depends only on <em>which</em>{' '}
+              drivers are picked; the bonus term depends on both who is picked and how they are
+              ordered. Combining them into a single score per (driver, slot) pair means the two
+              decisions become one: choosing an entry in the matrix simultaneously selects the
+              driver and assigns their slot.
+            </p>
+            <h4>Finding the top N lineups</h4>
+            <p>
+              The rectangular assignment gives only the single best lineup. For the top 10 we
+              enumerate all C(22,5) = 26,334 driver selections and score each against all
+              5! = 120 slot permutations — but entirely in numpy without a Python inner loop.
+              The sum of five (26,334 × 120) slices of the bonus tensor gives every
+              (selection, permutation) score at once. We then sort and take the top 10.
+              The full computation is effectively instant.
+            </p>
+            <h4>The Hungarian algorithm</h4>
+            <p>
+              The Hungarian algorithm works by manufacturing zeros in the cost matrix. It subtracts
+              row and column minimums (which preserves the optimal assignment), then finds a perfect
+              matching through zero-cost cells. When no perfect matching exists, it adds a small
+              delta to create new zeros, repeating until the matching covers all columns. Each step
+              is O(n²); at most n steps are needed, giving O(n³) overall. For rectangular matrices,
+              scipy pads the shorter dimension with zeros and strips dummy assignments from the result.
+            </p>
+          </div>
+        </details>
+
+        {data.top_lineups?.length > 0 && (
+          <div style={{ marginTop: 16 }}>
+            <h3>Top {data.top_lineups.length} Lineups — {data.meta.race}</h3>
+            <p className="muted" style={{ marginBottom: 12 }}>
+              Each row is a distinct set of 5 drivers with their optimal slot assignment.
+              Slot bonus = P(driver finishes in that exact position) × 10. The difference
+              between adjacent lineups illustrates how much the exact-position bonus matters.
+            </p>
+            {/* Summary: one row per lineup */}
+            <table style={{ borderCollapse: 'collapse', fontSize: '0.82rem', fontFamily: 'var(--font-data)', width: '100%', maxWidth: 700, marginBottom: 20 }}>
+              <thead>
+                <tr>
+                  {['#', 'Slot 1', 'Slot 2', 'Slot 3', 'Slot 4', 'Slot 5', 'Base', '+Bonus', 'Total'].map((h, i) => (
+                    <th key={h} style={{ padding: '5px 12px 5px 0', textAlign: i >= 6 ? 'right' : 'left', color: 'var(--text-dim)', fontWeight: 500, borderBottom: '1px solid var(--border)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.4px', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {data.top_lineups.map(lineup => (
+                  <tr key={lineup.rank} style={{ borderBottom: '1px solid var(--border)', background: lineup.rank === 1 ? 'rgba(255,255,255,0.04)' : undefined }}>
+                    <td style={{ padding: '8px 12px 8px 0', color: 'var(--text-dim)', fontSize: '0.78rem' }}>{lineup.rank}</td>
+                    {lineup.picks.map(pick => {
+                      const tc = data.teams[pick.team_idx]?.color ?? '#888';
+                      return (
+                        <td key={pick.slot} style={{ padding: '8px 12px 8px 0', whiteSpace: 'nowrap' }}>
+                          <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: tc, marginRight: 5, verticalAlign: 'middle' }} />
+                          <span style={{ color: 'var(--text-bright)' }}>{pick.abbr}</span>
+                        </td>
+                      );
+                    })}
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: 'var(--text-muted)' }}>{lineup.ep_base_total.toFixed(2)}</td>
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: '#4ade80' }}>+{lineup.ep_bonus_total.toFixed(2)}</td>
+                    <td style={{ padding: '8px 12px 8px 0', textAlign: 'right', color: 'var(--text-bright)', fontWeight: lineup.rank === 1 ? 700 : 500 }}>{lineup.ep_grand_total.toFixed(2)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
 
       {/* ====== PROBABILITY PLAYGROUND ====== */}

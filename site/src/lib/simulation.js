@@ -94,7 +94,7 @@ export function simulateRaces(logLambdas, pDnfs, nSims = 10000, seed = 42) {
 /**
  * Compute expected points from position distribution.
  */
-export function computeExpectedPoints(positionProbs, scoring, dnfPenalty = -20) {
+export function computeExpectedPoints(positionProbs, scoring, dnfPenalty = -10) {
   let ep = 0;
   for (let pos = 0; pos < positionProbs.length - 1; pos++) {
     const pts = scoring[String(pos + 1)] || 0;
