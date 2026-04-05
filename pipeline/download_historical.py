@@ -21,48 +21,56 @@ API_BASE = "https://api.jolpi.ca/ergast/f1"
 
 
 def fetch_season_results(season: int, retries: int = 3) -> list:
-    """Fetch all race results for a season."""
-    url = f"{API_BASE}/{season}/results.json?limit=600"
-    for attempt in range(retries):
-        try:
-            r = requests.get(url, timeout=30)
-            r.raise_for_status()
-            data = r.json()
-            races_raw = data["MRData"]["RaceTable"]["Races"]
-            break
-        except (requests.RequestException, KeyError) as e:
-            if attempt < retries - 1:
-                wait = 2 ** (attempt + 1)
-                print(f"  Retry {attempt + 1}/{retries} after {wait}s: {e}")
-                time.sleep(wait)
-            else:
-                print(f"  ERROR: Failed to fetch {season}: {e}")
-                return []
+    """Fetch all race results for a season, paginating as needed."""
+    PAGE_SIZE = 100  # API caps at 100
+    offset = 0
+    races_by_round = {}
 
-    races = []
-    for race in races_raw:
-        results = []
-        for r in race.get("Results", []):
-            driver_code = r["Driver"].get("code", r["Driver"]["familyName"][:3].upper())
-            constructor = r["Constructor"]["name"]
-            position = int(r["position"])
-            status = r["status"]
-            # Classify DNF: anything not "Finished" or "+N Lap(s)" is a DNF
-            is_dnf = status != "Finished" and "Lap" not in status
-            results.append({
-                "driver": driver_code,
-                "team": constructor,
-                "position": position,
-                "status": status,
-                "dnf": is_dnf,
-            })
-        races.append({
-            "season": season,
-            "round": int(race["round"]),
-            "name": race["raceName"],
-            "results": results,
-        })
-    return races
+    while True:
+        url = f"{API_BASE}/{season}/results.json?limit={PAGE_SIZE}&offset={offset}"
+        for attempt in range(retries):
+            try:
+                r = requests.get(url, timeout=30)
+                r.raise_for_status()
+                data = r.json()
+                mr = data["MRData"]
+                total = int(mr["total"])
+                races_raw = mr["RaceTable"]["Races"]
+                break
+            except (requests.RequestException, KeyError) as e:
+                if attempt < retries - 1:
+                    wait = 2 ** (attempt + 1)
+                    print(f"  Retry {attempt + 1}/{retries} after {wait}s: {e}")
+                    time.sleep(wait)
+                else:
+                    print(f"  ERROR: Failed to fetch {season} (offset={offset}): {e}")
+                    return list(races_by_round.values())
+
+        for race in races_raw:
+            rnd = int(race["round"])
+            if rnd not in races_by_round:
+                races_by_round[rnd] = {"season": season, "round": rnd,
+                                       "name": race["raceName"], "results": []}
+            for res in race.get("Results", []):
+                driver_code = res["Driver"].get("code", res["Driver"]["familyName"][:3].upper())
+                constructor = res["Constructor"]["name"]
+                position = int(res["position"])
+                status = res["status"]
+                is_dnf = status != "Finished" and "Lap" not in status
+                races_by_round[rnd]["results"].append({
+                    "driver": driver_code,
+                    "team": constructor,
+                    "position": position,
+                    "status": status,
+                    "dnf": is_dnf,
+                })
+
+        offset += PAGE_SIZE
+        time.sleep(0.25)  # be polite
+        if offset >= total:
+            break
+
+    return [races_by_round[rnd] for rnd in sorted(races_by_round)]
 
 
 def main():
