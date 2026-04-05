@@ -77,9 +77,9 @@ for alias, canonical in _ALIASES.items():
 # sigma_global: Field-wide chaos scaling (log-normal multiplier on Gumbel noise)
 # sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
 CORRELATION_DEFAULTS = {
-    "sigma_team": 1.02,
-    "sigma_global": 1.28,
-    "sigma_dnf": 0.54,
+    "sigma_team": 0.0188,
+    "sigma_global": 1.5332,
+    "sigma_dnf": 0.4823,
 }
 
 SPRINT_WEEKENDS = [
