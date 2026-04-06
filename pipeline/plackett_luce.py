@@ -170,6 +170,7 @@ def fit_plackett_luce(
     team_reg: float = 0.02,
     smoothness_reg: float = 0.005,
     correlation: dict = None,
+    drivers_list: list = None,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -264,7 +265,8 @@ def fit_plackett_luce(
         # (No DNF loss term needed.)
 
         # Regularization: teammates should have similar lambdas
-        for t in range(N_TEAMS):
+        n_teams = int(team_indices.max()) + 1
+        for t in range(n_teams):
             teammates = [j for j in range(n) if team_indices[j] == t]
             if len(teammates) == 2:
                 diff = log_lambdas[teammates[0]] - log_lambdas[teammates[1]]
@@ -359,7 +361,7 @@ def fit_plackett_luce(
             residuals.append({
                 "market": market,
                 "driver_idx": i,
-                "driver": DRIVERS[i]["abbr"],
+                "driver": (drivers_list or DRIVERS)[i].get("abbr", f"D{i}") if isinstance((drivers_list or DRIVERS)[i], dict) else f"D{i}",
                 "observed": round(obs_p, 4),
                 "model": round(model_p, 4),
                 "residual": round(model_p - obs_p, 4),
@@ -393,6 +395,10 @@ def generate_full_output(
     n_sims: int = 50000,
     team_indices: np.ndarray = None,
     correlation: dict = None,
+    drivers_list: list = None,
+    race_points: dict = None,
+    sprint_points: dict = None,
+    dnf_penalty: float = None,
 ) -> List[dict]:
     """
     Generate the complete output for all drivers.
@@ -400,6 +406,11 @@ def generate_full_output(
     Returns a list of driver dicts with all computed statistics,
     ready to be serialized to JSON.
     """
+    _drivers = drivers_list if drivers_list is not None else DRIVERS
+    _race_pts = race_points if race_points is not None else RACE_POINTS
+    _sprint_pts = sprint_points if sprint_points is not None else SPRINT_POINTS
+    _dnf_pen = dnf_penalty if dnf_penalty is not None else DNF_PENALTY
+
     pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
         team_indices=team_indices, correlation=correlation,
@@ -408,11 +419,11 @@ def generate_full_output(
     drivers_output = []
     for i in range(len(log_lambdas)):
         dist = pos_probs[i]
-        ep_race = compute_expected_points(dist, RACE_POINTS)
-        ep_sprint = compute_expected_points(dist, SPRINT_POINTS) if is_sprint else 0.0
+        ep_race = compute_expected_points(dist, _race_pts, _dnf_pen)
+        ep_sprint = compute_expected_points(dist, _sprint_pts, _dnf_pen) if is_sprint else 0.0
         ep_total = ep_race + ep_sprint
 
-        var_race = compute_variance(dist, RACE_POINTS)
+        var_race = compute_variance(dist, _race_pts, _dnf_pen)
         std_race = np.sqrt(var_race)
 
         # Key probabilities
@@ -424,7 +435,7 @@ def generate_full_output(
         p_no_points = float(1.0 - p_top10 - dist[-1])
         p_dnf = float(dist[-1])
 
-        driver_info = DRIVERS[i]
+        driver_info = _drivers[i]
 
         drivers_output.append({
             "name": driver_info["name"],

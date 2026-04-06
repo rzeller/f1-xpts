@@ -27,16 +27,24 @@ from devig import devig_market, american_to_implied, devig_shin
 ODDS_API_BASE = "https://api.the-odds-api.com/v4"
 
 
-def resolve_driver_index(name: str) -> Optional[int]:
-    """Match a name from odds data to our canonical driver index."""
+def resolve_driver_index(name: str, driver_name_map: dict = None) -> Optional[int]:
+    """Match a name from odds data to our canonical driver index.
+
+    Parameters
+    ----------
+    name : driver name string from odds source
+    driver_name_map : optional override for name→index mapping.
+        If None, uses the global DRIVER_NAME_MAP from config.py.
+    """
+    name_map = driver_name_map if driver_name_map is not None else DRIVER_NAME_MAP
     key = name.lower().strip()
-    if key in DRIVER_NAME_MAP:
-        return DRIVER_NAME_MAP[key]
+    if key in name_map:
+        return name_map[key]
 
     # Try each word (handles "George Russell" → match on "russell")
     for word in key.split():
-        if word in DRIVER_NAME_MAP:
-            return DRIVER_NAME_MAP[word]
+        if word in name_map:
+            return name_map[word]
 
     return None
 
@@ -199,6 +207,7 @@ def load_manual_odds(filepath: str) -> dict:
 def process_odds_to_fair_probs(
     raw_odds: dict,
     devig_method: str = "shin",
+    driver_name_map: dict = None,
 ) -> Dict[str, Dict[int, float]]:
     """
     Convert raw odds (from API or manual) into fair probabilities
@@ -214,7 +223,7 @@ def process_odds_to_fair_probs(
         if market_name == "dnf":
             probs = {}
             for name, odds_val in market_odds.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, driver_name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
@@ -237,7 +246,7 @@ def process_odds_to_fair_probs(
             # Devig as binary markets, then rescale so they sum to target
             raw_implied = {}
             for name, odds_val in market_odds.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, driver_name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
@@ -256,7 +265,7 @@ def process_odds_to_fair_probs(
 
             probs = {}
             for name, prob in fair.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, driver_name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
