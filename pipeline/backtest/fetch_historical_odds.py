@@ -249,23 +249,38 @@ def _race_slug(name: str) -> str:
     return slug
 
 
-def compute_snapshot_time(race_date: str, hours_before: int = 3) -> str:
+def compute_snapshot_time(
+    race_date: str,
+    race_time: str = None,
+    hours_before: int = 3,
+) -> str:
     """
-    Compute the timestamp to fetch odds for (race day minus N hours).
+    Compute the timestamp to fetch odds for (race start minus N hours).
 
     Parameters
     ----------
     race_date : ISO date string (e.g., "2024-03-02")
+    race_time : UTC time string from Ergast API (e.g., "05:00:00Z").
+        If None, falls back to 14:00 UTC.
     hours_before : hours before race start to snapshot odds
 
     Returns
     -------
     ISO 8601 timestamp string
     """
-    # Assume race starts mid-afternoon local time; approximate with 14:00 UTC
     dt = datetime.fromisoformat(race_date)
-    # Set to 14:00 UTC on race day, then subtract hours_before
-    race_start = dt.replace(hour=14, minute=0, second=0, tzinfo=timezone.utc)
+
+    if race_time:
+        # Parse "HH:MM:SSZ" format from Ergast/Jolpica API
+        clean = race_time.rstrip("Z")
+        parts = clean.split(":")
+        hour = int(parts[0])
+        minute = int(parts[1]) if len(parts) > 1 else 0
+        second = int(parts[2]) if len(parts) > 2 else 0
+        race_start = dt.replace(hour=hour, minute=minute, second=second, tzinfo=timezone.utc)
+    else:
+        race_start = dt.replace(hour=14, minute=0, second=0, tzinfo=timezone.utc)
+
     snapshot = race_start - timedelta(hours=hours_before)
     return snapshot.isoformat()
 
@@ -277,30 +292,13 @@ def load_historical_results(filepath: str) -> list:
     return data.get("races", [])
 
 
-def get_race_date_from_results(race: dict) -> Optional[str]:
+def fetch_race_dates_from_api(season: int, retries: int = 3) -> Dict[int, dict]:
     """
-    Infer a race date from the race results data.
+    Fetch race dates and start times for a season from the Jolpica/Ergast API.
 
-    The Jolpica/Ergast data doesn't include dates directly in our format,
-    so we need a mapping of season + round → date.
+    Returns {round: {"date": "2024-03-02", "time": "05:00:00Z"}}
+    The time field is the actual race start time in UTC.
     """
-    # This will be populated by the calendar lookup
-    return None
-
-
-# Historical F1 race dates (season, round) → date string
-# Sourced from F1 calendar data
-HISTORICAL_RACE_DATES = {}
-
-
-def _load_race_dates():
-    """Load known race dates from a bundled calendar or build from API."""
-    # We'll build this lazily from the Jolpica API if needed
-    pass
-
-
-def fetch_race_dates_from_api(season: int, retries: int = 3) -> Dict[int, str]:
-    """Fetch race dates for a season from the Jolpica/Ergast API."""
     url = f"https://api.jolpi.ca/ergast/f1/{season}.json"
     for attempt in range(retries):
         try:
@@ -308,7 +306,13 @@ def fetch_race_dates_from_api(season: int, retries: int = 3) -> Dict[int, str]:
             resp.raise_for_status()
             data = resp.json()
             races = data["MRData"]["RaceTable"]["Races"]
-            return {int(r["round"]): r["date"] for r in races}
+            return {
+                int(r["round"]): {
+                    "date": r["date"],
+                    "time": r.get("time", None),  # e.g. "05:00:00Z"
+                }
+                for r in races
+            }
         except Exception as e:
             if attempt < retries - 1:
                 time.sleep(2 ** (attempt + 1))
@@ -348,8 +352,8 @@ def run_fetch(
         races = [r for r in races if r["season"] in seasons]
         print(f"  Filtered to {len(races)} races in seasons {seasons}")
 
-    # Fetch race dates from Jolpica API for each season
-    season_dates = {}
+    # Fetch race dates + start times from Jolpica API for each season
+    season_dates = {}  # {season: {round: {"date": ..., "time": ...}}}
     needed_seasons = sorted(set(r["season"] for r in races))
     for season in needed_seasons:
         print(f"  Fetching {season} calendar...")
@@ -363,7 +367,8 @@ def run_fetch(
     probe_race = races[-1]  # Most recent race
     probe_season = probe_race["season"]
     probe_round = probe_race["round"]
-    probe_date = season_dates.get(probe_season, {}).get(probe_round, "2024-06-01")
+    probe_info = season_dates.get(probe_season, {}).get(probe_round, {})
+    probe_date = probe_info.get("date", "2024-06-01") if isinstance(probe_info, dict) else probe_info
     probe_ts = compute_snapshot_time(probe_date)
 
     print(f"\nDiscovering F1 sport key (probing {probe_ts})...")
@@ -392,14 +397,17 @@ def run_fetch(
             skipped += 1
             continue
 
-        # Get race date
-        race_date = season_dates.get(season, {}).get(rnd)
-        if not race_date:
+        # Get race date and start time
+        race_info = season_dates.get(season, {}).get(rnd)
+        if not race_info:
             print(f"\n  SKIP {season} R{rnd} {name}: no date found")
             no_data += 1
             continue
 
-        timestamp = compute_snapshot_time(race_date, hours_before)
+        race_date = race_info["date"] if isinstance(race_info, dict) else race_info
+        race_time = race_info.get("time") if isinstance(race_info, dict) else None
+
+        timestamp = compute_snapshot_time(race_date, race_time, hours_before)
         print(f"\n  [{season} R{rnd:02d}] {name} — snapshot at {timestamp}")
 
         if dry_run:
