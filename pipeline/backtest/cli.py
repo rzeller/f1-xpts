@@ -45,8 +45,10 @@ def cmd_fetch(args):
         output_dir=args.odds_dir,
         historical_results_path=args.results,
         seasons=args.seasons,
-        hours_before=args.hours_before,
+        max_priority=args.max_priority,
+        regions=args.regions,
         dry_run=args.dry_run,
+        budget_limit=args.budget,
     )
 
 
@@ -76,6 +78,7 @@ def cmd_run(args):
         params=params,
         cache_dir=args.cache_dir,
         seasons=args.seasons,
+        time_point=args.time_point,
         verbose=True,
     )
 
@@ -213,12 +216,18 @@ Examples:
     # fetch command
     p_fetch = subparsers.add_parser("fetch", help="Fetch historical odds from The Odds API")
     p_fetch.add_argument("--api-key", "-k", help="The Odds API key")
-    p_fetch.add_argument("--hours-before", type=int, default=3,
-                         help="Hours before race to snapshot")
+    p_fetch.add_argument("--max-priority", "-p", type=int, default=6,
+                         help="Max time point priority to fetch, 1-6 (default: 6)")
+    p_fetch.add_argument("--regions", default="us,uk,eu,au",
+                         help="Bookmaker regions (default: us,uk,eu,au)")
+    p_fetch.add_argument("--budget", type=int, default=20000,
+                         help="API credit budget limit (default: 20000)")
     p_fetch.add_argument("--dry-run", action="store_true")
 
     # run command
     p_run = subparsers.add_parser("run", help="Run single backtest")
+    p_run.add_argument("--time-point",
+                       help="Which time point to use (e.g. before_qualifying, after_fp2)")
     p_run.add_argument("--devig-method", choices=["shin", "multiplicative", "power"])
     p_run.add_argument("--sigma-team", type=float)
     p_run.add_argument("--sigma-global", type=float)

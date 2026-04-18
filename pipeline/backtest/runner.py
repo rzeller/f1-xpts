@@ -258,12 +258,48 @@ def run_single_race(
     return metrics
 
 
+def _find_odds_file(
+    odds_files: Dict[str, Path],
+    season: int,
+    rnd: int,
+    time_point: Optional[str] = None,
+) -> Optional[Path]:
+    """
+    Find the best odds file for a race.
+
+    Preference order:
+    1. Exact time_point match (if specified)
+    2. before_qualifying (P1 — most important snapshot)
+    3. Any other time point file
+    4. Legacy format (no time point suffix)
+    """
+    prefix = f"{season}_{rnd:02d}"
+
+    if time_point:
+        for stem, fpath in odds_files.items():
+            if stem.startswith(prefix) and stem.endswith(f"_{time_point}"):
+                return fpath
+
+    # Prefer before_qualifying
+    for stem, fpath in odds_files.items():
+        if stem.startswith(prefix) and stem.endswith("_before_qualifying"):
+            return fpath
+
+    # Any time point file or legacy file
+    for stem, fpath in odds_files.items():
+        if stem.startswith(prefix):
+            return fpath
+
+    return None
+
+
 def run_backtest(
     historical_results_path: str = "pipeline/historical_results.json",
     odds_dir: str = "pipeline/historical_odds",
     params: dict = None,
     cache_dir: str = "pipeline/backtest_cache",
     seasons: Optional[List[int]] = None,
+    time_point: Optional[str] = None,
     verbose: bool = True,
 ) -> BacktestResult:
     """
@@ -276,6 +312,8 @@ def run_backtest(
     params : pipeline parameters (uses DEFAULT_PARAMS if None)
     cache_dir : directory for caching fitted models (None to disable)
     seasons : filter to specific seasons (None for all)
+    time_point : which time point to use (e.g. "before_qualifying").
+        If None, prefers before_qualifying, falls back to any available.
     verbose : print progress
 
     Returns
@@ -300,6 +338,8 @@ def run_backtest(
         print(f"Backtest configuration:")
         print(f"  Races: {len(all_results)}")
         print(f"  Odds files: {len(odds_files)}")
+        if time_point:
+            print(f"  Time point: {time_point}")
         print(f"  Params: {json.dumps(params, indent=4)}")
         print()
 
@@ -314,12 +354,9 @@ def run_backtest(
         season = race["season"]
         rnd = race["round"]
 
-        # Find matching odds file
-        odds_data = None
-        for stem, fpath in odds_files.items():
-            if stem.startswith(f"{season}_{rnd:02d}"):
-                odds_data = load_odds_file(str(fpath))
-                break
+        # Find matching odds file (prefers before_qualifying, backward compatible)
+        odds_fpath = _find_odds_file(odds_files, season, rnd, time_point)
+        odds_data = load_odds_file(str(odds_fpath)) if odds_fpath else None
 
         if odds_data is None:
             if verbose:
