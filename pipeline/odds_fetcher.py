@@ -51,26 +51,48 @@ def _get(url: str, params: dict) -> dict:
     return resp.json()
 
 
+KNOWN_F1_KEYS = [
+    "motorsport_formula_one",
+    "formula_1",
+    "f1",
+    "motorsport_formula1",
+]
+
 def discover_f1_sport_key(api_key: str) -> Optional[str]:
     """Find the correct sport key for F1 from The Odds API sports list."""
     data = _get(f"{ODDS_API_BASE}/sports", {"apiKey": api_key, "all": "true"})
+    all_keys = {s.get("key", ""): s for s in data}
+
+    # Try known keys first
+    for candidate in KNOWN_F1_KEYS:
+        if candidate in all_keys:
+            sport = all_keys[candidate]
+            print(f"  Found F1 (known key): key={candidate}, title={sport.get('title')}, active={sport.get('active')}")
+            return candidate
+
+    # Search by title/key pattern
     found = None
     for sport in data:
         key = sport.get("key", "")
         title = sport.get("title", "").lower()
         if "formula" in title or "formula" in key or "f1" in key:
-            print(f"  Found F1: key={key}, title={sport.get('title')}, active={sport.get('active')}")
-            # Prefer active, but accept inactive — outrights are available between weekends
+            print(f"  Found F1 (pattern): key={key}, title={sport.get('title')}, active={sport.get('active')}")
             if found is None or sport.get("active"):
                 found = key
     if found:
         return found
-    # Fallback: check for any motorsport with outrights
+
+    # Last resort: any motorsport with outrights
     for sport in data:
         key = sport.get("key", "")
         if "motorsport" in key and sport.get("has_outrights"):
             print(f"  Fallback motorsport outright: key={key}, title={sport.get('title')}")
             return key
+
+    # Log all available sports to help diagnose future failures
+    print(f"  Available sports ({len(data)} total):")
+    for sport in sorted(data, key=lambda s: s.get("key", "")):
+        print(f"    {sport.get('key'):40s} active={sport.get('active')} outrights={sport.get('has_outrights')}")
     return None
 
 
