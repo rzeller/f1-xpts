@@ -1,6 +1,14 @@
 name: Scraper Dry Run
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - claude/fix-issue-33-xDEjf
+    paths:
+      - 'pipeline/odds_fetcher.py'
+      - 'pipeline/update.py'
+      - 'pipeline/requirements.txt'
+      - '.github/workflows/scraper-dry-run.yml'
 
 jobs:
   dry-run:
