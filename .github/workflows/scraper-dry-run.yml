@@ -27,4 +27,13 @@ jobs:
         run: python -m playwright install --with-deps chromium
 
       - name: Run scraper dry run
-        run: python pipeline/update.py --dry-run
+        run: python pipeline/update.py --dry-run --debug-dir scraper-debug
+
+      - name: Upload debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-debug
+          path: scraper-debug/
+          if-no-files-found: ignore
+          retention-days: 7

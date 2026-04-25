@@ -270,7 +270,31 @@ def _row_driver_name(row) -> Optional[str]:
     return None
 
 
-def _scrape_market_page(page, url: str) -> Dict[str, float]:
+def _dump_debug(page, debug_dir: Optional[str], label: str) -> None:
+    """Write the rendered HTML + a screenshot for post-mortem inspection."""
+    if not debug_dir:
+        return
+    try:
+        os.makedirs(debug_dir, exist_ok=True)
+        safe = re.sub(r"[^a-z0-9_\-]+", "_", label.lower()).strip("_") or "page"
+        html_path = os.path.join(debug_dir, f"{safe}.html")
+        png_path = os.path.join(debug_dir, f"{safe}.png")
+        try:
+            with open(html_path, "w", encoding="utf-8") as f:
+                f.write(page.content())
+            print(f"    [debug] wrote {html_path}")
+        except Exception as e:
+            print(f"    [debug] HTML dump failed: {e}")
+        try:
+            page.screenshot(path=png_path, full_page=True)
+            print(f"    [debug] wrote {png_path}")
+        except Exception as e:
+            print(f"    [debug] screenshot failed: {e}")
+    except Exception as e:
+        print(f"    [debug] dump failed: {e}")
+
+
+def _scrape_market_page(page, url: str, debug_dir: Optional[str] = None) -> Dict[str, float]:
     """
     Visit an Oddschecker market page and extract { driver_name: american_odds }.
     Returns {} on failure (404, no rows recognised, etc.).
@@ -315,6 +339,7 @@ def _scrape_market_page(page, url: str) -> Dict[str, float]:
 
     if not rows:
         print("    WARNING: no candidate rows found on page")
+        _dump_debug(page, debug_dir, f"market_norows_{url.rstrip('/').rsplit('/', 1)[-1]}")
         return {}
 
     for row in rows:
@@ -333,10 +358,12 @@ def _scrape_market_page(page, url: str) -> Dict[str, float]:
             continue
 
     print(f"    extracted {len(odds)} drivers")
+    if not odds:
+        _dump_debug(page, debug_dir, f"market_noresolved_{url.rstrip('/').rsplit('/', 1)[-1]}")
     return odds
 
 
-def _find_next_race(page) -> Tuple[Optional[str], dict]:
+def _find_next_race(page, debug_dir: Optional[str] = None) -> Tuple[Optional[str], dict]:
     """
     Visit the F1 hub page and identify the upcoming race base URL.
 
@@ -407,6 +434,20 @@ def _find_next_race(page) -> Tuple[Optional[str], dict]:
 
     if not found_slug:
         print("  ERROR: no upcoming race link found on hub page")
+        # Diagnostics: how many links did we even see, and what did they look like?
+        sample = []
+        for link in links[:30]:
+            try:
+                sample.append(link.get_attribute("href") or "")
+            except Exception:
+                continue
+        if sample:
+            print(f"  saw {len(links)} F1 links; first {len(sample)}:")
+            for href in sample:
+                print(f"    {href}")
+        else:
+            print("  saw 0 F1 links — page likely failed to render content")
+        _dump_debug(page, debug_dir, "hub_page")
         return None, {"race": "Unknown", "date": "", "is_sprint": False}
 
     race_url = f"{ODDSCHECKER_BASE}/{found_slug}"
@@ -415,7 +456,7 @@ def _find_next_race(page) -> Tuple[Optional[str], dict]:
     return race_url, {"race": race_name, "date": "", "is_sprint": False}
 
 
-def fetch_all_f1_odds() -> Tuple[Dict[str, Dict[str, float]], dict]:
+def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, float]], dict]:
     """
     Scrape all available F1 markets for the next race from Oddschecker.
 
@@ -434,7 +475,7 @@ def fetch_all_f1_odds() -> Tuple[Dict[str, Dict[str, float]], dict]:
     race_info: dict = {"race": "Unknown", "date": "", "is_sprint": False}
 
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=True)
+        browser = p.chromium.launch(headless=not headed)
         context = browser.new_context(
             viewport={"width": 1366, "height": 900},
             user_agent=(
@@ -447,7 +488,7 @@ def fetch_all_f1_odds() -> Tuple[Dict[str, Dict[str, float]], dict]:
         page.set_default_timeout(PAGE_TIMEOUT_MS)
 
         try:
-            race_url, race_info = _find_next_race(page)
+            race_url, race_info = _find_next_race(page, debug_dir=debug_dir)
             if not race_url:
                 return {}, race_info
 
@@ -455,7 +496,7 @@ def fetch_all_f1_odds() -> Tuple[Dict[str, Dict[str, float]], dict]:
                 print(f"\nScraping {market_key} market...")
                 for slug in slugs:
                     url = f"{race_url}/{slug}"
-                    odds = _scrape_market_page(page, url)
+                    odds = _scrape_market_page(page, url, debug_dir=debug_dir)
                     if odds:
                         raw_odds[market_key] = odds
                         break
@@ -562,6 +603,8 @@ def get_observed_probs(
     manual_file: Optional[str] = None,
     scrape: bool = True,
     devig_method: str = "shin",
+    headed: bool = False,
+    debug_dir: Optional[str] = None,
 ) -> tuple:
     """
     Main entry point: get observed probabilities.
@@ -577,7 +620,7 @@ def get_observed_probs(
     # Attempt scrape
     if scrape:
         try:
-            scraped_odds, scraped_info = fetch_all_f1_odds()
+            scraped_odds, scraped_info = fetch_all_f1_odds(headed=headed, debug_dir=debug_dir)
         except Exception as e:
             print(f"  Scrape failed: {e}")
             scraped_odds, scraped_info = {}, race_info

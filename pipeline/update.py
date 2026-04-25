@@ -342,6 +342,16 @@ def main():
         action="store_true",
         help="Scrape odds and print results, but skip model fitting and file writes",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Run scraper in headed mode (visible browser) for local debugging",
+    )
+    parser.add_argument(
+        "--debug-dir",
+        default=None,
+        help="On scrape failures, dump page HTML + screenshots to this directory",
+    )
 
     args = parser.parse_args()
 
@@ -359,6 +369,8 @@ def main():
                 manual_file=args.manual,
                 scrape=not args.no_scrape,
                 devig_method=args.devig_method,
+                headed=args.debug,
+                debug_dir=args.debug_dir,
             )
         except Exception as e:
             print(f"\nERROR: {e}")
