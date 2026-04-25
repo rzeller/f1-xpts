@@ -1,0 +1,47 @@
+{
+  "race": "Miami Grand Prix",
+  "date": "2026-05-03",
+  "is_sprint": true,
+  "markets": {
+    "win": {
+      "Russell": -120, "Norris": 180, "Leclerc": 400,
+      "Antonelli": 450, "Hamilton": 600, "Piastri": 700,
+      "Verstappen": 900, "Lawson": 3000, "Albon": 4000,
+      "Sainz": 4000, "Bearman": 5000, "Gasly": 5000,
+      "Tsunoda": 8000, "Alonso": 8000, "Hadjar": 10000,
+      "Ocon": 12000, "Colapinto": 15000, "Stroll": 20000,
+      "Hulkenberg": 25000, "Bortoleto": 35000,
+      "Perez": 40000, "Bottas": 50000
+    },
+    "podium": {
+      "Russell": -250, "Norris": -150, "Leclerc": 120,
+      "Antonelli": 140, "Hamilton": 180, "Piastri": 200,
+      "Verstappen": 250, "Lawson": 600, "Albon": 800,
+      "Sainz": 900, "Bearman": 1200, "Gasly": 1500,
+      "Tsunoda": 2000, "Alonso": 2000, "Hadjar": 2500,
+      "Ocon": 3500, "Colapinto": 4500, "Stroll": 5500,
+      "Hulkenberg": 7000, "Bortoleto": 9000,
+      "Perez": 12000, "Bottas": 18000
+    },
+    "top6": {
+      "Russell": -700, "Norris": -500, "Leclerc": -300,
+      "Antonelli": -250, "Hamilton": -200, "Piastri": -180,
+      "Verstappen": -130, "Lawson": 120, "Albon": 180,
+      "Sainz": 200, "Bearman": 250, "Gasly": 300,
+      "Tsunoda": 450, "Alonso": 500, "Hadjar": 600,
+      "Ocon": 700, "Colapinto": 900, "Stroll": 1100,
+      "Hulkenberg": 1500, "Bortoleto": 2000,
+      "Perez": 2500, "Bottas": 3000
+    },
+    "dnf": {
+      "Russell": 1200, "Norris": 900, "Leclerc": 900,
+      "Antonelli": 800, "Hamilton": 1000, "Piastri": 900,
+      "Verstappen": 500, "Lawson": 500, "Albon": 600,
+      "Sainz": 600, "Bearman": 700, "Gasly": 700,
+      "Tsunoda": 700, "Alonso": 400, "Hadjar": 600,
+      "Ocon": 700, "Colapinto": 500, "Stroll": 400,
+      "Hulkenberg": 350, "Bortoleto": 350,
+      "Perez": 300, "Bottas": 300
+    }
+  }
+}
