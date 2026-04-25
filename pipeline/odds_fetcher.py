@@ -1,30 +1,46 @@
 """
-Odds fetcher: retrieves F1 race odds from The Odds API or manual JSON files.
+Odds fetcher: scrapes F1 race odds from Oddschecker via headless Chromium.
 
-The Odds API (the-odds-api.com) provides structured odds data.
-Manual JSON input is the fallback for markets the API doesn't cover.
-Both sources can be combined — manual overrides API for the same market.
+Manual JSON input is the fallback / override for markets the scraper doesn't
+cover. Both sources can be combined — manual overrides scraped for the same
+market.
+
+Markets scraped (when present):
+  - win    → race winner (outright)
+  - podium → podium finish (top 3)
+  - top6   → top-6 finish
+  - dnf    → driver to not be classified / retire
 """
 
 import json
 import os
-from collections import defaultdict
-from pathlib import Path
-from typing import Dict, Optional, Tuple
+import re
+from typing import Dict, List, Optional, Tuple
 
-import numpy as np
-
-try:
-    import requests
-    HAS_REQUESTS = True
-except ImportError:
-    HAS_REQUESTS = False
-
-from config import DRIVERS, DRIVER_NAME_MAP, N_DRIVERS
-from devig import devig_market, american_to_implied, devig_shin
+from config import DRIVERS, DRIVER_NAME_MAP
+from devig import american_to_implied, devig_market
 
 
-ODDS_API_BASE = "https://api.the-odds-api.com/v4"
+ODDSCHECKER_BASE = "https://www.oddschecker.com/motorsport/formula-1"
+
+# Each market may live under several URL slugs depending on the race weekend.
+# We try them in order and use the first that yields odds.
+MARKET_URL_CANDIDATES: Dict[str, List[str]] = {
+    "win": ["winner", "race-winner", "outright-winner"],
+    "podium": ["podium-finish", "to-finish-on-podium", "podium"],
+    "top6": ["top-6-finish", "to-finish-in-top-6", "top-six-finish"],
+    "dnf": [
+        "to-not-be-classified",
+        "not-to-be-classified",
+        "driver-to-retire",
+        "to-retire",
+        "driver-not-to-finish",
+    ],
+}
+
+# Default page nav timeout (ms). Oddschecker is heavy; give it room.
+PAGE_TIMEOUT_MS = 45000
+NAV_WAIT_MS = 15000
 
 
 def resolve_driver_index(name: str) -> Optional[int]:
@@ -41,188 +57,423 @@ def resolve_driver_index(name: str) -> Optional[int]:
     return None
 
 
-def _get(url: str, params: dict) -> dict:
-    """Make a GET request, print remaining API quota from headers."""
-    resp = requests.get(url, params=params)
-    remaining = resp.headers.get("x-requests-remaining", "?")
-    used = resp.headers.get("x-requests-used", "?")
-    print(f"    API quota: {used} used, {remaining} remaining")
-    resp.raise_for_status()
-    return resp.json()
+# ---------------------------------------------------------------------------
+# Odds format conversion
+# ---------------------------------------------------------------------------
 
 
-KNOWN_F1_KEYS = [
-    "motorsport_formula_one",
-    "formula_1",
-    "f1",
-    "motorsport_formula1",
-]
+def fractional_to_american(num: float, den: float) -> float:
+    """Convert fractional odds (e.g. 5/2) to American."""
+    if den == 0:
+        return 0.0
+    if num >= den:
+        return round(100.0 * num / den)
+    return -round(100.0 * den / num)
 
 
-def find_f1_sport_key(api_key: str) -> Optional[str]:
+def decimal_to_american(decimal: float) -> float:
+    """Convert decimal odds to American."""
+    if decimal <= 1.0:
+        return 0.0
+    if decimal >= 2.0:
+        return round((decimal - 1.0) * 100.0)
+    return -round(100.0 / (decimal - 1.0))
+
+
+_FRACTIONAL_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*$")
+_DECIMAL_RE = re.compile(r"^\s*\d+(?:\.\d+)?\s*$")
+
+
+def parse_odds_string(odds_str: str) -> Optional[float]:
     """
-    Find the F1 sport key by trying known keys directly, then falling back
-    to scanning the sports list.
+    Parse an odds string into American odds.
 
-    Trying known keys directly avoids relying on the /sports list accurately
-    reflecting what's available (some keys work even when marked inactive).
+    Accepts fractional ("5/2"), decimal ("3.50"), or "EVS"/"EVENS"/"EVEN".
+    Returns None if the string isn't recognisable as odds.
     """
-    # 1. Env var override — set ODDS_API_F1_KEY in GitHub secrets to hardcode
-    env_key = os.environ.get("ODDS_API_F1_KEY")
-    if env_key:
-        print(f"  Using ODDS_API_F1_KEY env var: {env_key}")
-        return env_key
+    if not odds_str:
+        return None
+    s = odds_str.strip().upper().replace(" ", "")
+    if s in ("EVS", "EVENS", "EVEN", "1/1"):
+        return 100.0
 
-    # 2. Try known keys by hitting the odds endpoint directly
-    print("  Probing known F1 sport keys...")
-    for candidate in KNOWN_F1_KEYS:
-        url = f"{ODDS_API_BASE}/sports/{candidate}/odds"
-        resp = requests.get(url, params={
-            "apiKey": api_key,
-            "regions": "us",
-            "markets": "outrights",
-            "oddsFormat": "american",
-        })
-        if resp.status_code == 200:
-            data = resp.json()
-            if data:
-                print(f"  Found F1: key={candidate} (returned {len(data)} event(s))")
-                return candidate
-            else:
-                print(f"  {candidate}: valid key but no events yet")
-                return candidate  # Key is valid even if no current events
-        elif resp.status_code == 404:
-            print(f"  {candidate}: not found (404)")
-        else:
-            print(f"  {candidate}: HTTP {resp.status_code}")
+    m = _FRACTIONAL_RE.match(s)
+    if m:
+        return fractional_to_american(float(m.group(1)), float(m.group(2)))
 
-    # 3. Scan the sports list as a last resort, logging everything
-    print("  Scanning /sports list...")
-    data = _get(f"{ODDS_API_BASE}/sports", {"apiKey": api_key, "all": "true"})
-    print(f"  All available sports ({len(data)} total):")
-    for sport in sorted(data, key=lambda s: s.get("key", "")):
-        k = sport.get("key", "")
-        print(f"    {k:45s} active={sport.get('active')} outrights={sport.get('has_outrights')}")
-        if "formula" in k.lower() or "formula" in sport.get("title", "").lower() or "f1" in k.lower():
-            print(f"  ^ Matched F1 pattern: using {k}")
-            return k
+    if _DECIMAL_RE.match(s):
+        try:
+            return decimal_to_american(float(s))
+        except ValueError:
+            return None
 
     return None
 
 
-def fetch_f1_events(api_key: str, sport_key: str) -> list:
-    """Get list of upcoming F1 events (races)."""
-    data = _get(f"{ODDS_API_BASE}/sports/{sport_key}/events", {"apiKey": api_key})
-    print(f"  Found {len(data)} F1 events")
-    for evt in data[:3]:
-        print(f"    {evt.get('id', '?')[:16]}... {evt.get('commence_time', '?')}")
-    return data
+# ---------------------------------------------------------------------------
+# Playwright scraping
+# ---------------------------------------------------------------------------
 
 
-def fetch_odds_for_market(
-    api_key: str,
-    sport_key: str,
-    event_id: str = None,
-    market: str = "outrights",
-    regions: str = "us,uk,eu,au",
-) -> Tuple[Dict[str, float], dict]:
-    """
-    Fetch odds for a specific F1 market.
-
-    Returns (odds_dict, event_info) where odds_dict maps driver name → American odds.
-    """
-    if not HAS_REQUESTS:
-        raise RuntimeError("requests library not installed")
-
-    if event_id:
-        url = f"{ODDS_API_BASE}/sports/{sport_key}/events/{event_id}/odds"
-    else:
-        url = f"{ODDS_API_BASE}/sports/{sport_key}/odds"
-
-    params = {
-        "apiKey": api_key,
-        "regions": regions,
-        "markets": market,
-        "oddsFormat": "american",
-    }
-
-    data = _get(url, params)
-
-    events = data if isinstance(data, list) else [data]
-    if not events:
-        return {}, {}
-
-    event = events[0]
-    event_info = {
-        "id": event.get("id", ""),
-        "title": event.get("sport_title", "F1"),
-        "commence_time": event.get("commence_time", ""),
-    }
-
-    # Aggregate across bookmakers: take best odds (highest implied prob)
-    driver_prices = defaultdict(list)
-    for bookmaker in event.get("bookmakers", []):
-        for mkt in bookmaker.get("markets", []):
-            if mkt["key"] == market:
-                for outcome in mkt["outcomes"]:
-                    driver_prices[outcome["name"]].append(outcome["price"])
-
-    odds = {}
-    for name, prices in driver_prices.items():
-        best = max(prices, key=lambda p: american_to_implied(p))
-        odds[name] = best
-
-    n_books = len(event.get("bookmakers", []))
-    print(f"  {market}: {len(odds)} drivers from {n_books} bookmakers")
-    return odds, event_info
+def _dismiss_overlays(page) -> None:
+    """Best-effort dismiss for cookie banners / age gates that block content."""
+    selectors = [
+        'button:has-text("Accept All")',
+        'button:has-text("Accept all")',
+        'button:has-text("Accept")',
+        'button:has-text("I Accept")',
+        'button:has-text("Agree")',
+        '[id*="onetrust-accept"]',
+        'button#onetrust-accept-btn-handler',
+        'button[aria-label*="ccept"]',
+    ]
+    for sel in selectors:
+        try:
+            loc = page.locator(sel).first
+            if loc.is_visible(timeout=500):
+                loc.click(timeout=1500)
+                page.wait_for_timeout(300)
+        except Exception:
+            continue
 
 
-def fetch_all_f1_odds(api_key: str) -> Tuple[dict, dict]:
-    """
-    Fetch all available F1 odds from The Odds API.
-
-    Returns (raw_odds_by_market, race_info)
-    """
-    print("Finding F1 sport key...")
-    sport_key = find_f1_sport_key(api_key)
-    if not sport_key:
-        print("  ERROR: Could not find F1 in The Odds API")
-        return {}, {}
-
-    raw_odds = {}
-    race_info = {"race": "Next F1 Race", "date": "", "is_sprint": False}
-
-    # Fetch race winner (outrights)
-    print(f"\nFetching race winner odds...")
-    win_odds, evt_info = fetch_odds_for_market(api_key, sport_key, market="outrights")
-    if win_odds:
-        raw_odds["win"] = win_odds
-        race_info["race"] = evt_info.get("title", "F1 Race")
-        race_info["date"] = evt_info.get("commence_time", "")
-
-    # Try events endpoint for additional markets
+def _wait_for_market_table(page) -> None:
+    """Wait for the odds grid to render — try several selectors."""
+    candidates = [
+        '[data-testid*="market"]',
+        '[data-testid*="selection"]',
+        'tr[data-bname]',
+        'table.eventTable',
+        'table.diff-row',
+        'table tbody tr',
+    ]
+    for sel in candidates:
+        try:
+            page.wait_for_selector(sel, timeout=NAV_WAIT_MS, state="attached")
+            return
+        except Exception:
+            continue
+    # Fall back to networkidle
     try:
-        events = fetch_f1_events(api_key, sport_key)
-        if events:
-            event_id = events[0]["id"]
-            for api_market, our_key in [
-                ("outrights_top3", "podium"),
-                ("outrights_top6", "top6"),
-                ("outrights_top10", "top10"),
-            ]:
-                try:
-                    print(f"\nFetching {our_key} odds...")
-                    odds, _ = fetch_odds_for_market(
-                        api_key, sport_key, event_id, market=api_market
-                    )
-                    if odds:
-                        raw_odds[our_key] = odds
-                except Exception as e:
-                    print(f"  {api_market} not available: {e}")
+        page.wait_for_load_state("networkidle", timeout=NAV_WAIT_MS)
+    except Exception:
+        pass
+
+
+def _row_best_odds(row) -> Optional[float]:
+    """Pick the best American odds from a row."""
+    candidates: List[float] = []
+
+    # Strategy A: explicit "best" cell
+    for sel in [
+        'td.bs',
+        'td.bs-best',
+        'td[class*="best"]',
+        '[data-testid*="best-odds"]',
+        '[class*="bestOdds"]',
+    ]:
+        try:
+            els = row.locator(sel).all()
+        except Exception:
+            els = []
+        for el in els:
+            try:
+                txt = (el.text_content() or "").strip()
+            except Exception:
+                continue
+            am = parse_odds_string(txt)
+            if am is not None:
+                candidates.append(am)
+
+    # Strategy B: data-odig attribute (legacy: implied probability as decimal)
+    try:
+        odig_els = row.locator('[data-odig]').all()
+    except Exception:
+        odig_els = []
+    for el in odig_els:
+        try:
+            v = el.get_attribute("data-odig")
+            if v:
+                implied = float(v)
+                if 0.0 < implied < 1.0:
+                    decimal = 1.0 / implied
+                    candidates.append(decimal_to_american(decimal))
+        except Exception:
+            continue
+
+    # Strategy C: scan every cell for parseable odds
+    if not candidates:
+        try:
+            cells = row.locator("td").all()
+        except Exception:
+            cells = []
+        for cell in cells:
+            try:
+                txt = (cell.text_content() or "").strip()
+            except Exception:
+                continue
+            am = parse_odds_string(txt)
+            if am is not None:
+                candidates.append(am)
+
+    if not candidates:
+        return None
+
+    # Best odds for the punter = highest payout = highest American value
+    # (where positive > negative, and -120 > -150).
+    return max(candidates)
+
+
+def _row_driver_name(row) -> Optional[str]:
+    """Extract the driver name from a row."""
+    # Attribute-based (legacy Oddschecker)
+    for attr in ("data-bname", "data-name", "data-runner"):
+        try:
+            v = row.get_attribute(attr)
+        except Exception:
+            v = None
+        if v and resolve_driver_index(v) is not None:
+            return v.strip()
+
+    # Common name-cell selectors
+    for sel in [
+        '[data-testid*="selection-name"]',
+        '[data-testid*="participant"]',
+        'td.popup',
+        'td.beta-cell',
+        'td.sel',
+        'td[class*="name"]',
+        'th[scope="row"]',
+        'td:first-child',
+    ]:
+        try:
+            el = row.locator(sel).first
+            txt = (el.text_content() or "").strip()
+        except Exception:
+            txt = ""
+        if txt and resolve_driver_index(txt) is not None:
+            return txt
+
+    # Last resort: scan all cells for one that resolves to a known driver
+    try:
+        cells = row.locator("td, th").all()
+    except Exception:
+        cells = []
+    for cell in cells:
+        try:
+            txt = (cell.text_content() or "").strip()
+        except Exception:
+            continue
+        if txt and resolve_driver_index(txt) is not None:
+            return txt
+
+    return None
+
+
+def _scrape_market_page(page, url: str) -> Dict[str, float]:
+    """
+    Visit an Oddschecker market page and extract { driver_name: american_odds }.
+    Returns {} on failure (404, no rows recognised, etc.).
+    """
+    print(f"  → {url}")
+    try:
+        resp = page.goto(url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
     except Exception as e:
-        print(f"  Could not fetch events: {e}")
+        print(f"    nav failed: {e}")
+        return {}
+
+    if resp is not None and resp.status >= 400:
+        print(f"    HTTP {resp.status} — skipping")
+        return {}
+
+    _dismiss_overlays(page)
+    _wait_for_market_table(page)
+
+    odds: Dict[str, float] = {}
+
+    # Iterate rows that look like selection rows. Try the most-specific
+    # selector first, falling back to a generic table-row scan.
+    row_selectors = [
+        'tr[data-bname]',
+        '[data-testid*="selection-row"]',
+        '[data-testid*="selectionRow"]',
+        '[data-testid*="market"] tbody tr',
+        'table.eventTable tbody tr',
+        'table tbody tr',
+    ]
+
+    rows = []
+    for sel in row_selectors:
+        try:
+            found = page.locator(sel).all()
+        except Exception:
+            found = []
+        if found:
+            rows = found
+            print(f"    matched {len(rows)} rows via `{sel}`")
+            break
+
+    if not rows:
+        print("    WARNING: no candidate rows found on page")
+        return {}
+
+    for row in rows:
+        try:
+            name = _row_driver_name(row)
+            if not name:
+                continue
+            best = _row_best_odds(row)
+            if best is None:
+                continue
+            # Keep the best (highest American) if a driver appears twice
+            prior = odds.get(name)
+            if prior is None or best > prior:
+                odds[name] = best
+        except Exception:
+            continue
+
+    print(f"    extracted {len(odds)} drivers")
+    return odds
+
+
+def _find_next_race(page) -> Tuple[Optional[str], dict]:
+    """
+    Visit the F1 hub page and identify the upcoming race base URL.
+
+    Returns (race_url, race_info) where race_url is e.g.
+    'https://www.oddschecker.com/motorsport/formula-1/japanese-grand-prix'
+    and race_info has the race name.
+    """
+    print("Discovering next F1 race on Oddschecker...")
+    try:
+        page.goto(ODDSCHECKER_BASE, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    except Exception as e:
+        print(f"  hub nav failed: {e}")
+        return None, {"race": "Unknown", "date": "", "is_sprint": False}
+
+    _dismiss_overlays(page)
+    try:
+        page.wait_for_load_state("networkidle", timeout=NAV_WAIT_MS)
+    except Exception:
+        pass
+
+    # Find links pointing into a race page. Prefer ones that already include
+    # a known market suffix (most reliable signal that the slug is a race slug,
+    # not a navigation/category link).
+    race_pattern = re.compile(
+        r"/motorsport/formula-1/([a-z0-9][a-z0-9\-]*?-(?:grand-prix|gp))(?:/|$)"
+    )
+
+    found_slug: Optional[str] = None
+    found_label = ""
+
+    try:
+        links = page.locator('a[href*="/motorsport/formula-1/"]').all()
+    except Exception:
+        links = []
+
+    for link in links:
+        try:
+            href = link.get_attribute("href") or ""
+            text = (link.text_content() or "").strip()
+        except Exception:
+            continue
+        m = race_pattern.search(href)
+        if not m:
+            continue
+        slug = m.group(1)
+        if slug in ("formula-1", "outright", "outrights", "specials"):
+            continue
+        found_slug = slug
+        if text and "winner" not in text.lower():
+            found_label = text
+        break
+
+    if not found_slug:
+        # Looser pattern: any non-trivial slug under /motorsport/formula-1/
+        for link in links:
+            try:
+                href = link.get_attribute("href") or ""
+            except Exception:
+                continue
+            m = re.search(r"/motorsport/formula-1/([a-z0-9][a-z0-9\-]+)", href)
+            if not m:
+                continue
+            slug = m.group(1)
+            if slug in ("formula-1", "outright", "outrights", "specials", "drivers-championship", "constructors-championship"):
+                continue
+            found_slug = slug
+            break
+
+    if not found_slug:
+        print("  ERROR: no upcoming race link found on hub page")
+        return None, {"race": "Unknown", "date": "", "is_sprint": False}
+
+    race_url = f"{ODDSCHECKER_BASE}/{found_slug}"
+    race_name = found_label or found_slug.replace("-", " ").title()
+    print(f"  next race: {race_name} ({race_url})")
+    return race_url, {"race": race_name, "date": "", "is_sprint": False}
+
+
+def fetch_all_f1_odds() -> Tuple[Dict[str, Dict[str, float]], dict]:
+    """
+    Scrape all available F1 markets for the next race from Oddschecker.
+
+    Returns (raw_odds_by_market, race_info) where raw_odds_by_market maps
+    'win'/'podium'/'top6'/'dnf' → { driver_name: american_odds }.
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError as e:
+        raise RuntimeError(
+            "Playwright is required for Oddschecker scraping. "
+            "Install with: pip install playwright && playwright install chromium"
+        ) from e
+
+    raw_odds: Dict[str, Dict[str, float]] = {}
+    race_info: dict = {"race": "Unknown", "date": "", "is_sprint": False}
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=True)
+        context = browser.new_context(
+            viewport={"width": 1366, "height": 900},
+            user_agent=(
+                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            ),
+            locale="en-GB",
+        )
+        page = context.new_page()
+        page.set_default_timeout(PAGE_TIMEOUT_MS)
+
+        try:
+            race_url, race_info = _find_next_race(page)
+            if not race_url:
+                return {}, race_info
+
+            for market_key, slugs in MARKET_URL_CANDIDATES.items():
+                print(f"\nScraping {market_key} market...")
+                for slug in slugs:
+                    url = f"{race_url}/{slug}"
+                    odds = _scrape_market_page(page, url)
+                    if odds:
+                        raw_odds[market_key] = odds
+                        break
+                if market_key not in raw_odds:
+                    print(f"  {market_key}: no odds found across {len(slugs)} URL candidate(s)")
+        finally:
+            try:
+                context.close()
+            except Exception:
+                pass
+            browser.close()
 
     return raw_odds, race_info
+
+
+# ---------------------------------------------------------------------------
+# Manual file loader + odds → fair-prob processing (unchanged behaviour)
+# ---------------------------------------------------------------------------
 
 
 def load_manual_odds(filepath: str) -> dict:
@@ -241,7 +492,7 @@ def process_odds_to_fair_probs(
     devig_method: str = "shin",
 ) -> Dict[str, Dict[int, float]]:
     """
-    Convert raw odds (from API or manual) into fair probabilities
+    Convert raw odds (from scraper or manual) into fair probabilities
     mapped to canonical driver indices.
     """
     observed_probs = {}
@@ -309,35 +560,40 @@ def process_odds_to_fair_probs(
 
 def get_observed_probs(
     manual_file: Optional[str] = None,
-    api_key: Optional[str] = None,
+    scrape: bool = True,
     devig_method: str = "shin",
 ) -> tuple:
     """
     Main entry point: get observed probabilities.
 
     Priority:
-    1. Try The Odds API if api_key is provided
-    2. Merge with manual file if provided (manual overrides API for same market)
-    3. Use manual file alone if no API key
+    1. If `scrape` is True, attempt to fetch fresh odds from Oddschecker.
+    2. Merge with manual file if provided (manual overrides scrape per-market).
+    3. Fall back to manual file alone if scraping is disabled or yields nothing.
     """
-    raw_odds = {}
+    raw_odds: Dict[str, Dict[str, float]] = {}
     race_info = {"race": "Unknown", "date": "", "is_sprint": False}
 
-    # Try API first
-    if api_key:
-        api_odds, api_race_info = fetch_all_f1_odds(api_key)
-        if api_odds:
-            raw_odds.update(api_odds)
-            race_info = api_race_info
-            print(f"  API markets: {list(api_odds.keys())}")
+    # Attempt scrape
+    if scrape:
+        try:
+            scraped_odds, scraped_info = fetch_all_f1_odds()
+        except Exception as e:
+            print(f"  Scrape failed: {e}")
+            scraped_odds, scraped_info = {}, race_info
 
-    # Load manual file (supplements or overrides API)
+        if scraped_odds:
+            raw_odds.update(scraped_odds)
+            race_info = scraped_info
+            print(f"  Scraped markets: {list(scraped_odds.keys())}")
+
+    # Load manual file (supplements or overrides scraped)
     if manual_file and os.path.exists(manual_file):
         print(f"\nLoading manual odds from {manual_file}")
         data = load_manual_odds(manual_file)
         for market, odds in data.get("markets", {}).items():
             if market in raw_odds:
-                print(f"  Manual overrides API for: {market}")
+                print(f"  Manual overrides scraped for: {market}")
             else:
                 print(f"  Manual adds: {market}")
             raw_odds[market] = odds
@@ -350,7 +606,7 @@ def get_observed_probs(
             }
 
     if not raw_odds:
-        raise ValueError("No odds data from API or manual file")
+        raise ValueError("No odds data from scraper or manual file")
 
     observed_probs = process_odds_to_fair_probs(raw_odds, devig_method)
 

@@ -108,10 +108,13 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: pip install -r pipeline/requirements.txt
 
+      - name: Install Playwright Chromium
+        if: steps.check.outputs.should_run == 'true'
+        run: python -m playwright install --with-deps chromium
+
       - name: Run pipeline
         if: steps.check.outputs.should_run == 'true'
         env:
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           RUN_TYPE: ${{ steps.check.outputs.run_type }}
         run: |
           python pipeline/update.py --output public/data --run-type "$RUN_TYPE"

@@ -3,14 +3,14 @@
 F1 Expected Points Pipeline — Main Entry Point
 
 Usage:
-  # From manual odds file:
-  python update.py --manual data/odds_input/japanese-gp-2026.json
+  # Scrape Oddschecker for the next race (default):
+  python update.py --output public/data
 
-  # From The Odds API:
-  python update.py --api-key YOUR_KEY
+  # From manual odds file (overrides scraped per-market):
+  python update.py --manual public/data/odds_input/japanese-gp-2026.json
 
-  # Env var (for GitHub Actions):
-  ODDS_API_KEY=xxx python update.py
+  # Manual file only (skip scraping):
+  python update.py --manual <file> --no-scrape
 """
 
 import argparse
@@ -145,7 +145,7 @@ def _write_race_index(races_dir: Path):
 
 def run_pipeline(
     manual_file: str = None,
-    api_key: str = None,
+    scrape: bool = True,
     output_dir: str = "data",
     n_fit_sims: int = 20000,
     n_final_sims: int = 50000,
@@ -175,7 +175,7 @@ def run_pipeline(
     print("\n[1/4] Loading odds data...")
     observed_probs, race_info = get_observed_probs(
         manual_file=manual_file,
-        api_key=api_key,
+        scrape=scrape,
         devig_method=devig_method,
     )
 
@@ -290,11 +290,12 @@ def main():
     parser = argparse.ArgumentParser(description="F1 Expected Points Pipeline")
     parser.add_argument(
         "--manual", "-m",
-        help="Path to manual odds JSON file",
+        help="Path to manual odds JSON file (overrides scraped odds per-market)",
     )
     parser.add_argument(
-        "--api-key", "-k",
-        help="The Odds API key (or set ODDS_API_KEY env var)",
+        "--no-scrape",
+        action="store_true",
+        help="Skip the Oddschecker scrape; use --manual file only",
     )
     parser.add_argument(
         "--output", "-o",
@@ -339,15 +340,12 @@ def main():
 
     args = parser.parse_args()
 
-    # Resolve API key from args or env
-    api_key = args.api_key or os.environ.get("ODDS_API_KEY")
-
-    if not api_key and not args.manual:
-        parser.error("ODDS_API_KEY env var (or --api-key) is required")
+    if args.no_scrape and not args.manual:
+        parser.error("--no-scrape requires --manual <file>")
 
     run_pipeline(
         manual_file=args.manual,
-        api_key=api_key,
+        scrape=not args.no_scrape,
         output_dir=args.output,
         n_fit_sims=args.fit_sims,
         n_final_sims=args.final_sims,
