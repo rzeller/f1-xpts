@@ -337,11 +337,50 @@ def main():
         "--sigma-dnf", type=float, default=None,
         help=f"DNF correlation (default: {CORRELATION_DEFAULTS['sigma_dnf']})",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Scrape odds and print results, but skip model fitting and file writes",
+    )
 
     args = parser.parse_args()
 
     if args.no_scrape and not args.manual:
         parser.error("--no-scrape requires --manual <file>")
+
+    if args.dry_run:
+        from odds_fetcher import get_observed_probs
+
+        print("=" * 60)
+        print("F1 Expected Points Pipeline — DRY RUN (scrape only)")
+        print("=" * 60)
+        try:
+            observed_probs, race_info = get_observed_probs(
+                manual_file=args.manual,
+                scrape=not args.no_scrape,
+                devig_method=args.devig_method,
+            )
+        except Exception as e:
+            print(f"\nERROR: {e}")
+            sys.exit(1)
+
+        print("\n" + "=" * 60)
+        print("Dry-run summary")
+        print("=" * 60)
+        print(f"Race:    {race_info.get('race', '?')}")
+        print(f"Date:    {race_info.get('date', '?')}")
+        print(f"Sprint:  {race_info.get('is_sprint', False)}")
+        print(f"Markets: {list(observed_probs.keys())}")
+
+        for market, probs in observed_probs.items():
+            print(f"\n[{market}] {len(probs)} drivers — fair probabilities (devigged):")
+            ranked = sorted(probs.items(), key=lambda x: -x[1])
+            for idx, p in ranked:
+                d = DRIVERS[idx]
+                print(f"  {d['abbr']:5s} {d['name']:22s} p={p:.4f}")
+
+        print("\nDry run complete — no files written.")
+        return
 
     run_pipeline(
         manual_file=args.manual,
