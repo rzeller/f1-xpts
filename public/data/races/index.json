@@ -6,7 +6,14 @@
       "date": "2026-03-29",
       "is_sprint": false,
       "generated_at": "2026-04-05T00:54:38.548900+00:00"
+    },
+    {
+      "slug": "miami-gp",
+      "name": "Miami Grand Prix",
+      "date": "2026-05-03",
+      "is_sprint": true,
+      "generated_at": "2026-04-25T15:24:10.552825+00:00"
     }
   ],
-  "latest": "japanese-gp"
+  "latest": "miami-gp"
 }

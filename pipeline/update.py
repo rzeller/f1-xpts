@@ -260,12 +260,21 @@ def run_pipeline(
         json.dump(output, f, indent=2)
     print(f"  Wrote {latest_path}")
 
-    # Write race-specific snapshot
+    # Write race-specific snapshot (latest for this race)
     race_slug = race_info.get("race", "unknown").lower().replace(" ", "-").replace("grand-prix", "gp")
     race_path = output_dir / "races" / f"{race_slug}.json"
     with open(race_path, "w") as f:
         json.dump(output, f, indent=2)
     print(f"  Wrote {race_path}")
+
+    # Write timestamped snapshot for this run
+    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    snapshot_dir = output_dir / "races" / race_slug
+    snapshot_dir.mkdir(exist_ok=True)
+    snapshot_path = snapshot_dir / f"{ts}.json"
+    with open(snapshot_path, "w") as f:
+        json.dump(output, f, indent=2)
+    print(f"  Wrote {snapshot_path}")
 
     # Write races/index.json manifest (scan all race snapshots)
     _write_race_index(output_dir / "races")
