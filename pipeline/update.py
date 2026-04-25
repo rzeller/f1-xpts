@@ -342,18 +342,8 @@ def main():
     # Resolve API key from args or env
     api_key = args.api_key or os.environ.get("ODDS_API_KEY")
 
-    if not args.manual and not api_key:
-        # Look for the most recent manual file
-        odds_dir = Path("data/odds_input")
-        if odds_dir.exists():
-            manual_files = sorted(odds_dir.glob("*.json"), reverse=True)
-            if manual_files:
-                args.manual = str(manual_files[0])
-                print(f"Auto-detected manual file: {args.manual}")
-            else:
-                parser.error("No --manual file or --api-key provided, and no files in data/odds_input/")
-        else:
-            parser.error("No --manual file or --api-key provided")
+    if not api_key and not args.manual:
+        parser.error("ODDS_API_KEY env var (or --api-key) is required")
 
     run_pipeline(
         manual_file=args.manual,
