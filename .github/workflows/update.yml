@@ -2,10 +2,6 @@ name: Update F1 Expected Points
 
 on:
   workflow_dispatch:
-    inputs:
-      odds_file:
-        description: 'Manual odds file (e.g. public/data/odds_input/japanese-gp-2026.json)'
-        required: false
   schedule:
     # Run at various UTC hours to cover race weekends across all timezones.
     # The check-schedule step determines if this is actually a race weekend
@@ -118,14 +114,7 @@ jobs:
           ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           RUN_TYPE: ${{ steps.check.outputs.run_type }}
         run: |
-          MANUAL=""
-          if [ -n "${{ github.event.inputs.odds_file }}" ]; then
-            MANUAL="--manual ${{ github.event.inputs.odds_file }}"
-          else
-            LATEST=$(ls -t public/data/odds_input/*.json 2>/dev/null | head -1)
-            [ -n "$LATEST" ] && MANUAL="--manual $LATEST"
-          fi
-          python pipeline/update.py --output public/data --run-type "$RUN_TYPE" $MANUAL
+          python pipeline/update.py --output public/data --run-type "$RUN_TYPE"
 
       - name: Create PR and merge (triggers Vercel redeploy)
         if: steps.check.outputs.should_run == 'true'
