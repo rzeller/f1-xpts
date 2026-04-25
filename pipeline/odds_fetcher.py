@@ -58,41 +58,55 @@ KNOWN_F1_KEYS = [
     "motorsport_formula1",
 ]
 
-def discover_f1_sport_key(api_key: str) -> Optional[str]:
-    """Find the correct sport key for F1 from The Odds API sports list."""
-    data = _get(f"{ODDS_API_BASE}/sports", {"apiKey": api_key, "all": "true"})
-    all_keys = {s.get("key", ""): s for s in data}
 
-    # Try known keys first
+def find_f1_sport_key(api_key: str) -> Optional[str]:
+    """
+    Find the F1 sport key by trying known keys directly, then falling back
+    to scanning the sports list.
+
+    Trying known keys directly avoids relying on the /sports list accurately
+    reflecting what's available (some keys work even when marked inactive).
+    """
+    # 1. Env var override — set ODDS_API_F1_KEY in GitHub secrets to hardcode
+    env_key = os.environ.get("ODDS_API_F1_KEY")
+    if env_key:
+        print(f"  Using ODDS_API_F1_KEY env var: {env_key}")
+        return env_key
+
+    # 2. Try known keys by hitting the odds endpoint directly
+    print("  Probing known F1 sport keys...")
     for candidate in KNOWN_F1_KEYS:
-        if candidate in all_keys:
-            sport = all_keys[candidate]
-            print(f"  Found F1 (known key): key={candidate}, title={sport.get('title')}, active={sport.get('active')}")
-            return candidate
+        url = f"{ODDS_API_BASE}/sports/{candidate}/odds"
+        resp = requests.get(url, params={
+            "apiKey": api_key,
+            "regions": "us",
+            "markets": "outrights",
+            "oddsFormat": "american",
+        })
+        if resp.status_code == 200:
+            data = resp.json()
+            if data:
+                print(f"  Found F1: key={candidate} (returned {len(data)} event(s))")
+                return candidate
+            else:
+                print(f"  {candidate}: valid key but no events yet")
+                return candidate  # Key is valid even if no current events
+        elif resp.status_code == 404:
+            print(f"  {candidate}: not found (404)")
+        else:
+            print(f"  {candidate}: HTTP {resp.status_code}")
 
-    # Search by title/key pattern
-    found = None
-    for sport in data:
-        key = sport.get("key", "")
-        title = sport.get("title", "").lower()
-        if "formula" in title or "formula" in key or "f1" in key:
-            print(f"  Found F1 (pattern): key={key}, title={sport.get('title')}, active={sport.get('active')}")
-            if found is None or sport.get("active"):
-                found = key
-    if found:
-        return found
-
-    # Last resort: any motorsport with outrights
-    for sport in data:
-        key = sport.get("key", "")
-        if "motorsport" in key and sport.get("has_outrights"):
-            print(f"  Fallback motorsport outright: key={key}, title={sport.get('title')}")
-            return key
-
-    # Log all available sports to help diagnose future failures
-    print(f"  Available sports ({len(data)} total):")
+    # 3. Scan the sports list as a last resort, logging everything
+    print("  Scanning /sports list...")
+    data = _get(f"{ODDS_API_BASE}/sports", {"apiKey": api_key, "all": "true"})
+    print(f"  All available sports ({len(data)} total):")
     for sport in sorted(data, key=lambda s: s.get("key", "")):
-        print(f"    {sport.get('key'):40s} active={sport.get('active')} outrights={sport.get('has_outrights')}")
+        k = sport.get("key", "")
+        print(f"    {k:45s} active={sport.get('active')} outrights={sport.get('has_outrights')}")
+        if "formula" in k.lower() or "formula" in sport.get("title", "").lower() or "f1" in k.lower():
+            print(f"  ^ Matched F1 pattern: using {k}")
+            return k
+
     return None
 
 
@@ -169,8 +183,8 @@ def fetch_all_f1_odds(api_key: str) -> Tuple[dict, dict]:
 
     Returns (raw_odds_by_market, race_info)
     """
-    print("Discovering F1 sport key...")
-    sport_key = discover_f1_sport_key(api_key)
+    print("Finding F1 sport key...")
+    sport_key = find_f1_sport_key(api_key)
     if not sport_key:
         print("  ERROR: Could not find F1 in The Odds API")
         return {}, {}
