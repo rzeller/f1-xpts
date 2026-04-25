@@ -54,13 +54,17 @@ def _get(url: str, params: dict) -> dict:
 def discover_f1_sport_key(api_key: str) -> Optional[str]:
     """Find the correct sport key for F1 from The Odds API sports list."""
     data = _get(f"{ODDS_API_BASE}/sports", {"apiKey": api_key, "all": "true"})
+    found = None
     for sport in data:
         key = sport.get("key", "")
         title = sport.get("title", "").lower()
         if "formula" in title or "formula" in key or "f1" in key:
             print(f"  Found F1: key={key}, title={sport.get('title')}, active={sport.get('active')}")
-            if sport.get("active"):
-                return key
+            # Prefer active, but accept inactive — outrights are available between weekends
+            if found is None or sport.get("active"):
+                found = key
+    if found:
+        return found
     # Fallback: check for any motorsport with outrights
     for sport in data:
         key = sport.get("key", "")
