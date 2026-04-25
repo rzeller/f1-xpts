@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-04-25T15:17:26.876631+00:00",
+    "generated_at": "2026-04-25T15:24:10.552825+00:00",
     "race": "Miami Grand Prix",
     "date": "2026-05-03",
     "is_sprint": true,
@@ -1489,7 +1489,7 @@
     "final_loss": 0.23615539032999303,
     "n_evals": 2455,
     "n_steps": 7,
-    "elapsed_seconds": 56.6,
+    "elapsed_seconds": 54.5,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.02,
@@ -3532,43 +3532,43 @@
         "step": 1,
         "eval": 326,
         "best_loss": 0.932563,
-        "elapsed": 7.5
+        "elapsed": 7.2
       },
       {
         "step": 2,
         "eval": 627,
         "best_loss": 0.523409,
-        "elapsed": 14.3
+        "elapsed": 14.0
       },
       {
         "step": 3,
         "eval": 921,
         "best_loss": 0.347646,
-        "elapsed": 21.1
+        "elapsed": 20.4
       },
       {
         "step": 4,
         "eval": 1252,
         "best_loss": 0.259512,
-        "elapsed": 28.8
+        "elapsed": 27.8
       },
       {
         "step": 5,
         "eval": 1648,
         "best_loss": 0.242577,
-        "elapsed": 37.8
+        "elapsed": 36.7
       },
       {
         "step": 6,
         "eval": 2063,
         "best_loss": 0.232731,
-        "elapsed": 47.5
+        "elapsed": 45.8
       },
       {
         "step": 7,
         "eval": 2455,
         "best_loss": 0.232731,
-        "elapsed": 56.5
+        "elapsed": 54.3
       }
     ],
     "residuals": [
