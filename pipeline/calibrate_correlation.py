@@ -29,7 +29,6 @@ import numpy as np
 from scipy.optimize import minimize_scalar
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from config import N_DRIVERS, N_TEAMS
 
 
 # ---------------------------------------------------------------------------

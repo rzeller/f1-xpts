@@ -3,8 +3,8 @@
 ## What This Project Does
 
 Computes expected fantasy points for each of the 22 F1 drivers by:
-1. Fetching betting odds from The Odds API (race winner, podium, top 6, etc.)
-2. Supplementing with manually-entered odds from Oddschecker when API markets are unavailable
+1. Scraping betting odds from Oddschecker (race winner, podium, top 6, DNF) via headless Chromium
+2. Supplementing or overriding with manually-entered odds when the scraper misses a market
 3. Devigging the odds using Shin's method to get fair probabilities
 4. Fitting a Plackett-Luce ranking model to recover full finishing position distributions
 5. Running 50,000 Monte Carlo race simulations
@@ -34,7 +34,7 @@ GitHub Actions (Python)          Vercel (Static Site)
 │ or manual trigger  │          │                  │
 │                    │  commit  │ Reads:           │
 │ pipeline/update.py ├─────────►│ /data/latest.json│
-│ - fetch odds (API) │  push    │                  │
+│ - scrape odds (OC) │  push    │                  │
 │ - devig (Shin)     │          │ Auto-redeploys   │
 │ - fit PL model     │          │ on push          │
 │ - simulate 50K     │          └──────────────────┘
@@ -54,9 +54,9 @@ f1-expected-points/
 ├── .github/workflows/update.yml       # Cron + manual trigger
 ├── vercel.json                        # Vercel build config
 ├── pipeline/                          # Python backend (runs in GitHub Actions)
-│   ├── requirements.txt               # numpy, scipy, requests
+│   ├── requirements.txt               # numpy, scipy, requests, playwright
 │   ├── update.py                      # Main entry point
-│   ├── odds_fetcher.py                # The Odds API + manual JSON reader
+│   ├── odds_fetcher.py                # Oddschecker scraper + manual JSON reader
 │   ├── devig.py                       # Shin's method for removing bookmaker vig
 │   ├── plackett_luce.py               # PL model: simulation, optimizer, expected points
 │   └── config.py                      # 2026 driver list, team mappings, scoring tables
@@ -89,8 +89,8 @@ All source files are provided in `pipeline/`. Here's what each does:
 **`devig.py`** — Three devig methods (Shin's preferred, multiplicative and power as alternatives). Shin's method accounts for favorite-longshot bias by solving for an insider trading parameter z. All methods take an array of implied probabilities and return fair probabilities summing to 1.
 
 **`odds_fetcher.py`** — Two data sources:
-- **The Odds API** (the-odds-api.com): Auto-discovers F1 sport key via `/v4/sports`, fetches race winner odds (`outrights` market), attempts additional markets (`outrights_top3`, `outrights_top6`, `outrights_top10`) via event-specific endpoint. Free tier = 500 req/month.
-- **Manual JSON**: Files in `public/data/odds_input/` with American odds per driver per market. Manual overrides API for same market, supplements for missing markets.
+- **Oddschecker scraper** (Playwright + headless Chromium): Discovers the next race from the F1 hub page, then scrapes race winner, podium, top-6 and DNF markets. Uses multiple selector fallbacks (`tr[data-bname]` legacy, `data-testid="selection-row"` modern, generic table-row scan) so small layout changes degrade gracefully. Parses fractional, decimal and `EVS` odds; converts to American.
+- **Manual JSON**: Files in `public/data/odds_input/` with American odds per driver per market. Manual overrides scraped for same market, supplements for missing markets.
 - Returns: `observed_probs` dict mapping market name → {driver_index: fair_probability}
 
 **`plackett_luce.py`** — The core model:
@@ -100,7 +100,7 @@ All source files are provided in `pipeline/`. Here's what each does:
 - **Fitting**: scipy L-BFGS-B optimizer minimizes squared error between model-implied cumulative probabilities and observed odds. Each eval runs ~20K PL simulations. Regularization: teammate similarity + mild shrinkage toward mean.
 - **Final output**: 50K simulations → position distribution array (23 values: P1..P22 + DNF), expected points (race + sprint), standard deviation.
 
-**`update.py`** — Entry point. CLI args: `--manual FILE`, `--api-key KEY` (or `ODDS_API_KEY` env var), `--output DIR`. Orchestrates: fetch odds → devig → fit PL → simulate → write JSON.
+**`update.py`** — Entry point. CLI args: `--manual FILE` (optional override), `--no-scrape` (skip Oddschecker, manual-only), `--output DIR`. Orchestrates: scrape odds → devig → fit PL → simulate → write JSON.
 
 ### Frontend (React + Vite)
 
@@ -276,7 +276,13 @@ useEffect(() => {
 ```bash
 # Test pipeline (from repo root)
 pip install -r pipeline/requirements.txt
-python pipeline/update.py --manual public/data/odds_input/japanese-gp-2026.json --output public/data
+python -m playwright install --with-deps chromium
+
+# Scrape Oddschecker for the next race:
+python pipeline/update.py --output public/data
+
+# Or run from a manual odds file (skip the scrape):
+python pipeline/update.py --manual public/data/odds_input/japanese-gp-2026.json --no-scrape --output public/data
 
 # Test frontend
 cd site && npm run dev
@@ -296,21 +302,20 @@ git push -u origin main
 # - Output directory: site/dist
 # - Done — auto-deploys on every push
 
-# Add GitHub Actions secret:
-# - Repo Settings → Secrets → ODDS_API_KEY → paste your key from the-odds-api.com
+# No external secrets required — the scraper hits Oddschecker directly.
 
 # Test the workflow:
 # - Actions tab → "Update F1 Expected Points" → Run workflow
 ```
 
-## The Odds API Details
+## Odds Source: Oddschecker Scraper
 
-- **Sign up**: https://the-odds-api.com (free tier: 500 requests/month)
-- **F1 sport key**: Use the `/v4/sports` endpoint to discover — likely `motorsport_formula_one` or similar
-- **Race winner market**: `outrights` — this is the primary and most reliable market
-- **Additional markets**: Try `outrights_top3`, `outrights_top6`, `outrights_top10` via the event-specific endpoint `/v4/sports/{sport}/events/{eventId}/odds`
-- **If a market isn't available from the API**, supplement with manual JSON from Oddschecker. The pipeline merges both sources (manual overrides API for same market).
-- **Regions**: Use `us,uk,eu,au` for maximum bookmaker coverage
+- **Hub page**: `https://www.oddschecker.com/motorsport/formula-1` — used to discover the next race slug.
+- **Markets scraped** (per race): `winner`, `podium-finish`, `top-6-finish`, and a DNF market under one of `to-not-be-classified`/`not-to-be-classified`/`driver-to-retire`/`to-retire`/`driver-not-to-finish`. The scraper tries each candidate slug per market and uses the first that returns rows.
+- **Rendering**: Oddschecker is JavaScript-rendered, so the scraper uses Playwright + headless Chromium. In GitHub Actions: `python -m playwright install --with-deps chromium` before the pipeline run.
+- **Selector strategy**: three layered fallbacks — `tr[data-bname]` (legacy markup), `[data-testid="selection-row"]` (modern markup), then a generic `table tbody tr` scan that picks rows whose first cell resolves to a known driver. Best odds per row are read from `td.bs`/`[data-testid*="best-odds"]`, the `data-odig` attribute (decimal implied probability), or any parseable cell — whichever gives the highest American value.
+- **Odds parsing**: handles fractional (`5/2`), decimal (`3.50`), and `EVS`/`EVENS`/`1/1`. Internally everything is converted to American odds before devigging.
+- **If a market is missing**: supplement or override with manual JSON from `public/data/odds_input/`. The pipeline merges both sources (manual overrides scraped per-market).
 
 ## Key Technical Notes
 

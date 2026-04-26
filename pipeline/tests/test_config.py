@@ -1,51 +1,14 @@
-"""Tests for config.py — grid consistency and scoring tables."""
+"""Tests for config.py — scoring tables, team colors, calendar."""
 
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from config import (
-    DRIVERS, TEAMS, N_DRIVERS, N_TEAMS,
     RACE_POINTS, SPRINT_POINTS, DNF_PENALTY,
-    DRIVER_NAME_MAP, SPRINT_WEEKENDS, CALENDAR,
+    TEAM_COLORS, DEFAULT_TEAM_COLOR,
+    SPRINT_WEEKENDS, CALENDAR,
 )
-
-
-class TestGrid:
-    def test_22_drivers(self):
-        assert N_DRIVERS == 22
-
-    def test_11_teams(self):
-        assert N_TEAMS == 11
-
-    def test_drivers_match_n(self):
-        assert len(DRIVERS) == N_DRIVERS
-
-    def test_teams_match_n(self):
-        assert len(TEAMS) == N_TEAMS
-
-    def test_each_team_has_two_drivers(self):
-        from collections import Counter
-        team_counts = Counter(d["team_idx"] for d in DRIVERS)
-        for t in range(N_TEAMS):
-            assert team_counts[t] == 2, f"Team {TEAMS[t]['name']} has {team_counts[t]} drivers"
-
-    def test_team_indices_valid(self):
-        for d in DRIVERS:
-            assert 0 <= d["team_idx"] < N_TEAMS
-
-    def test_unique_abbreviations(self):
-        abbrs = [d["abbr"] for d in DRIVERS]
-        assert len(abbrs) == len(set(abbrs))
-
-    def test_abbreviations_three_chars(self):
-        for d in DRIVERS:
-            assert len(d["abbr"]) == 3
-
-    def test_all_teams_have_colors(self):
-        for t in TEAMS:
-            assert t["color"].startswith("#")
-            assert len(t["color"]) == 7  # #RRGGBB
 
 
 class TestScoring:
@@ -79,23 +42,21 @@ class TestScoring:
         assert DNF_PENALTY < 0
 
 
-class TestDriverNameMap:
-    def test_full_name_matches(self):
-        assert DRIVER_NAME_MAP["george russell"] == 0
+class TestTeamColors:
+    def test_default_color_is_hex(self):
+        assert DEFAULT_TEAM_COLOR.startswith("#")
+        assert len(DEFAULT_TEAM_COLOR) == 7
 
-    def test_last_name_matches(self):
-        assert DRIVER_NAME_MAP["russell"] == 0
+    def test_all_team_colors_are_hex(self):
+        for team_id, color in TEAM_COLORS.items():
+            assert color.startswith("#"), f"{team_id} color {color!r} missing #"
+            assert len(color) == 7, f"{team_id} color {color!r} not #RRGGBB"
 
-    def test_abbreviation_matches(self):
-        assert DRIVER_NAME_MAP["rus"] == 0
-
-    def test_hulkenberg_alias(self):
-        assert DRIVER_NAME_MAP["hulkenberg"] == DRIVER_NAME_MAP["hülkenberg"]
-
-    def test_all_drivers_have_entries(self):
-        for i, d in enumerate(DRIVERS):
-            assert d["name"].lower() in DRIVER_NAME_MAP
-            assert d["abbr"].lower() in DRIVER_NAME_MAP
+    def test_team_ids_are_snake_case(self):
+        # constructorId convention: lowercase, snake_case, no spaces.
+        for team_id in TEAM_COLORS:
+            assert team_id == team_id.lower()
+            assert " " not in team_id
 
 
 class TestCalendar:

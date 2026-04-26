@@ -14,7 +14,7 @@ import numpy as np
 from itertools import combinations, permutations
 from scipy.optimize import minimize, linear_sum_assignment
 from typing import Dict, List, Tuple, Optional
-from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, N_DRIVERS, N_TEAMS, DRIVERS, CORRELATION_DEFAULTS
+from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, CORRELATION_DEFAULTS
 
 
 def simulate_races(
@@ -177,7 +177,7 @@ def fit_plackett_luce(
     Parameters
     ----------
     observed_probs : dict mapping market type to {driver_idx: probability}
-        Supported keys: "win", "podium", "top6", "top10", "dnf"
+        Supported keys: "win", "podium", "top5", "top6", "top10", "dnf"
     team_indices : (n_drivers,) array mapping driver to team index
     n_sims : simulations per objective evaluation (tradeoff speed vs accuracy)
     method : scipy optimizer method
@@ -247,6 +247,7 @@ def fit_plackett_luce(
         market_cutoffs = {
             "win": 1,
             "podium": 3,
+            "top5": 5,
             "top6": 6,
             "top10": 10,
         }
@@ -264,7 +265,8 @@ def fit_plackett_luce(
         # (No DNF loss term needed.)
 
         # Regularization: teammates should have similar lambdas
-        for t in range(N_TEAMS):
+        n_teams = int(team_indices.max()) + 1 if len(team_indices) else 0
+        for t in range(n_teams):
             teammates = [j for j in range(n) if team_indices[j] == t]
             if len(teammates) == 2:
                 diff = log_lambdas[teammates[0]] - log_lambdas[teammates[1]]
@@ -349,7 +351,7 @@ def fit_plackett_luce(
         log_lambdas, p_dnfs, n_sims=50000, seed=99999,
         team_indices=team_indices, correlation=correlation,
     )
-    market_cutoffs = {"win": 1, "podium": 3, "top6": 6, "top10": 10}
+    market_cutoffs = {"win": 1, "podium": 3, "top5": 5, "top6": 6, "top10": 10}
     residuals = []
     for market, cutoff in market_cutoffs.items():
         if market not in observed_probs:
@@ -359,7 +361,6 @@ def fit_plackett_luce(
             residuals.append({
                 "market": market,
                 "driver_idx": i,
-                "driver": DRIVERS[i]["abbr"],
                 "observed": round(obs_p, 4),
                 "model": round(model_p, 4),
                 "residual": round(model_p - obs_p, 4),
@@ -389,6 +390,7 @@ def fit_plackett_luce(
 def generate_full_output(
     log_lambdas: np.ndarray,
     p_dnfs: np.ndarray,
+    drivers: List[dict],
     is_sprint: bool = False,
     n_sims: int = 50000,
     team_indices: np.ndarray = None,
@@ -397,8 +399,9 @@ def generate_full_output(
     """
     Generate the complete output for all drivers.
 
-    Returns a list of driver dicts with all computed statistics,
-    ready to be serialized to JSON.
+    `drivers` is the active roster (from roster.fetch_current_roster). Each
+    entry must have name/abbr/team_idx fields. The output preserves these
+    plus the model's computed statistics, ready to be serialized to JSON.
     """
     pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
@@ -420,11 +423,9 @@ def generate_full_output(
         p_podium = float(dist[:3].sum())
         p_top6 = float(dist[:6].sum())
         p_top10 = float(dist[:10].sum())
-        p_points_zone = p_top10  # P(scoring race points)
         p_no_points = float(1.0 - p_top10 - dist[-1])
-        p_dnf = float(dist[-1])
 
-        driver_info = DRIVERS[i]
+        driver_info = drivers[i]
 
         drivers_output.append({
             "name": driver_info["name"],
@@ -555,43 +556,33 @@ def find_top_lineups(
 
 
 if __name__ == "__main__":
-    # Quick test with synthetic data
+    # Quick smoke test against the live roster.
+    from roster import fetch_current_roster
+
     np.random.seed(42)
+    drivers = fetch_current_roster()
+    team_idx = np.array([d["team_idx"] for d in drivers])
+    n = len(drivers)
+    fake_lambdas = np.linspace(5.0, 0.3, n)
+    fake_dnfs = np.full(n, 0.10)
 
-    # Fake observed probs (as if from devigged odds)
-    team_idx = np.array([d["team_idx"] for d in DRIVERS])
-    fake_lambdas = np.array([
-        4.8, 4.2,   # Mercedes
-        3.1, 2.9,   # Ferrari
-        2.4, 1.4,   # Red Bull
-        2.2, 2.0,   # McLaren
-        1.0, 0.65,  # AM
-        1.5, 0.7,   # Alpine
-        1.3, 1.2,   # Williams
-        0.95, 0.85, # RB
-        1.8, 0.8,   # Haas
-        0.5, 0.45,  # Sauber
-        0.35, 0.3,  # Cadillac
-    ])
-    fake_dnfs = np.full(N_DRIVERS, 0.10)
-
-    print("Simulating with fake parameters (with correlation)...")
+    print(f"Simulating {n} drivers with fake parameters (with correlation)...")
     pos_probs = simulate_races(
         np.log(fake_lambdas), fake_dnfs, n_sims=50000,
         team_indices=team_idx, correlation=CORRELATION_DEFAULTS,
     )
 
     print("\nExpected Race Points:")
-    for i, d in enumerate(DRIVERS):
+    for i, d in enumerate(drivers):
         ep = compute_expected_points(pos_probs[i], RACE_POINTS)
         p_win = pos_probs[i, 0]
         p_dnf = pos_probs[i, -1]
-        print(f"  {d['name']:20s} E[pts]={ep:6.2f}  P(win)={p_win:.3f}  P(DNF)={p_dnf:.3f}")
+        print(f"  {d['name']:25s} E[pts]={ep:6.2f}  P(win)={p_win:.3f}  P(DNF)={p_dnf:.3f}")
 
     print("\nGenerating full output...")
     output = generate_full_output(
-        np.log(fake_lambdas), fake_dnfs, is_sprint=False,
+        np.log(fake_lambdas), fake_dnfs, drivers, is_sprint=False,
         team_indices=team_idx, correlation=CORRELATION_DEFAULTS,
     )
     for d in output[:5]:
-        print(f"  {d['name']:20s} E[pts]={d['ep_race']:6.2f}  σ={d['std_dev']:.1f}")
+        print(f"  {d['name']:25s} E[pts]={d['ep_race']:6.2f}  σ={d['std_dev']:.1f}")

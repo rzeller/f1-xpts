@@ -3,20 +3,11 @@ name: Update F1 Expected Points
 on:
   workflow_dispatch:
   schedule:
-    # Run at various UTC hours to cover race weekends across all timezones.
-    # The check-schedule step determines if this is actually a race weekend
-    # that needs a pipeline run. Most runs will exit early (no-op).
-    #
-    # Covers before-FP1 and after-FP3 windows for:
-    #   - Asia-Pacific races (sessions ~01:00-07:00 UTC)
-    #   - European races (sessions ~09:00-15:00 UTC)
-    #   - Americas races (sessions ~16:00-22:00 UTC)
-    - cron: '0 0 * * 4,5,6'    # 00:00 UTC Thu/Fri/Sat — before FP1 for Asia-Pacific
-    - cron: '0 5 * * 5,6'      # 05:00 UTC Fri/Sat — after FP3 for Asia-Pacific
-    - cron: '0 8 * * 4,5,6'    # 08:00 UTC Thu/Fri/Sat — before FP1 for Europe
-    - cron: '0 13 * * 5,6'     # 13:00 UTC Fri/Sat — after FP3 for Europe
-    - cron: '0 15 * * 4,5,6'   # 15:00 UTC Thu/Fri/Sat — before FP1 for Americas
-    - cron: '0 20 * * 5,6'     # 20:00 UTC Fri/Sat — after FP3 for Americas
+    # Fire every hour. The check-schedule step is the source of truth for
+    # whether to actually run; almost all firings are no-op gate checks
+    # (~5 seconds each). Hourly coverage means every 1-hour window in the
+    # gate logic is hit by exactly one firing, regardless of session timing.
+    - cron: '0 * * * *'
 
 permissions:
   contents: write
@@ -40,7 +31,7 @@ jobs:
           with open("public/data/schedule.json") as f:
               schedule = json.load(f)
 
-          # For manual dispatch, always run
+          # Manual dispatch always runs.
           if os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch":
               print("Manual dispatch — running pipeline")
               with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -48,45 +39,96 @@ jobs:
                   f.write("run_type=manual\n")
               raise SystemExit(0)
 
+          # Each window is 1 hour wide so the hourly cron grid hits each one
+          # exactly once. Windows that need to land at a specific point in
+          # time are anchored at start; clamping to next-session gives a
+          # natural cap.
+          PRACTICE_DURATION = timedelta(hours=1)
+          POST_SESSION_DELAY = timedelta(minutes=15)
+          POST_SESSION_WINDOW = timedelta(hours=1)
+          PRE_NEXT_GAP = timedelta(minutes=15)
+
+          def parse(iso):
+              return datetime.fromisoformat(iso.replace("Z", "+00:00"))
+
+          def windows_for_race(race):
+              """Yield (start, end, run_type, label) windows we want a run inside.
+
+              Three categories:
+                1. lead_up_daily — once a day, race−7 through the day before FP1,
+                   in the 06:00-07:00 UTC slot. The 06:00 cron fires inside it.
+                2. pre_weekend   — 3h to 30min before FP1.
+                3. post_<sess>   — 15min after each practice ends, until the
+                   next session starts (minus a small gap). The last practice's
+                   post-window ends 15min before the first qualifying — picks
+                   lock at qualifying (or sprint_qualifying for sprint weekends),
+                   so we don't run after that.
+              """
+              s = race["sessions"]
+              fp1 = parse(s["fp1"])
+
+              # Lead-up daily windows: 06:00-07:00 UTC each day from race−7
+              # through the day before FP1. Each cron in that hour can match.
+              fp1_day = fp1.replace(hour=0, minute=0, second=0, microsecond=0)
+              for delta_days in range(7, 0, -1):
+                  day = fp1_day - timedelta(days=delta_days)
+                  yield (
+                      day + timedelta(hours=6),
+                      day + timedelta(hours=7),
+                      "lead_up_daily",
+                      f"D-{delta_days} for {race['name']}",
+                  )
+
+              # Pre-FP1: 1h window ending 1h before FP1.
+              yield (
+                  fp1 - timedelta(hours=2),
+                  fp1 - timedelta(hours=1),
+                  "pre_weekend",
+                  f"Before FP1 for {race['name']}",
+              )
+
+              # Practices = ordered list of (key, start_time). Sprint weekends
+              # only have FP1; standard weekends have FP1/FP2/FP3 (some
+              # Saturday-race formats may skip FP2 or FP3).
+              practices = sorted(
+                  ((k, parse(v)) for k, v in s.items() if k.startswith("fp")),
+                  key=lambda kv: kv[1],
+              )
+
+              # Boundary after the last practice = first qualifying session.
+              # Sprint weekends: sprint_qualifying. Standard: qualifying.
+              if race.get("is_sprint"):
+                  last_boundary = parse(s["sprint_qualifying"])
+              else:
+                  last_boundary = parse(s["qualifying"])
+
+              for i, (key, start) in enumerate(practices):
+                  end = start + PRACTICE_DURATION
+                  next_start = practices[i + 1][1] if i + 1 < len(practices) else last_boundary
+                  win_start = end + POST_SESSION_DELAY
+                  win_end = min(next_start - PRE_NEXT_GAP, win_start + POST_SESSION_WINDOW)
+                  yield (
+                      win_start,
+                      win_end,
+                      f"post_{key}",
+                      f"After {key.upper()} for {race['name']}",
+                  )
+
           should_run = False
           run_type = ""
           reason = ""
 
           for race in schedule["races"]:
-              sessions = race["sessions"]
-              fp1_time = datetime.fromisoformat(sessions["fp1"].replace("Z", "+00:00"))
-
-              # Window 1: 3h to 30min before FP1
-              window1_start = fp1_time - timedelta(hours=3)
-              window1_end = fp1_time - timedelta(minutes=30)
-
-              # Window 2: between last practice end and first qualifying start.
-              # Standard weekend: after FP3 (1h session), before Qualifying.
-              # Sprint weekend: after FP1 (1h session), before Sprint Qualifying.
-              if race.get("is_sprint"):
-                  last_practice_end = fp1_time + timedelta(hours=1)
-                  first_quali = datetime.fromisoformat(sessions["sprint_qualifying"].replace("Z", "+00:00"))
-              elif "fp3" in sessions:
-                  fp3_time = datetime.fromisoformat(sessions["fp3"].replace("Z", "+00:00"))
-                  last_practice_end = fp3_time + timedelta(hours=1)
-                  first_quali = datetime.fromisoformat(sessions["qualifying"].replace("Z", "+00:00"))
-              else:
-                  # Saturday-race formats without FP3 (e.g. Baku): use qualifying time
-                  last_practice_end = fp1_time + timedelta(hours=1)
-                  first_quali = datetime.fromisoformat(sessions["qualifying"].replace("Z", "+00:00"))
-
-              window2_start = last_practice_end + timedelta(minutes=15)
-              window2_end = first_quali - timedelta(minutes=15)
-
-              if window1_start <= now <= window1_end:
-                  should_run = True
-                  run_type = "pre_weekend"
-                  reason = f"Before FP1 for {race['name']} (FP1 at {fp1_time.isoformat()})"
-                  break
-              elif window2_start <= now <= window2_end:
-                  should_run = True
-                  run_type = "pre_qualifying"
-                  reason = f"After last practice, before qualifying for {race['name']}"
+              # Cheap pre-filter: race already finished -> skip.
+              if parse(race["sessions"]["race"]) + timedelta(hours=6) < now:
+                  continue
+              for start, end, rt, label in windows_for_race(race):
+                  if start <= now < end:
+                      should_run = True
+                      run_type = rt
+                      reason = f"{label} (window {start.isoformat()} → {end.isoformat()})"
+                      break
+              if should_run:
                   break
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
@@ -96,7 +138,7 @@ jobs:
           if should_run:
               print(f"Pipeline triggered ({run_type}): {reason}")
           else:
-              print(f"Not a race weekend window — skipping (checked {len(schedule['races'])} races)")
+              print(f"Outside all run windows — skipping (now={now.isoformat()})")
           PYEOF
 
       - uses: actions/setup-python@v5
@@ -108,10 +150,13 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: pip install -r pipeline/requirements.txt
 
+      - name: Install Playwright Chromium
+        if: steps.check.outputs.should_run == 'true'
+        run: python -m playwright install --with-deps chromium
+
       - name: Run pipeline
         if: steps.check.outputs.should_run == 'true'
         env:
-          ODDS_API_KEY: ${{ secrets.ODDS_API_KEY }}
           RUN_TYPE: ${{ steps.check.outputs.run_type }}
         run: |
           python pipeline/update.py --output public/data --run-type "$RUN_TYPE"
