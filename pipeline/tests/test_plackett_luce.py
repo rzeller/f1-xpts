@@ -366,13 +366,15 @@ class TestFitFromMiamiSnapshot:
 
     @pytest.fixture(scope="class")
     def fit_result(self):
+        # Use the snapshot's correlation (calibrated against historical races)
+        # but the current defaults for team_reg / smoothness_reg / market_weights.
+        # Those are heuristic regularizers, not historical-fit parameters, and
+        # the snapshot's looser values were what allowed the original bug.
         inputs = _reconstruct_inputs_from_snapshot(MIAMI_SNAPSHOT)
         log_lambdas, p_dnfs, fit_info = fit_plackett_luce(
             observed_probs=inputs["observed_probs"],
             team_indices=inputs["team_indices"],
             n_sims=10000,
-            team_reg=inputs["team_reg"],
-            smoothness_reg=inputs["smoothness_reg"],
             correlation=inputs["correlation"],
         )
         abbr_by_idx = inputs["abbr_by_idx"]
@@ -393,17 +395,22 @@ class TestFitFromMiamiSnapshot:
         rus, ant = fit_result["rus_idx"], fit_result["ant_idx"]
         assert ll[rus] > ll[ant], f"λ_RUS={ll[rus]:.4f} not > λ_ANT={ll[ant]:.4f}"
 
-    def test_rus_win_residual_shrinks(self, fit_result):
-        # Snapshot had RUS win residual = -0.1028 (model way under-predicting
-        # RUS win prob). The CRN + win-weighting fix must materially shrink it.
-        rus = fit_result["rus_idx"]
+    def test_top_favorite_residuals_under_5pp(self, fit_result):
+        # Snapshot had RUS win residual = -0.1028 and NOR -0.083 (favorites
+        # systematically under-fit). With the relaxed regularizers + 8x win
+        # weight, top favorites must come within 5pp of the devigged probs.
         win_residuals = {
             r["driver_idx"]: r["residual"]
             for r in fit_result["fit_info"]["residuals"]
             if r["market"] == "win"
         }
-        assert abs(win_residuals[rus]) < 0.08, (
-            f"RUS win residual {win_residuals[rus]:.4f} not better than buggy -0.1028"
+        rus = fit_result["rus_idx"]
+        ant = fit_result["ant_idx"]
+        assert abs(win_residuals[rus]) < 0.05, (
+            f"RUS win residual {win_residuals[rus]:.4f} not under 5pp"
+        )
+        assert abs(win_residuals[ant]) < 0.05, (
+            f"ANT win residual {win_residuals[ant]:.4f} not under 5pp"
         )
 
     def test_rus_model_winprob_above_ant(self, fit_result):
@@ -421,14 +428,11 @@ class TestFitFromMiamiSnapshot:
 
     def test_fit_is_deterministic(self):
         # Run the fit twice from scratch — CRN + same n_sims → bit-exact.
-        # (Class-scope fit_result fixture is reused; this one re-fits twice.)
         inputs = _reconstruct_inputs_from_snapshot(MIAMI_SNAPSHOT)
         kwargs = dict(
             observed_probs=inputs["observed_probs"],
             team_indices=inputs["team_indices"],
             n_sims=2000,
-            team_reg=inputs["team_reg"],
-            smoothness_reg=inputs["smoothness_reg"],
             correlation=inputs["correlation"],
         )
         ll_a, _, _ = fit_plackett_luce(**kwargs)

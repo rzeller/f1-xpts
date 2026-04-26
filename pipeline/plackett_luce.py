@@ -163,13 +163,15 @@ def compute_variance(
 
 
 DEFAULT_MARKET_WEIGHTS = {
-    # The win market is the only signal that distinguishes within-team ordering
-    # when teammates have tied placement odds (e.g. RUS vs ANT in Miami 2026).
-    # It's also where the largest residuals appear because the chaos noise in
-    # the simulator caps how concentrated the modeled win distribution can be.
-    # Up-weighting it pulls backmarker λ down and frees up win mass for
-    # favorites without dominating the placement-market fit.
-    "win": 4.0,
+    # The win market is the cleanest signal in the input odds (every other
+    # market is a placement aggregate). It's also where the regularization
+    # ceiling bites hardest — the optimizer's natural posture pulls all
+    # drivers toward the mean, which under-predicts favorites and over-
+    # predicts backmarkers. Up-weighting the win market 8x makes the
+    # optimizer push backmarker λ down hard enough that favorites can
+    # absorb the released win mass; lower weights left the top-of-field
+    # residuals at 7-10pp (issue #36 follow-up sweep).
+    "win": 8.0,
     "podium": 1.0,
     "top5": 1.0,
     "top6": 1.0,
@@ -182,8 +184,17 @@ def fit_plackett_luce(
     team_indices: np.ndarray,
     n_sims: int = 10000,
     method: str = "Powell",
-    team_reg: float = 0.02,
-    smoothness_reg: float = 0.005,
+    # The two regularizers below are heuristic: they exist to keep the
+    # optimizer from chasing noise in tiny markets, but at the original
+    # values (0.02 / 0.005) they also pinned favorite λ values too close
+    # to the field mean, capping how concentrated the modeled win
+    # distribution could be. Verified empirically (see /tmp/ceiling.py)
+    # that the simulator's chaos noise alone does NOT cap top-of-field
+    # P(win) — even at sigma_global=1.17 a sufficiently large λ ratio
+    # reaches P(win)≈0.80. So the ceiling we were hitting was the
+    # regularization, not the model.
+    team_reg: float = 0.005,
+    smoothness_reg: float = 0.0005,
     correlation: dict = None,
     market_weights: dict = None,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
