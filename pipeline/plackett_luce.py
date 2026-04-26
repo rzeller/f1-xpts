@@ -162,6 +162,21 @@ def compute_variance(
     return var
 
 
+DEFAULT_MARKET_WEIGHTS = {
+    # The win market is the only signal that distinguishes within-team ordering
+    # when teammates have tied placement odds (e.g. RUS vs ANT in Miami 2026).
+    # It's also where the largest residuals appear because the chaos noise in
+    # the simulator caps how concentrated the modeled win distribution can be.
+    # Up-weighting it pulls backmarker λ down and frees up win mass for
+    # favorites without dominating the placement-market fit.
+    "win": 4.0,
+    "podium": 1.0,
+    "top5": 1.0,
+    "top6": 1.0,
+    "top10": 1.0,
+}
+
+
 def fit_plackett_luce(
     observed_probs: Dict[str, Dict[str, float]],
     team_indices: np.ndarray,
@@ -170,6 +185,7 @@ def fit_plackett_luce(
     team_reg: float = 0.02,
     smoothness_reg: float = 0.005,
     correlation: dict = None,
+    market_weights: dict = None,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -183,6 +199,8 @@ def fit_plackett_luce(
     method : scipy optimizer method
     team_reg : regularization strength for teammate similarity
     smoothness_reg : regularization for parameter magnitudes (toward equal)
+    market_weights : per-market multiplier on squared residuals (defaults to
+        DEFAULT_MARKET_WEIGHTS, which up-weights the win market 4x).
 
     Returns
     -------
@@ -190,6 +208,8 @@ def fit_plackett_luce(
     p_dnfs : (n_drivers,) fitted DNF probabilities
     fit_info : dict with loss, residuals, etc.
     """
+    if market_weights is None:
+        market_weights = DEFAULT_MARKET_WEIGHTS
     n = len(team_indices)
 
     # Initial guess: in PL, P(i wins) ≈ λ_i / Σ λ_j, so log(P_win) is a
@@ -230,8 +250,12 @@ def fit_plackett_luce(
         log_lambdas = x
         p_dnfs = fixed_p_dnfs
 
-        # Use a different seed each eval for smoother optimization landscape
-        seed = 42 + eval_count[0]
+        # Common Random Numbers: a fixed seed makes the simulator deterministic
+        # in (log_lambdas, p_dnfs), so Powell's coordinate line searches see a
+        # smooth surface instead of MC jitter that breaks them. Without CRN,
+        # within-team gaps below the per-eval StdErr (~0.0045 on p_win at 10K
+        # sims) get drowned out — see issue #36.
+        seed = 42
         pos_probs = simulate_races(
             log_lambdas, p_dnfs, n_sims=n_sims, seed=seed,
             team_indices=team_indices, correlation=correlation,
@@ -255,10 +279,11 @@ def fit_plackett_luce(
         for market, cutoff in market_cutoffs.items():
             if market not in observed_probs:
                 continue
+            weight = market_weights.get(market, 1.0)
             for i, obs_p in observed_probs[market].items():
                 model_p = pos_probs[i, :cutoff].sum()
                 residual = model_p - obs_p
-                loss_data += residual ** 2
+                loss_data += weight * residual ** 2
                 residuals[(market, i)] = residual
 
         # DNF probabilities are fixed from odds, not optimized.
@@ -332,7 +357,10 @@ def fit_plackett_luce(
         x0,
         method=method,
         callback=callback,
-        options={"maxiter": 200, "ftol": 1e-8},
+        # Tighter tolerances + higher iter cap — the CRN seed makes the surface
+        # deterministic, so Powell can chase real minima instead of bailing on
+        # noisy plateaus (issue #36 had n_steps=8 / final_loss=0.6314).
+        options={"maxiter": 500, "ftol": 1e-7, "xtol": 1e-5},
     )
     elapsed = time.time() - start_time[0]
     print(f"  Converged: {result.success}, final loss: {result.fun:.6f}")
@@ -377,6 +405,7 @@ def fit_plackett_luce(
         "n_params": n_params,
         "team_reg": team_reg,
         "smoothness_reg": smoothness_reg,
+        "market_weights": dict(market_weights),
         "message": result.message if hasattr(result, "message") else "",
         "loss_history": loss_history,
         "step_losses": step_losses,

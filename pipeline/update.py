@@ -54,6 +54,7 @@ def build_output_json(
     devig_method: str = "shin",
     run_type: str = "",
     correlation: dict = None,
+    raw_odds: dict = None,
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
     # Build market input summary (translate driver_idx → abbr via roster)
@@ -89,6 +90,10 @@ def build_output_json(
             "fit_converged": fit_info.get("success", None),
             "run_type": run_type,
             "correlation": correlation,
+            # Pre-devig snapshot of the odds that fed this run, keyed by the
+            # driver names as the scraper / manual file produced them. Lets us
+            # tell scraper / devig / model failures apart in audits (issue #36).
+            "raw_odds": raw_odds,
         },
         "teams": teams,
         "scoring": {
@@ -109,6 +114,7 @@ def build_output_json(
             "n_params": fit_info.get("n_params", None),
             "team_reg": fit_info.get("team_reg", None),
             "smoothness_reg": fit_info.get("smoothness_reg", None),
+            "market_weights": fit_info.get("market_weights", None),
             "message": fit_info.get("message", ""),
             "loss_history": fit_info.get("loss_history", []),
             "step_losses": fit_info.get("step_losses", []),
@@ -194,7 +200,7 @@ def run_pipeline(
 
     # Step 1: Get observed probabilities (keyed by roster index)
     print("\n[1/4] Loading odds data...")
-    observed_probs, race_info = get_observed_probs(
+    observed_probs, race_info, raw_odds = get_observed_probs(
         roster=roster,
         name_map=name_map,
         manual_file=manual_file,
@@ -276,6 +282,7 @@ def run_pipeline(
         devig_method=devig_method,
         run_type=run_type,
         correlation=correlation,
+        raw_odds=raw_odds,
     )
 
     # Write latest.json (what the frontend reads)
@@ -391,7 +398,7 @@ def main():
             roster = fetch_current_roster()
             name_map = build_name_map(roster)
             print(f"  {len(roster)} drivers, {len(teams_from_roster(roster))} teams")
-            observed_probs, race_info = get_observed_probs(
+            observed_probs, race_info, _raw_odds = get_observed_probs(
                 roster=roster,
                 name_map=name_map,
                 manual_file=args.manual,
