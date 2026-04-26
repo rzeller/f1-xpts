@@ -8,34 +8,69 @@ market.
 Markets scraped (when present):
   - win    → race winner (outright)
   - podium → podium finish (top 3)
-  - top6   → top-6 finish
-  - dnf    → driver to not be classified / retire
+  - top5   → top-5 finish        (Oddschecker market: Top 5 Finish)
+  - top10  → points finish       (Oddschecker market: Points Finish)
+
+Oddschecker no longer publishes a DNF market for F1. We fall back to a
+default per-driver DNF probability in the model fitter when one isn't
+provided.
+
+Race discovery:
+  We derive the next-race slug from public/data/schedule.json rather than
+  crawling the Oddschecker hub. The hub crawl loaded enough JS / fired enough
+  selector queries that Cloudflare fingerprinted the headless browser and
+  served 403 challenges on every subsequent market URL. Going straight to a
+  known race URL in a fresh browser context avoids that.
 """
 
 import json
 import os
 import re
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
-from config import DRIVERS, DRIVER_NAME_MAP
 from devig import american_to_implied, devig_market
+from roster import resolve_driver_index as _roster_resolve
 
 
-ODDSCHECKER_BASE = "https://www.oddschecker.com/motorsport/formula-1"
+# Use the US regional path: `/us/motorsport/formula-one/`. The non-regional
+# path `/motorsport/formula-1/` exists but only exposes a subset of markets
+# (winner + podium-finish). The US path lists winner, podium-finish,
+# top-5-finish, points-finish, winning-team and fastest-lap.
+ODDSCHECKER_BASE = "https://www.oddschecker.com/us/motorsport/formula-one"
+
+# Schedule lives at <repo>/public/data/schedule.json. odds_fetcher.py is at
+# <repo>/pipeline/odds_fetcher.py — go up one level.
+SCHEDULE_PATH = os.path.normpath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "public", "data", "schedule.json")
+)
+
+# Oddschecker uses `<country>-grand-prix`. Our schedule uses `<country>-gp`.
+# Most slugs translate directly via `-gp` → `-grand-prix`. The exceptions go
+# here. Add new entries when a race weekend's scrape fails for slug reasons.
+ODDSCHECKER_SLUG_OVERRIDES: Dict[str, str] = {
+    "us-gp": "united-states-grand-prix",
+}
 
 # Each market may live under several URL slugs depending on the race weekend.
 # We try them in order and use the first that yields odds.
 MARKET_URL_CANDIDATES: Dict[str, List[str]] = {
-    "win": ["winner", "race-winner", "outright-winner"],
-    "podium": ["podium-finish", "to-finish-on-podium", "podium"],
-    "top6": ["top-6-finish", "to-finish-in-top-6", "top-six-finish"],
-    "dnf": [
-        "to-not-be-classified",
-        "not-to-be-classified",
-        "driver-to-retire",
-        "to-retire",
-        "driver-not-to-finish",
-    ],
+    "win": ["winner"],
+    "podium": ["podium-finish"],
+    "top5": ["top-5-finish"],
+    "top10": ["points-finish"],
+}
+
+# Each market URL on Oddschecker actually renders several market accordions
+# stacked on the page (e.g. /podium-finish renders Points Finish, Fastest Lap,
+# AND Podium Finish, in that order). We can't assume the first accordion is the
+# one we asked for. Instead, match by the article's heading text — the heading
+# always exactly matches one of the strings below.
+MARKET_HEADING_TEXT: Dict[str, str] = {
+    "win": "Winner",
+    "podium": "Podium Finish",
+    "top5": "Top 5 Finish",
+    "top10": "Points Finish",
 }
 
 # Default page nav timeout (ms). Oddschecker is heavy; give it room.
@@ -43,18 +78,9 @@ PAGE_TIMEOUT_MS = 45000
 NAV_WAIT_MS = 15000
 
 
-def resolve_driver_index(name: str) -> Optional[int]:
-    """Match a name from odds data to our canonical driver index."""
-    key = name.lower().strip()
-    if key in DRIVER_NAME_MAP:
-        return DRIVER_NAME_MAP[key]
-
-    # Try each word (handles "George Russell" → match on "russell")
-    for word in key.split():
-        if word in DRIVER_NAME_MAP:
-            return DRIVER_NAME_MAP[word]
-
-    return None
+def resolve_driver_index(name: str, name_map: Dict[str, int]) -> Optional[int]:
+    """Match a name from odds data to a roster index using the given name_map."""
+    return _roster_resolve(name, name_map)
 
 
 # ---------------------------------------------------------------------------
@@ -82,20 +108,34 @@ def decimal_to_american(decimal: float) -> float:
 
 _FRACTIONAL_RE = re.compile(r"^\s*(\d+(?:\.\d+)?)\s*/\s*(\d+(?:\.\d+)?)\s*$")
 _DECIMAL_RE = re.compile(r"^\s*\d+(?:\.\d+)?\s*$")
+_AMERICAN_RE = re.compile(r"^([+\-])(\d+)$")
 
 
 def parse_odds_string(odds_str: str) -> Optional[float]:
     """
     Parse an odds string into American odds.
 
-    Accepts fractional ("5/2"), decimal ("3.50"), or "EVS"/"EVENS"/"EVEN".
+    Accepts:
+      - American with explicit sign: "+150", "-200"
+      - Fractional: "5/2"
+      - Decimal: "3.50"
+      - "EVS" / "EVENS" / "EVEN"
     Returns None if the string isn't recognisable as odds.
+
+    Note: bare integers without a sign are treated as decimal odds, not
+    American — e.g. "150" is decimal 150.0 (preposterously long shot in
+    American), not +150. Real Oddschecker American pages always show a sign.
     """
     if not odds_str:
         return None
     s = odds_str.strip().upper().replace(" ", "")
     if s in ("EVS", "EVENS", "EVEN", "1/1"):
         return 100.0
+
+    m = _AMERICAN_RE.match(s)
+    if m:
+        sign, digits = m.group(1), m.group(2)
+        return float(digits) if sign == "+" else -float(digits)
 
     m = _FRACTIONAL_RE.match(s)
     if m:
@@ -116,7 +156,17 @@ def parse_odds_string(odds_str: str) -> Optional[float]:
 
 
 def _dismiss_overlays(page) -> None:
-    """Best-effort dismiss for cookie banners / age gates that block content."""
+    """Best-effort dismiss for cookie banners and webpush popups that block clicks."""
+    # The webpush popup (`webpush-swal2-container`) intercepts pointer events on
+    # the whole page — a CSS click handler won't dismiss it, so just remove the
+    # node from the DOM. The site keeps working without it.
+    try:
+        page.evaluate(
+            "() => document.querySelectorAll('.webpush-swal2-container, .webpush-swal2-shown').forEach(n => n.remove())"
+        )
+    except Exception:
+        pass
+
     selectors = [
         'button:has-text("Accept All")',
         'button:has-text("Accept all")',
@@ -132,141 +182,97 @@ def _dismiss_overlays(page) -> None:
             loc = page.locator(sel).first
             if loc.is_visible(timeout=500):
                 loc.click(timeout=1500)
-                page.wait_for_timeout(300)
+                page.wait_for_timeout(200)
         except Exception:
             continue
 
 
-def _wait_for_market_table(page) -> None:
-    """Wait for the odds grid to render — try several selectors."""
-    candidates = [
-        '[data-testid*="market"]',
-        '[data-testid*="selection"]',
-        'tr[data-bname]',
-        'table.eventTable',
-        'table.diff-row',
-        'table tbody tr',
-    ]
-    for sel in candidates:
+def _wait_for_market_bets(page) -> None:
+    """Wait for at least one bet row to render."""
+    try:
+        page.wait_for_selector(
+            '[data-testid="market-bet"]', timeout=NAV_WAIT_MS, state="attached"
+        )
+    except Exception:
         try:
-            page.wait_for_selector(sel, timeout=NAV_WAIT_MS, state="attached")
+            page.wait_for_load_state("networkidle", timeout=NAV_WAIT_MS)
+        except Exception:
+            pass
+
+
+def _expand_show_more(page, scope) -> None:
+    """
+    Click "Show More" within `scope` (a Locator) to reveal collapsed drivers.
+
+    `scope` is the per-market AccordionWrapper — clicking the show-more inside
+    it expands only that market, not other markets stacked on the same page.
+    """
+    # Defensive cap: each click may reveal another "Show More" (rare).
+    for _ in range(5):
+        try:
+            buttons = scope.locator('[data-testid="show-more-less"]').all()
+        except Exception:
+            buttons = []
+        clicked = 0
+        for btn in buttons:
+            try:
+                txt = (btn.text_content() or "").strip().lower()
+            except Exception:
+                txt = ""
+            if "more" not in txt:
+                continue
+            try:
+                # JS-dispatched .click() does not fire React's synthetic event
+                # listeners on this site, so use a real Playwright click.
+                # scroll_into_view first because if the article is below the
+                # fold, the click can be intercepted by an overlay; force=True
+                # bypasses any residual overlay (e.g. webpush popup).
+                btn.scroll_into_view_if_needed(timeout=2000)
+                btn.click(force=True, timeout=3000)
+                clicked += 1
+            except Exception:
+                continue
+        if clicked == 0:
             return
-        except Exception:
-            continue
-    # Fall back to networkidle
-    try:
-        page.wait_for_load_state("networkidle", timeout=NAV_WAIT_MS)
-    except Exception:
-        pass
-
-
-def _row_best_odds(row) -> Optional[float]:
-    """Pick the best American odds from a row."""
-    candidates: List[float] = []
-
-    # Strategy A: explicit "best" cell
-    for sel in [
-        'td.bs',
-        'td.bs-best',
-        'td[class*="best"]',
-        '[data-testid*="best-odds"]',
-        '[class*="bestOdds"]',
-    ]:
-        try:
-            els = row.locator(sel).all()
-        except Exception:
-            els = []
-        for el in els:
-            try:
-                txt = (el.text_content() or "").strip()
-            except Exception:
-                continue
-            am = parse_odds_string(txt)
-            if am is not None:
-                candidates.append(am)
-
-    # Strategy B: data-odig attribute (legacy: implied probability as decimal)
-    try:
-        odig_els = row.locator('[data-odig]').all()
-    except Exception:
-        odig_els = []
-    for el in odig_els:
-        try:
-            v = el.get_attribute("data-odig")
-            if v:
-                implied = float(v)
-                if 0.0 < implied < 1.0:
-                    decimal = 1.0 / implied
-                    candidates.append(decimal_to_american(decimal))
-        except Exception:
-            continue
-
-    # Strategy C: scan every cell for parseable odds
-    if not candidates:
-        try:
-            cells = row.locator("td").all()
-        except Exception:
-            cells = []
-        for cell in cells:
-            try:
-                txt = (cell.text_content() or "").strip()
-            except Exception:
-                continue
-            am = parse_odds_string(txt)
-            if am is not None:
-                candidates.append(am)
-
-    if not candidates:
-        return None
-
-    # Best odds for the punter = highest payout = highest American value
-    # (where positive > negative, and -120 > -150).
-    return max(candidates)
+        page.wait_for_timeout(400)
 
 
 def _row_driver_name(row) -> Optional[str]:
-    """Extract the driver name from a row."""
-    # Attribute-based (legacy Oddschecker)
-    for attr in ("data-bname", "data-name", "data-runner"):
-        try:
-            v = row.get_attribute(attr)
-        except Exception:
-            v = None
-        if v and resolve_driver_index(v) is not None:
-            return v.strip()
+    """
+    Extract the raw bet-name text from a US-style market-bet row.
 
-    # Common name-cell selectors
+    The scraper does not try to resolve names against a known roster — it
+    just returns whatever Oddschecker shows. Roster matching happens in
+    process_odds_to_fair_probs against a name_map built from the Jolpica
+    F1 API's current grid.
+    """
+    try:
+        el = row.locator('[data-testid="bet-name"]').first
+        txt = (el.text_content() or "").strip()
+    except Exception:
+        return None
+    return txt or None
+
+
+def _row_best_odds(row) -> Optional[float]:
+    """Extract American odds from the row's bet-odds button."""
+    # The button contains the odds in its first child div; siblings hold
+    # tooltip/marketing content that we don't want to pull in.
     for sel in [
-        '[data-testid*="selection-name"]',
-        '[data-testid*="participant"]',
-        'td.popup',
-        'td.beta-cell',
-        'td.sel',
-        'td[class*="name"]',
-        'th[scope="row"]',
-        'td:first-child',
+        '[data-testid="bet-odds"] .textWrapper_t1l74o75',
+        '[data-testid="bet-odds"] > div',
+        '[data-testid="bet-odds"]',
     ]:
         try:
             el = row.locator(sel).first
             txt = (el.text_content() or "").strip()
         except Exception:
-            txt = ""
-        if txt and resolve_driver_index(txt) is not None:
-            return txt
-
-    # Last resort: scan all cells for one that resolves to a known driver
-    try:
-        cells = row.locator("td, th").all()
-    except Exception:
-        cells = []
-    for cell in cells:
-        try:
-            txt = (cell.text_content() or "").strip()
-        except Exception:
             continue
-        if txt and resolve_driver_index(txt) is not None:
-            return txt
-
+        # "+150\n$10 wins ..." — keep only the leading odds token.
+        first_token = txt.split()[0] if txt else ""
+        am = parse_odds_string(first_token)
+        if am is not None:
+            return am
     return None
 
 
@@ -294,10 +300,21 @@ def _dump_debug(page, debug_dir: Optional[str], label: str) -> None:
         print(f"    [debug] dump failed: {e}")
 
 
-def _scrape_market_page(page, url: str, debug_dir: Optional[str] = None) -> Dict[str, float]:
+def _scrape_market_page(
+    page,
+    url: str,
+    expected_heading: str,
+    debug_dir: Optional[str] = None,
+) -> Dict[str, float]:
     """
     Visit an Oddschecker market page and extract { driver_name: american_odds }.
-    Returns {} on failure (404, no rows recognised, etc.).
+
+    `expected_heading` is the exact text of the market's <h*> heading — e.g.
+    "Podium Finish". Each market URL on Oddschecker stacks several markets on
+    the same page in arbitrary order, so we have to find the right one by name
+    rather than relying on position.
+
+    Returns {} on failure (404, redirect to a different page, no rows, etc.).
     """
     print(f"  → {url}")
     try:
@@ -310,37 +327,69 @@ def _scrape_market_page(page, url: str, debug_dir: Optional[str] = None) -> Dict
         print(f"    HTTP {resp.status} — skipping")
         return {}
 
+    # If Oddschecker redirected us away from the URL we asked for (e.g. an
+    # unknown market slug bounces to the F1 hub), treat it as a not-found.
+    # Comparing URL prefixes ignores trailing-slash and query-string variation.
+    landed = page.url.rstrip("/").split("?", 1)[0]
+    requested = url.rstrip("/").split("?", 1)[0]
+    if landed != requested:
+        print(f"    redirected to {landed} — treating as not-found")
+        return {}
+
     _dismiss_overlays(page)
-    _wait_for_market_table(page)
+    _wait_for_market_bets(page)
+
+    # Find the MarketWrapper article whose heading text exactly matches the
+    # market we want. Each article wraps one market's heading + AccordionWrapper.
+    # We do the matching in JS because Playwright's `:has(:text-is())` chain is
+    # finicky with quoting and the Locator filter API needs a sub-locator on a
+    # base set we'd have to enumerate first anyway.
+    article_index = page.evaluate(
+        """(heading) => {
+            const articles = document.querySelectorAll('article[class*="MarketWrapper"]');
+            for (let i = 0; i < articles.length; i++) {
+                const h = articles[i].querySelector('h1,h2,h3,h4');
+                if (h && (h.textContent || '').trim() === heading) return i;
+            }
+            return -1;
+        }""",
+        expected_heading,
+    )
+    if article_index < 0:
+        print(f"    WARNING: no article with heading {expected_heading!r} on page")
+        return {}
+
+    market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
+    market_scope = market_article.locator('[class*="AccordionWrapper"]').first
+
+    # Wait for the show-more button to appear inside the right accordion.
+    # When the target article is below the fold, the AccordionWrapper exists
+    # but its show-more button may still be hydrating, and clicking it before
+    # then is a no-op — leading to a stuck 6-row collapsed view.
+    try:
+        market_scope.locator('[data-testid="show-more-less"]').first.wait_for(
+            state="attached", timeout=NAV_WAIT_MS
+        )
+    except Exception:
+        pass
+
+    _expand_show_more(page, market_scope)
+    # The webpush overlay can reappear after async loads.
+    _dismiss_overlays(page)
 
     odds: Dict[str, float] = {}
 
-    # Iterate rows that look like selection rows. Try the most-specific
-    # selector first, falling back to a generic table-row scan.
-    row_selectors = [
-        'tr[data-bname]',
-        '[data-testid*="selection-row"]',
-        '[data-testid*="selectionRow"]',
-        '[data-testid*="market"] tbody tr',
-        'table.eventTable tbody tr',
-        'table tbody tr',
-    ]
-
-    rows = []
-    for sel in row_selectors:
-        try:
-            found = page.locator(sel).all()
-        except Exception:
-            found = []
-        if found:
-            rows = found
-            print(f"    matched {len(rows)} rows via `{sel}`")
-            break
+    try:
+        rows = market_scope.locator('[data-testid="market-bet"]').all()
+    except Exception:
+        rows = []
 
     if not rows:
-        print("    WARNING: no candidate rows found on page")
+        print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
         _dump_debug(page, debug_dir, f"market_norows_{url.rstrip('/').rsplit('/', 1)[-1]}")
         return {}
+
+    print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
 
     for row in rows:
         try:
@@ -363,97 +412,67 @@ def _scrape_market_page(page, url: str, debug_dir: Optional[str] = None) -> Dict
     return odds
 
 
-def _find_next_race(page, debug_dir: Optional[str] = None) -> Tuple[Optional[str], dict]:
+def _oddschecker_slug(repo_slug: str) -> str:
+    """Convert a schedule.json slug (e.g. 'miami-gp') to Oddschecker's URL form."""
+    if repo_slug in ODDSCHECKER_SLUG_OVERRIDES:
+        return ODDSCHECKER_SLUG_OVERRIDES[repo_slug]
+    if repo_slug.endswith("-gp"):
+        return repo_slug[: -len("-gp")] + "-grand-prix"
+    return repo_slug
+
+
+def _next_race_from_schedule(
+    schedule_path: str = SCHEDULE_PATH,
+    now: Optional[datetime] = None,
+) -> Optional[dict]:
     """
-    Visit the F1 hub page and identify the upcoming race base URL.
+    Pick the next upcoming race from the schedule file.
 
-    Returns (race_url, race_info) where race_url is e.g.
-    'https://www.oddschecker.com/motorsport/formula-1/japanese-grand-prix'
-    and race_info has the race name.
+    Returns a dict with:
+      - name:     human-readable race name
+      - slug:     Oddschecker URL slug (e.g. 'miami-grand-prix')
+      - date:     YYYY-MM-DD of race day (UTC)
+      - is_sprint: bool
+    or None if the schedule has no future races.
+
+    "Next" = first race whose race-session start is >= now. We don't apply a
+    grace window: by the time the GitHub Actions cron fires Friday morning,
+    the previous race is days behind us and Oddschecker's lines for the
+    upcoming race are already up.
     """
-    print("Discovering next F1 race on Oddschecker...")
-    try:
-        page.goto(ODDSCHECKER_BASE, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
-    except Exception as e:
-        print(f"  hub nav failed: {e}")
-        return None, {"race": "Unknown", "date": "", "is_sprint": False}
+    if not os.path.exists(schedule_path):
+        print(f"  schedule.json not found at {schedule_path}")
+        return None
 
-    _dismiss_overlays(page)
-    try:
-        page.wait_for_load_state("networkidle", timeout=NAV_WAIT_MS)
-    except Exception:
-        pass
+    with open(schedule_path) as f:
+        schedule = json.load(f)
 
-    # Find links pointing into a race page. Prefer ones that already include
-    # a known market suffix (most reliable signal that the slug is a race slug,
-    # not a navigation/category link).
-    race_pattern = re.compile(
-        r"/motorsport/formula-1/([a-z0-9][a-z0-9\-]*?-(?:grand-prix|gp))(?:/|$)"
-    )
+    now = now or datetime.now(timezone.utc)
 
-    found_slug: Optional[str] = None
-    found_label = ""
-
-    try:
-        links = page.locator('a[href*="/motorsport/formula-1/"]').all()
-    except Exception:
-        links = []
-
-    for link in links:
+    upcoming = []
+    for r in schedule.get("races", []):
+        race_iso = r.get("sessions", {}).get("race")
+        if not race_iso:
+            continue
         try:
-            href = link.get_attribute("href") or ""
-            text = (link.text_content() or "").strip()
-        except Exception:
+            race_dt = datetime.fromisoformat(race_iso.replace("Z", "+00:00"))
+        except ValueError:
             continue
-        m = race_pattern.search(href)
-        if not m:
-            continue
-        slug = m.group(1)
-        if slug in ("formula-1", "outright", "outrights", "specials"):
-            continue
-        found_slug = slug
-        if text and "winner" not in text.lower():
-            found_label = text
-        break
+        if race_dt >= now:
+            upcoming.append((race_dt, r))
 
-    if not found_slug:
-        # Looser pattern: any non-trivial slug under /motorsport/formula-1/
-        for link in links:
-            try:
-                href = link.get_attribute("href") or ""
-            except Exception:
-                continue
-            m = re.search(r"/motorsport/formula-1/([a-z0-9][a-z0-9\-]+)", href)
-            if not m:
-                continue
-            slug = m.group(1)
-            if slug in ("formula-1", "outright", "outrights", "specials", "drivers-championship", "constructors-championship"):
-                continue
-            found_slug = slug
-            break
+    if not upcoming:
+        print("  No upcoming races found in schedule.json")
+        return None
 
-    if not found_slug:
-        print("  ERROR: no upcoming race link found on hub page")
-        # Diagnostics: how many links did we even see, and what did they look like?
-        sample = []
-        for link in links[:30]:
-            try:
-                sample.append(link.get_attribute("href") or "")
-            except Exception:
-                continue
-        if sample:
-            print(f"  saw {len(links)} F1 links; first {len(sample)}:")
-            for href in sample:
-                print(f"    {href}")
-        else:
-            print("  saw 0 F1 links — page likely failed to render content")
-        _dump_debug(page, debug_dir, "hub_page")
-        return None, {"race": "Unknown", "date": "", "is_sprint": False}
-
-    race_url = f"{ODDSCHECKER_BASE}/{found_slug}"
-    race_name = found_label or found_slug.replace("-", " ").title()
-    print(f"  next race: {race_name} ({race_url})")
-    return race_url, {"race": race_name, "date": "", "is_sprint": False}
+    upcoming.sort(key=lambda x: x[0])
+    race_dt, r = upcoming[0]
+    return {
+        "name": r["name"],
+        "slug": _oddschecker_slug(r["slug"]),
+        "date": race_dt.date().isoformat(),
+        "is_sprint": bool(r.get("is_sprint", False)),
+    }
 
 
 def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, float]], dict]:
@@ -462,6 +481,10 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
 
     Returns (raw_odds_by_market, race_info) where raw_odds_by_market maps
     'win'/'podium'/'top6'/'dnf' → { driver_name: american_odds }.
+
+    A fresh browser context is opened for each market URL attempt: a single
+    bad URL (redirect, 403) on Oddschecker poisons the session via Cloudflare
+    fingerprinting, so we don't reuse a context that's seen a failure.
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -471,42 +494,54 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
             "Install with: pip install playwright && playwright install chromium"
         ) from e
 
+    print("Discovering next F1 race from schedule.json...")
+    next_race = _next_race_from_schedule()
+    if not next_race:
+        return {}, {"race": "Unknown", "date": "", "is_sprint": False}
+
+    race_info = {
+        "race": next_race["name"],
+        "date": next_race["date"],
+        "is_sprint": next_race["is_sprint"],
+    }
+    race_url = f"{ODDSCHECKER_BASE}/{next_race['slug']}"
+    print(f"  next race: {next_race['name']} ({race_url})")
+
     raw_odds: Dict[str, Dict[str, float]] = {}
-    race_info: dict = {"race": "Unknown", "date": "", "is_sprint": False}
+
+    user_agent = (
+        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
+        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+    )
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headed)
-        context = browser.new_context(
-            viewport={"width": 1366, "height": 900},
-            user_agent=(
-                "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            ),
-            locale="en-GB",
-        )
-        page = context.new_page()
-        page.set_default_timeout(PAGE_TIMEOUT_MS)
-
         try:
-            race_url, race_info = _find_next_race(page, debug_dir=debug_dir)
-            if not race_url:
-                return {}, race_info
-
             for market_key, slugs in MARKET_URL_CANDIDATES.items():
                 print(f"\nScraping {market_key} market...")
+                heading = MARKET_HEADING_TEXT[market_key]
                 for slug in slugs:
                     url = f"{race_url}/{slug}"
-                    odds = _scrape_market_page(page, url, debug_dir=debug_dir)
+                    context = browser.new_context(
+                        viewport={"width": 1366, "height": 900},
+                        user_agent=user_agent,
+                        locale="en-GB",
+                    )
+                    try:
+                        page = context.new_page()
+                        page.set_default_timeout(PAGE_TIMEOUT_MS)
+                        odds = _scrape_market_page(page, url, heading, debug_dir=debug_dir)
+                    finally:
+                        try:
+                            context.close()
+                        except Exception:
+                            pass
                     if odds:
                         raw_odds[market_key] = odds
                         break
                 if market_key not in raw_odds:
                     print(f"  {market_key}: no odds found across {len(slugs)} URL candidate(s)")
         finally:
-            try:
-                context.close()
-            except Exception:
-                pass
             browser.close()
 
     return raw_odds, race_info
@@ -530,11 +565,14 @@ def load_manual_odds(filepath: str) -> dict:
 
 def process_odds_to_fair_probs(
     raw_odds: dict,
+    name_map: Dict[str, int],
     devig_method: str = "shin",
 ) -> Dict[str, Dict[int, float]]:
     """
-    Convert raw odds (from scraper or manual) into fair probabilities
-    mapped to canonical driver indices.
+    Convert raw odds (from scraper or manual) into fair probabilities mapped to
+    roster indices. `name_map` is built from the active roster via
+    roster.build_name_map; any odds-source name that doesn't resolve to a
+    roster slot is dropped with a warning.
     """
     observed_probs = {}
 
@@ -546,7 +584,7 @@ def process_odds_to_fair_probs(
         if market_name == "dnf":
             probs = {}
             for name, odds_val in market_odds.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
@@ -555,13 +593,13 @@ def process_odds_to_fair_probs(
             observed_probs["dnf"] = probs
             continue
 
-        # Placement markets (podium, top6, top10) are binary yes/no per driver:
-        # "Will this driver finish in the top N?" Each driver's prob is independent,
-        # so they should sum to N (not 1). Devig each as a binary market.
+        # Placement markets (podium, top5, top6, top10) are binary yes/no per
+        # driver: "Will this driver finish in the top N?" Each driver's prob is
+        # independent, so they should sum to N (not 1). Devig as binary markets.
         #
         # Win market is a true multi-runner outright: exactly one winner,
         # probabilities should sum to 1. Use Shin's method.
-        placement_slots = {"podium": 3, "top6": 6, "top10": 10}
+        placement_slots = {"podium": 3, "top5": 5, "top6": 6, "top10": 10}
 
         if market_name in placement_slots:
             probs = {}
@@ -569,7 +607,7 @@ def process_odds_to_fair_probs(
             # Devig as binary markets, then rescale so they sum to target
             raw_implied = {}
             for name, odds_val in market_odds.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
@@ -588,7 +626,7 @@ def process_odds_to_fair_probs(
 
             probs = {}
             for name, prob in fair.items():
-                idx = resolve_driver_index(name)
+                idx = resolve_driver_index(name, name_map)
                 if idx is None:
                     print(f"  Warning: could not match '{name}'")
                     continue
@@ -600,6 +638,8 @@ def process_odds_to_fair_probs(
 
 
 def get_observed_probs(
+    roster: List[dict],
+    name_map: Dict[str, int],
     manual_file: Optional[str] = None,
     scrape: bool = True,
     devig_method: str = "shin",
@@ -607,7 +647,7 @@ def get_observed_probs(
     debug_dir: Optional[str] = None,
 ) -> tuple:
     """
-    Main entry point: get observed probabilities.
+    Main entry point: get observed probabilities keyed by roster index.
 
     Priority:
     1. If `scrape` is True, attempt to fetch fresh odds from Oddschecker.
@@ -651,13 +691,13 @@ def get_observed_probs(
     if not raw_odds:
         raise ValueError("No odds data from scraper or manual file")
 
-    observed_probs = process_odds_to_fair_probs(raw_odds, devig_method)
+    observed_probs = process_odds_to_fair_probs(raw_odds, name_map, devig_method)
 
     print(f"\nFinal markets: {list(observed_probs.keys())}")
     for market, probs in observed_probs.items():
         n = len(probs)
         top = sorted(probs.items(), key=lambda x: -x[1])[:3]
-        top_str = ", ".join(f"{DRIVERS[i]['abbr']}={p:.3f}" for i, p in top)
+        top_str = ", ".join(f"{roster[i]['abbr']}={p:.3f}" for i, p in top)
         print(f"  {market} ({n} drivers): {top_str}")
 
     return observed_probs, race_info

@@ -26,10 +26,10 @@ import numpy as np
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import (
-    DRIVERS, TEAMS, N_DRIVERS, N_TEAMS,
     RACE_POINTS, SPRINT_POINTS, DNF_PENALTY,
     SPRINT_WEEKENDS, CORRELATION_DEFAULTS,
 )
+from roster import fetch_current_roster, teams_from_roster, build_name_map
 from odds_fetcher import get_observed_probs
 from plackett_luce import (
     fit_plackett_luce,
@@ -42,6 +42,8 @@ from plackett_luce import (
 
 def build_output_json(
     drivers_data: list,
+    teams: list,
+    roster: list,
     race_info: dict,
     fit_info: dict,
     log_lambdas: np.ndarray,
@@ -54,15 +56,25 @@ def build_output_json(
     correlation: dict = None,
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
-    # Build market input summary
+    # Build market input summary (translate driver_idx → abbr via roster)
     market_inputs = []
     if observed_probs:
         for market, probs in observed_probs.items():
             market_inputs.append({
                 "market": market,
                 "n_drivers": len(probs),
-                "drivers": [DRIVERS[i]["abbr"] for i in sorted(probs.keys())],
+                "drivers": [roster[i]["abbr"] for i in sorted(probs.keys())],
             })
+
+    # Residuals from the fit reference driver_idx — annotate with the abbr now
+    # that we have a roster, so the frontend can render them readably.
+    residuals = []
+    for r in fit_info.get("residuals", []):
+        idx = r.get("driver_idx")
+        residuals.append({
+            **r,
+            "driver": roster[idx]["abbr"] if idx is not None and 0 <= idx < len(roster) else "?",
+        })
 
     return {
         "meta": {
@@ -78,10 +90,7 @@ def build_output_json(
             "run_type": run_type,
             "correlation": correlation,
         },
-        "teams": [
-            {"name": t["name"], "color": t["color"]}
-            for t in TEAMS
-        ],
+        "teams": teams,
         "scoring": {
             "race": RACE_POINTS,
             "sprint": SPRINT_POINTS,
@@ -103,7 +112,7 @@ def build_output_json(
             "message": fit_info.get("message", ""),
             "loss_history": fit_info.get("loss_history", []),
             "step_losses": fit_info.get("step_losses", []),
-            "residuals": fit_info.get("residuals", []),
+            "residuals": residuals,
             "market_inputs": market_inputs,
         },
     }
@@ -171,9 +180,23 @@ def run_pipeline(
           f"sigma_global={correlation['sigma_global']}, "
           f"sigma_dnf={correlation['sigma_dnf']}")
 
-    # Step 1: Get observed probabilities
+    # Step 0: Fetch the active driver roster + team mapping from Jolpica F1 API.
+    # This is the source of truth for who's driving — Oddschecker is matched
+    # against it.
+    print("\n[0/4] Fetching current roster from Jolpica F1 API...")
+    roster = fetch_current_roster()
+    teams = teams_from_roster(roster)
+    name_map = build_name_map(roster)
+    n_drivers = len(roster)
+    print(f"  {n_drivers} drivers, {len(teams)} teams")
+    for d in roster:
+        print(f"    {d['abbr']:4s} {d['name']:25s} → {d['team_name']}")
+
+    # Step 1: Get observed probabilities (keyed by roster index)
     print("\n[1/4] Loading odds data...")
     observed_probs, race_info = get_observed_probs(
+        roster=roster,
+        name_map=name_map,
         manual_file=manual_file,
         scrape=scrape,
         devig_method=devig_method,
@@ -191,7 +214,7 @@ def run_pipeline(
 
     # Step 2: Fit the model
     print("\n[2/4] Fitting Plackett-Luce model...")
-    team_indices = np.array([d["team_idx"] for d in DRIVERS])
+    team_indices = np.array([d["team_idx"] for d in roster])
 
     # If we only have win odds and no other markets, we can still fit
     # (just fewer constraints, so regularization matters more)
@@ -202,7 +225,7 @@ def run_pipeline(
     # Fill in missing DNF probs with defaults
     if "dnf" not in observed_probs:
         print("  No DNF odds available, using defaults (10% base)")
-        observed_probs["dnf"] = {i: 0.10 for i in range(N_DRIVERS)}
+        observed_probs["dnf"] = {i: 0.10 for i in range(n_drivers)}
 
     log_lambdas, p_dnfs, fit_info = fit_plackett_luce(
         observed_probs=observed_probs,
@@ -218,6 +241,7 @@ def run_pipeline(
     drivers_data = generate_full_output(
         log_lambdas,
         p_dnfs,
+        roster,
         is_sprint=race_info.get("is_sprint", False),
         n_sims=n_final_sims,
         team_indices=team_indices,
@@ -245,7 +269,7 @@ def run_pipeline(
     (output_dir / "races").mkdir(exist_ok=True)
 
     output = build_output_json(
-        drivers_data, race_info, fit_info, log_lambdas, p_dnfs,
+        drivers_data, teams, roster, race_info, fit_info, log_lambdas, p_dnfs,
         top_lineups=top_lineups,
         observed_probs=observed_probs,
         n_final_sims=n_final_sims,
@@ -359,13 +383,17 @@ def main():
         parser.error("--no-scrape requires --manual <file>")
 
     if args.dry_run:
-        from odds_fetcher import get_observed_probs
-
         print("=" * 60)
         print("F1 Expected Points Pipeline — DRY RUN (scrape only)")
         print("=" * 60)
         try:
+            print("\nFetching current roster from Jolpica F1 API...")
+            roster = fetch_current_roster()
+            name_map = build_name_map(roster)
+            print(f"  {len(roster)} drivers, {len(teams_from_roster(roster))} teams")
             observed_probs, race_info = get_observed_probs(
+                roster=roster,
+                name_map=name_map,
                 manual_file=args.manual,
                 scrape=not args.no_scrape,
                 devig_method=args.devig_method,
@@ -388,8 +416,8 @@ def main():
             print(f"\n[{market}] {len(probs)} drivers — fair probabilities (devigged):")
             ranked = sorted(probs.items(), key=lambda x: -x[1])
             for idx, p in ranked:
-                d = DRIVERS[idx]
-                print(f"  {d['abbr']:5s} {d['name']:22s} p={p:.4f}")
+                d = roster[idx]
+                print(f"  {d['abbr']:5s} {d['name']:25s} p={p:.4f}")
 
         print("\nDry run complete — no files written.")
         return
