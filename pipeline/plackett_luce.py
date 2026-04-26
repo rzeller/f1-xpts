@@ -167,11 +167,12 @@ DEFAULT_MARKET_WEIGHTS = {
     # market is a placement aggregate). It's also where the regularization
     # ceiling bites hardest — the optimizer's natural posture pulls all
     # drivers toward the mean, which under-predicts favorites and over-
-    # predicts backmarkers. Up-weighting the win market 8x makes the
-    # optimizer push backmarker λ down hard enough that favorites can
-    # absorb the released win mass; lower weights left the top-of-field
-    # residuals at 7-10pp (issue #36 follow-up sweep).
-    "win": 8.0,
+    # predicts backmarkers. A 16x weight on the win market plus the
+    # relaxed `smoothness_reg` below brings top-of-field residuals to
+    # ~3-4pp on both Miami and Japan inputs. Going higher (24x+) trades
+    # placement-market fit for marginal win-market improvement (issue #36
+    # follow-up sweep, /tmp/sweep6.py).
+    "win": 16.0,
     "podium": 1.0,
     "top5": 1.0,
     "top6": 1.0,
@@ -194,7 +195,7 @@ def fit_plackett_luce(
     # reaches P(win)≈0.80. So the ceiling we were hitting was the
     # regularization, not the model.
     team_reg: float = 0.005,
-    smoothness_reg: float = 0.0005,
+    smoothness_reg: float = 0.0001,
     correlation: dict = None,
     market_weights: dict = None,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:

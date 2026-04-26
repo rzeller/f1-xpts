@@ -395,10 +395,10 @@ class TestFitFromMiamiSnapshot:
         rus, ant = fit_result["rus_idx"], fit_result["ant_idx"]
         assert ll[rus] > ll[ant], f"λ_RUS={ll[rus]:.4f} not > λ_ANT={ll[ant]:.4f}"
 
-    def test_top_favorite_residuals_under_5pp(self, fit_result):
+    def test_top_favorite_residuals_under_4pp(self, fit_result):
         # Snapshot had RUS win residual = -0.1028 and NOR -0.083 (favorites
-        # systematically under-fit). With the relaxed regularizers + 8x win
-        # weight, top favorites must come within 5pp of the devigged probs.
+        # systematically under-fit). With the relaxed regularizers + 16x win
+        # weight, top favorites must come within 4pp of the devigged probs.
         win_residuals = {
             r["driver_idx"]: r["residual"]
             for r in fit_result["fit_info"]["residuals"]
@@ -406,11 +406,11 @@ class TestFitFromMiamiSnapshot:
         }
         rus = fit_result["rus_idx"]
         ant = fit_result["ant_idx"]
-        assert abs(win_residuals[rus]) < 0.05, (
-            f"RUS win residual {win_residuals[rus]:.4f} not under 5pp"
+        assert abs(win_residuals[rus]) < 0.04, (
+            f"RUS win residual {win_residuals[rus]:.4f} not under 4pp"
         )
-        assert abs(win_residuals[ant]) < 0.05, (
-            f"ANT win residual {win_residuals[ant]:.4f} not under 5pp"
+        assert abs(win_residuals[ant]) < 0.04, (
+            f"ANT win residual {win_residuals[ant]:.4f} not under 4pp"
         )
 
     def test_rus_model_winprob_above_ant(self, fit_result):
