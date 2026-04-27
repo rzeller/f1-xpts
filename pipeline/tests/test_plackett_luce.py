@@ -14,6 +14,7 @@ from plackett_luce import (
     generate_full_output,
     find_top_lineups,
     fit_plackett_luce,
+    analytic_win_probs,
 )
 from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY
 
@@ -143,6 +144,52 @@ class TestSimulateRaces:
         assert result.shape == (N_DRIVERS, N_DRIVERS + 1)
         for i in range(N_DRIVERS):
             assert result[i].sum() == pytest.approx(1.0, abs=0.01)
+
+
+# --- analytic_win_probs (closed-form Gumbel-max win probability) ---
+
+
+class TestAnalyticWinProbs:
+    """Verify the deterministic analytic win-probability formula matches
+    Plackett-Luce closed form in the no-noise homogeneous-σ limit and the
+    MC simulator with chaos noise."""
+
+    def test_matches_pl_closed_form_no_noise(self):
+        # No chaos, no team noise, σ_drv=1, no DNF: analytic should match
+        # the exact Gumbel-max formula λ_i / Σ λ_j.
+        rng = np.random.default_rng(0)
+        log_lambdas = rng.normal(0, 1.0, 10)
+        log_lambdas -= log_lambdas.mean()
+        p_dnfs = np.zeros(10)
+        ana = analytic_win_probs(log_lambdas, p_dnfs)
+        closed = np.exp(log_lambdas) / np.sum(np.exp(log_lambdas))
+        # Top driver should match closed form to <0.001 (Laguerre quadrature
+        # has small error in the deep tail but the top driver is well within
+        # the well-resolved region).
+        top = np.argmax(log_lambdas)
+        assert abs(ana[top] - closed[top]) < 0.001
+
+    def test_matches_mc_under_chaos(self):
+        # Full model with chaos + team noise + DNF — analytic should track
+        # MC simulator within ~MC noise + small Hermite/Laguerre quadrature
+        # error.
+        rng = np.random.default_rng(0)
+        n = 22
+        log_lambdas = rng.normal(0, 1.2, n)
+        log_lambdas -= log_lambdas.mean()
+        p_dnfs = np.full(n, 0.10)
+        team_indices = np.repeat(np.arange(11), 2)
+        correlation = {"sigma_team": 0.5, "sigma_global": 0.8, "sigma_dnf": 0.0}
+
+        mc = simulate_races(log_lambdas, p_dnfs, n_sims=50_000, seed=42,
+                            team_indices=team_indices, correlation=correlation)[:, 0]
+        ana = analytic_win_probs(log_lambdas, p_dnfs,
+                                  team_indices=team_indices, correlation=correlation,
+                                  n_team_samples=120)
+        # Top-5 favorites should match within 3pp (analytic team-noise MC has
+        # ~0.025 StdErr at 120 samples; this is a moderately loose bound).
+        top5 = np.argsort(-log_lambdas)[:5]
+        assert np.max(np.abs(ana[top5] - mc[top5])) < 0.03
 
 
 # --- compute_expected_points ---

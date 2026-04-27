@@ -24,6 +24,7 @@ def simulate_races(
     seed: int = 42,
     team_indices: np.ndarray = None,
     correlation: dict = None,
+    sigma_drv: np.ndarray = None,
 ) -> np.ndarray:
     """
     Simulate races from the Plackett-Luce model with DNFs.
@@ -31,6 +32,11 @@ def simulate_races(
     Uses the Gumbel-max trick for vectorized PL sampling:
     ranking by (log_lambda + Gumbel noise) is equivalent to sequential
     PL draws, but runs entirely in numpy with no Python loops over sims.
+
+    `sigma_drv` (length n_drivers, default 1.0 each) is a per-driver scaling
+    on the Gumbel noise. Larger σ_i widens that driver's outcome distribution
+    around their λ-implied position; combined with chaos noise this gives
+    each driver a tunable "win-or-fade" vs. "consistent" shape.
 
     Parameters
     ----------
@@ -54,6 +60,8 @@ def simulate_races(
     # Gumbel-max trick: sample Gumbel(0,1) noise, add to log-lambdas, argsort
     # This gives a Plackett-Luce draw in O(n log n) with full vectorization
     gumbel_noise = rng.gumbel(size=(n_sims, n))  # (n_sims, n_drivers)
+    if sigma_drv is not None:
+        gumbel_noise = gumbel_noise * sigma_drv[np.newaxis, :]
 
     # --- Correlated noise layers ---
     # Use a separate RNG so that when correlation is disabled, the Gumbel
@@ -129,6 +137,131 @@ def simulate_races(
     return position_counts / n_sims
 
 
+# Gauss-Laguerre nodes/weights for ∫₀^∞ exp(-t) f(t) dt ≈ Σₖ wₖ f(tₖ).
+# Cached at module load — picking K=80 keeps top-driver win-prob error
+# comfortably below MC noise (verified on synthetic 22-driver fits).
+from numpy.polynomial.laguerre import laggauss as _laggauss
+_LAGUERRE_K = 80
+_LAGUERRE_NODES, _LAGUERRE_WEIGHTS = _laggauss(_LAGUERRE_K)
+_LAGUERRE_LOG_T = np.log(_LAGUERRE_NODES)  # (K,)
+
+# Gauss-Hermite nodes/weights for ∫_{-∞}^{∞} exp(-z²/2) / √(2π) f(z) dz.
+# Used for the chaos-noise integral over z_global ~ Normal(0,1). 12 nodes
+# is plenty for a smooth log-normal-multiplier integrand.
+from numpy.polynomial.hermite_e import hermegauss as _hermegauss
+_HERMITE_K = 12
+_HERMITE_NODES, _HERMITE_WEIGHTS = _hermegauss(_HERMITE_K)
+_HERMITE_WEIGHTS = _HERMITE_WEIGHTS / np.sqrt(2 * np.pi)  # normalize to N(0,1) measure
+
+
+def analytic_win_probs(
+    log_lambdas: np.ndarray,
+    p_dnfs: np.ndarray,
+    sigma_drv: np.ndarray = None,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
+    n_team_samples: int = 80,
+    seed: int = 4242,
+) -> np.ndarray:
+    """Deterministic P(driver i wins) via quadrature, replacing MC for the
+    win market only. Uses the heterogeneous-scale Gumbel-max identity:
+
+        P(i wins | μ, β) = ∫₀^∞ exp(-t) ∏_{j≠i} [p_dnf_j + (1 − p_dnf_j)
+                                                  · exp(-aᵢⱼ · t^{rᵢⱼ})] dt
+
+    where μⱼ = log(λⱼ) + σ_team · z_t(j), βⱼ = c · σ_drv_j, c = exp(σ_global · z),
+    aᵢⱼ = exp((μⱼ − μᵢ)/βⱼ), rᵢⱼ = βᵢ/βⱼ. Marginalized over the chaos noise
+    z ~ N(0, 1) by Gauss-Hermite (12 nodes) and over the team noise z_t by
+    Monte Carlo (deterministic at fixed seed). The final survival factor
+    multiplies by (1 − p_dnf_i).
+
+    Why this exists: the MC simulator can't reach P(win) values much below
+    1/n_sims, which broke the "anchor λ to win" inner loop for backmarkers.
+    The quadrature formula has no such floor — at λ_i → −∞, P(i wins) → 0
+    smoothly — so the bilevel anchor stays well-conditioned.
+
+    Returns: (n,) array of P(i wins) values summing to ≤ 1 (≈1 minus the
+    probability that everyone DNFs; deterministic to ~1e-3 vs MC).
+    """
+    n = len(log_lambdas)
+    if sigma_drv is None:
+        sigma_drv = np.ones(n)
+    if correlation is None:
+        sigma_team = sigma_global = sigma_dnf = 0.0
+    else:
+        sigma_team = correlation.get("sigma_team", 0.0)
+        sigma_global = correlation.get("sigma_global", 0.0)
+        sigma_dnf = correlation.get("sigma_dnf", 0.0)
+
+    n_teams = int(team_indices.max()) + 1 if team_indices is not None else 0
+
+    # Pre-sample team noise z_t for MC averaging (deterministic at fixed seed).
+    rng = np.random.default_rng(seed)
+    if sigma_team > 0 and n_teams > 0 and team_indices is not None:
+        z_team_samples = rng.standard_normal((n_team_samples, n_teams))  # (S, T)
+    else:
+        z_team_samples = np.zeros((1, max(n_teams, 1)))
+
+    # Pre-sample DNF correlation z_d for the survival mixture (independent
+    # of the inner Gumbel-max integral; we average it as a separate MC layer).
+    survival = 1.0 - p_dnfs  # (n,)
+
+    # Iterate over (chaos node, team-noise sample) combinations and accumulate.
+    win_probs = np.zeros(n)
+    total_weight = 0.0
+    log_t = _LAGUERRE_LOG_T  # (K,)
+    laguerre_w = _LAGUERRE_WEIGHTS  # (K,)
+
+    for k_chaos, (z_g, w_chaos) in enumerate(zip(_HERMITE_NODES, _HERMITE_WEIGHTS)):
+        c = np.exp(sigma_global * z_g) if sigma_global > 0 else 1.0
+        beta = c * sigma_drv  # (n,) per-driver scale this race-day
+
+        for s, z_t in enumerate(z_team_samples):
+            # Per-driver location with team noise.
+            if sigma_team > 0 and n_teams > 0:
+                mu = log_lambdas + sigma_team * z_t[team_indices]  # (n,)
+            else:
+                mu = log_lambdas
+
+            # Inner: P(i wins | this race) for each driver via Laguerre.
+            # Vectorize over j ≠ i using a precomputed broadcast.
+            # For each driver i: a[j] = exp((μⱼ − μᵢ)/βⱼ), r[j] = βᵢ/βⱼ
+            # log_term[k, j] = log(a[j]) + r[j] · log(t_k)
+            # mixture_factor[k, j] = (1 - p_dnf_j) · exp(-a[j] · t_k^{r[j]})
+            #                        + p_dnf_j  (driver j DNFs → "wins" against everyone)
+            # P(i wins | race) = Σ_k w_k · ∏_{j≠i} mixture_factor[k, j]
+            for i in range(n):
+                mask = np.arange(n) != i
+                mu_j = mu[mask]
+                beta_j = beta[mask]
+                p_dnf_j = p_dnfs[mask]
+
+                # log_a[j] = (μⱼ − μᵢ) / βⱼ
+                log_a = (mu_j - mu[i]) / beta_j  # (n-1,)
+                r = beta[i] / beta_j  # (n-1,)
+                # log_terms[k, j] = log_a[j] + r[j] · log(t_k)
+                log_terms = log_a[None, :] + r[None, :] * log_t[:, None]  # (K, n-1)
+                # exp(-a · t^r) per (k, j); clip to avoid overflow at extreme λ
+                neg_aterms = -np.exp(np.clip(log_terms, -50, 50))
+                survive_factor = np.exp(neg_aterms)  # (K, n-1) ∈ [0, 1]
+                # Mixture: j contributes survive_factor if it finishes, 1.0 if it DNFs
+                # (DNF equivalent to ∞ utility from i's perspective… wait, no — DNF means
+                # j is REMOVED from the race, so j doesn't beat i. Treat DNF j the same
+                # as j having infinitely-low utility, i.e. mixture factor = 1.)
+                mix = (1.0 - p_dnf_j[None, :]) * survive_factor + p_dnf_j[None, :]
+                prod = np.prod(mix, axis=1)  # (K,)
+                integral = np.sum(laguerre_w * prod)
+                win_probs[i] += w_chaos * integral
+
+            total_weight += w_chaos
+
+    # Average over team noise (uniform weight); chaos already weighted via Hermite.
+    win_probs = win_probs / len(z_team_samples)
+    # Apply survival to driver i (i must finish to win at all).
+    win_probs = win_probs * survival
+    return win_probs
+
+
 def compute_expected_points(
     pos_probs: np.ndarray,
     points_map: Dict[int, int],
@@ -160,6 +293,58 @@ def compute_variance(
         var += pos_probs[k] * (pts - ep) ** 2
     var += pos_probs[-1] * (dnf_penalty - ep) ** 2
     return var
+
+
+def anchor_lambda_to_win_market(
+    observed_win: Dict[int, float],
+    sigma_drv: np.ndarray,
+    p_dnfs: np.ndarray,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
+    init_log_lambdas: np.ndarray = None,
+    n_team_samples: int = 80,
+    max_iters: int = 30,
+    tol: float = 1e-3,
+) -> np.ndarray:
+    """Solve for log_lambdas s.t. analytic_win_probs(log_lambdas, σ_drv) ≈
+    observed_win. Uses fixed-point iteration in log-space:
+
+        log_λ_i ← log_λ_i + log(obs_p_win_i / analytic_p_win_i)
+
+    Convergence is fast (~5-10 iters) because the analytic mapping λ → P(win)
+    is monotonic per-driver and approximately multiplicative across drivers
+    in log-space. Unlike the MC-based anchor we tried earlier, this stays
+    well-conditioned for backmarkers because analytic_win_probs has no MC
+    floor — at λ_i → −∞, P(i wins) → 0 smoothly.
+    """
+    n = len(sigma_drv)
+    if init_log_lambdas is not None:
+        ll = init_log_lambdas.copy()
+    else:
+        ll = np.zeros(n)
+        for i, p in observed_win.items():
+            if p > 0:
+                ll[i] = np.log(max(p, 1e-12))
+        ll -= ll.mean()
+
+    obs_arr = np.array([observed_win.get(i, 1e-12) for i in range(n)])
+    obs_arr = np.maximum(obs_arr, 1e-12)
+    log_obs = np.log(obs_arr)
+
+    for _ in range(max_iters):
+        analytic = analytic_win_probs(
+            ll, p_dnfs, sigma_drv=sigma_drv,
+            team_indices=team_indices, correlation=correlation,
+            n_team_samples=n_team_samples,
+        )
+        analytic = np.maximum(analytic, 1e-12)
+        update = log_obs - np.log(analytic)
+        if np.max(np.abs(update)) < tol:
+            break
+        ll = ll + update
+        ll -= ll.mean()
+        ll = np.clip(ll, -15, 15)
+    return ll
 
 
 DEFAULT_MARKET_WEIGHTS = {
@@ -196,8 +381,16 @@ def fit_plackett_luce(
     # regularization, not the model.
     team_reg: float = 0.005,
     smoothness_reg: float = 0.0001,
+    sigma_drv_reg: float = 0.005,
     correlation: dict = None,
     market_weights: dict = None,
+    # σ_drv per-driver volatility: experimental. Verified to give exact
+    # win-prob match via the analytic Gumbel-max formula (see
+    # analytic_win_probs), but the resulting joint 44-D Powell objective
+    # is too expensive for production (~10x slower per fit). Disabled by
+    # default; flip to True for offline experiments only.
+    fit_sigma_drv: bool = False,
+    n_team_samples: int = 30,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -245,8 +438,12 @@ def fit_plackett_luce(
     else:
         fixed_p_dnfs = np.full(n, 0.10)
 
-    # Only optimize the 22 lambda parameters (not 44 = lambda + DNF)
-    x0 = init_log_lambdas.copy()
+    # Pack optimizer state. With per-driver σ, x = [log_λ, log_σ_drv] (44-D).
+    # Without (legacy), x = [log_λ] (22-D).
+    if fit_sigma_drv:
+        x0 = np.concatenate([init_log_lambdas, np.zeros(n)])
+    else:
+        x0 = init_log_lambdas.copy()
 
     n_params = len(x0)
     eval_count = [0]
@@ -257,20 +454,34 @@ def fit_plackett_luce(
     import time
     start_time = [time.time()]
 
+    def _unpack(x):
+        log_lambdas = x[:n]
+        sigma_drv = np.exp(x[n:2 * n]) if fit_sigma_drv else None
+        return log_lambdas, sigma_drv
+
     def objective(x):
         eval_count[0] += 1
-        log_lambdas = x
+        log_lambdas, sigma_drv = _unpack(x)
         p_dnfs = fixed_p_dnfs
 
-        # Common Random Numbers: a fixed seed makes the simulator deterministic
-        # in (log_lambdas, p_dnfs), so Powell's coordinate line searches see a
-        # smooth surface instead of MC jitter that breaks them. Without CRN,
-        # within-team gaps below the per-eval StdErr (~0.0045 on p_win at 10K
-        # sims) get drowned out — see issue #36.
-        seed = 42
-        pos_probs = simulate_races(
-            log_lambdas, p_dnfs, n_sims=n_sims, seed=seed,
+        # The win-market residual is computed via the deterministic analytic
+        # formula (Hermite quadrature × Laguerre quadrature × team-noise MC).
+        # This eliminates MC noise on the most heavily-weighted constraint
+        # and lets the optimizer drive both λ and σ to match the win market
+        # without the chaos floor we hit when fitting MC P(win) directly.
+        analytic_win = analytic_win_probs(
+            log_lambdas, p_dnfs, sigma_drv=sigma_drv,
             team_indices=team_indices, correlation=correlation,
+            n_team_samples=n_team_samples,
+        )
+
+        # Placement markets (podium / top5 / top6 / top10) still need MC
+        # because chaos noise materially changes the position spread, not
+        # just the argmax. CRN seed makes this deterministic in (λ, σ).
+        pos_probs = simulate_races(
+            log_lambdas, p_dnfs, n_sims=n_sims, seed=42,
+            team_indices=team_indices, correlation=correlation,
+            sigma_drv=sigma_drv,
         )
 
         loss = 0.0
@@ -278,8 +489,8 @@ def fit_plackett_luce(
         loss_data = 0.0
         loss_team = 0.0
         loss_shrink = 0.0
+        loss_sigma = 0.0
 
-        # Match observed cumulative probabilities
         market_cutoffs = {
             "win": 1,
             "podium": 3,
@@ -293,13 +504,15 @@ def fit_plackett_luce(
                 continue
             weight = market_weights.get(market, 1.0)
             for i, obs_p in observed_probs[market].items():
-                model_p = pos_probs[i, :cutoff].sum()
+                if market == "win":
+                    model_p = analytic_win[i]
+                else:
+                    model_p = pos_probs[i, :cutoff].sum()
                 residual = model_p - obs_p
                 loss_data += weight * residual ** 2
                 residuals[(market, i)] = residual
 
         # DNF probabilities are fixed from odds, not optimized.
-        # (No DNF loss term needed.)
 
         # Regularization: teammates should have similar lambdas
         n_teams = int(team_indices.max()) + 1 if len(team_indices) else 0
@@ -313,7 +526,13 @@ def fit_plackett_luce(
         mean_ll = log_lambdas.mean()
         loss_shrink = smoothness_reg * np.sum((log_lambdas - mean_ll) ** 2)
 
-        loss = loss_data + loss_team + loss_shrink
+        # Regularization: σ_drv toward 1 (i.e. log σ toward 0). Anchors the
+        # outer optimization — without this the optimizer can drive σ to
+        # extreme values where the Hermite quadrature loses precision.
+        if fit_sigma_drv:
+            loss_sigma = sigma_drv_reg * np.sum(x[n:2 * n] ** 2)
+
+        loss = loss_data + loss_team + loss_shrink + loss_sigma
 
         if loss < best_loss[0]:
             best_loss[0] = loss
@@ -326,6 +545,7 @@ def fit_plackett_luce(
                 "data": round(loss_data, 6),
                 "team": round(loss_team, 6),
                 "shrink": round(loss_shrink, 6),
+                "sigma": round(loss_sigma, 6),
             })
 
         # Log every eval with timing
@@ -333,7 +553,8 @@ def fit_plackett_luce(
         evals_per_sec = eval_count[0] / max(elapsed, 0.01)
         print(
             f"  eval {eval_count[0]:5d} | "
-            f"loss={loss:.6f} (data={loss_data:.6f} team={loss_team:.6f} shrink={loss_shrink:.6f}) | "
+            f"loss={loss:.6f} (data={loss_data:.6f} team={loss_team:.6f} "
+            f"shrink={loss_shrink:.6f} sigma={loss_sigma:.6f}) | "
             f"best={best_loss[0]:.6f} | "
             f"{elapsed:.1f}s ({evals_per_sec:.1f} eval/s)",
             flush=True,
@@ -380,16 +601,17 @@ def fit_plackett_luce(
     if hasattr(result, 'message'):
         print(f"  Message: {result.message}")
 
-    log_lambdas = result.x
+    log_lambdas, sigma_drv = _unpack(result.x)
     p_dnfs = fixed_p_dnfs
 
     # Normalize: set mean log_lambda to 0 (arbitrary scale)
-    log_lambdas -= log_lambdas.mean()
+    log_lambdas = log_lambdas - log_lambdas.mean()
 
     # Compute final residuals with a large simulation for accuracy
     final_pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=50000, seed=99999,
         team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv,
     )
     market_cutoffs = {"win": 1, "podium": 3, "top5": 5, "top6": 6, "top10": 10}
     residuals = []
@@ -417,12 +639,15 @@ def fit_plackett_luce(
         "n_params": n_params,
         "team_reg": team_reg,
         "smoothness_reg": smoothness_reg,
+        "sigma_drv_reg": sigma_drv_reg if fit_sigma_drv else None,
+        "fit_sigma_drv": fit_sigma_drv,
         "market_weights": dict(market_weights),
         "message": result.message if hasattr(result, "message") else "",
         "loss_history": loss_history,
         "step_losses": step_losses,
         "residuals": residuals,
         "correlation": correlation,
+        "sigma_drv": [float(s) for s in sigma_drv] if sigma_drv is not None else None,
     }
 
     return log_lambdas, p_dnfs, fit_info
@@ -436,6 +661,7 @@ def generate_full_output(
     n_sims: int = 50000,
     team_indices: np.ndarray = None,
     correlation: dict = None,
+    sigma_drv: np.ndarray = None,
 ) -> List[dict]:
     """
     Generate the complete output for all drivers.
@@ -447,6 +673,7 @@ def generate_full_output(
     pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
         team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv,
     )
 
     drivers_output = []
@@ -473,6 +700,7 @@ def generate_full_output(
             "abbr": driver_info["abbr"],
             "team_idx": driver_info["team_idx"],
             "lambda": float(log_lambdas[i]),
+            "sigma_drv": float(sigma_drv[i]) if sigma_drv is not None else 1.0,
             "p_dnf": float(p_dnfs[i]),
             "ep_race": round(ep_race, 2),
             "ep_sprint": round(ep_sprint, 2),

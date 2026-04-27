@@ -114,6 +114,8 @@ def build_output_json(
             "n_params": fit_info.get("n_params", None),
             "team_reg": fit_info.get("team_reg", None),
             "smoothness_reg": fit_info.get("smoothness_reg", None),
+            "sigma_drv_reg": fit_info.get("sigma_drv_reg", None),
+            "fit_sigma_drv": fit_info.get("fit_sigma_drv", None),
             "market_weights": fit_info.get("market_weights", None),
             "message": fit_info.get("message", ""),
             "loss_history": fit_info.get("loss_history", []),
@@ -244,6 +246,7 @@ def run_pipeline(
 
     # Step 3: Generate full simulation output
     print("\n[3/4] Running final simulation (50K races)...")
+    sigma_drv = np.array(fit_info["sigma_drv"]) if fit_info.get("sigma_drv") else None
     drivers_data = generate_full_output(
         log_lambdas,
         p_dnfs,
@@ -252,6 +255,7 @@ def run_pipeline(
         n_sims=n_final_sims,
         team_indices=team_indices,
         correlation=correlation,
+        sigma_drv=sigma_drv,
     )
 
     # Print summary
