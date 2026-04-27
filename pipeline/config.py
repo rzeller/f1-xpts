@@ -56,7 +56,14 @@ DEFAULT_TEAM_COLOR = "#888888"
 #   backward compatibility / comparison runs.
 CORRELATION_DEFAULTS = {
     "sigma_team": 0.6634,
-    "sigma_global": 0.5,        # tuned for one_sided / bimodal; was 1.1715 for symmetric
+    # Pace noise scaling per driver. Smaller σ_drv_base + larger σ_global is
+    # closer to F1 reality (driver pace per race is fairly consistent; race
+    # outcomes are dominated by incidents, not by who got the lucky Gumbel
+    # draw). Empirically (0.7, 2.0) sits on the Pareto frontier of win and
+    # podium residuals on Miami; the previous (1.0, 0.5) was strictly
+    # dominated.
+    "sigma_drv_base": 0.7,
+    "sigma_global": 2.0,        # one_sided exp scale (was 0.5; symmetric used 1.1715)
     "sigma_dnf": 0.3285,
     "chaos_model": "one_sided",
     # bimodal-only knobs; ignored by one_sided/symmetric. Defaults sketch a

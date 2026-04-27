@@ -62,6 +62,15 @@ def simulate_races(
     gumbel_noise = rng.gumbel(size=(n_sims, n))  # (n_sims, n_drivers)
     if sigma_drv is not None:
         gumbel_noise = gumbel_noise * sigma_drv[np.newaxis, :]
+    elif correlation is not None and "sigma_drv_base" in correlation:
+        # Default per-driver Gumbel scale, applied uniformly when no explicit
+        # per-driver σ is given. Smaller values make wins more deterministic
+        # (less "lost a Gumbel coin flip to NOR" P2-P3 outcomes for top
+        # drivers) at the cost of needing larger chaos magnitude to keep
+        # backmarker leakage bounded.
+        sdb = correlation.get("sigma_drv_base", 1.0)
+        if sdb != 1.0:
+            gumbel_noise = gumbel_noise * sdb
 
     # --- Correlated noise layers ---
     # Use a separate RNG so that when correlation is disabled, the Gumbel
