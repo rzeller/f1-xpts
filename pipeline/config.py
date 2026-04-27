@@ -34,16 +34,26 @@ TEAM_COLORS = {
 }
 DEFAULT_TEAM_COLOR = "#888888"
 
-# Race-day correlation parameters (hierarchical noise model)
-# Calibrated via pipeline/calibrate_correlation.py against F1 summary statistics.
-# Re-run with --data flag on real historical results for precise values.
+# Race-day correlation parameters (hierarchical noise model).
 # sigma_team: Team race-day volatility (shared by teammates in each sim)
-# sigma_global: Field-wide chaos scaling (log-normal multiplier on Gumbel noise)
+# sigma_global: Chaos magnitude (interpretation depends on chaos_model)
 # sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
+# chaos_model: "one_sided" (default) — drivers can fall back due to incidents
+#   but can't gain pace they don't have; mathematically `utility -=
+#   Exp(σ_global)` per driver per race. Decouples backmarker performance from
+#   favorites (Bottas's draw doesn't affect Russell winning), and matches
+#   F1 reality where chaos = mistakes/mechanical/weather, not surprise speed.
+#   Tightens win residuals to ~1pp per top driver and eliminates backmarker
+#   leakage (issue #36 follow-up).
+# chaos_model: "symmetric" — legacy log-normal multiplier on Gumbel noise.
+#   Calibrated against historical race-variance via
+#   pipeline/calibrate_correlation.py (sigma_global=1.1715). Available for
+#   backward compatibility / comparison runs.
 CORRELATION_DEFAULTS = {
     "sigma_team": 0.6634,
-    "sigma_global": 1.1715,
+    "sigma_global": 0.5,        # tuned for one_sided chaos; was 1.1715 for symmetric
     "sigma_dnf": 0.3285,
+    "chaos_model": "one_sided",
 }
 
 SPRINT_WEEKENDS = [

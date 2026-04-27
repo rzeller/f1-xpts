@@ -71,6 +71,7 @@ def simulate_races(
         sigma_team = correlation.get("sigma_team", 0.0)
         sigma_global = correlation.get("sigma_global", 0.0)
         sigma_dnf = correlation.get("sigma_dnf", 0.0)
+        chaos_model = correlation.get("chaos_model", "symmetric")
         n_teams = int(team_indices.max()) + 1
 
         # 1. Team race-day noise: one z per team per sim, shared by teammates
@@ -79,13 +80,34 @@ def simulate_races(
             z_team = corr_rng.standard_normal((n_sims, n_teams))  # (n_sims, n_teams)
             team_noise = sigma_team * z_team[:, team_indices]       # (n_sims, n_drivers)
 
-        # 2. Chaos scaling: log-normal multiplier on Gumbel noise
-        #    Higher chaos_scale → more upsets; lower → favorites dominate.
-        #    Using exp() keeps the scale strictly positive.
-        chaos_scale = 1.0
-        if sigma_global > 0:
-            z_global = corr_rng.standard_normal(n_sims)              # (n_sims,)
-            chaos_scale = np.exp(sigma_global * z_global)[:, np.newaxis]  # (n_sims, 1)
+        # 2. Chaos noise. Two models supported:
+        #    - "symmetric" (legacy default, calibrated to historical race
+        #      finishing-position variance): log-normal multiplier on each
+        #      driver's Gumbel — symmetric across drivers, can boost or hurt.
+        #    - "one_sided" (better for matching betting markets — see issue #36
+        #      discussion): per-driver, per-race exponential downside event,
+        #      `utility -= Exp(σ_global)`. Drivers can fall back due to
+        #      incidents/mechanical/strategy issues but can't gain pace they
+        #      don't have. Decouples backmarker performance from favorites:
+        #      Bottas's draw doesn't matter for whether Russell wins; only
+        #      whether Russell himself has trouble. Empirically eliminates
+        #      backmarker win-mass leakage and tightens favorite residuals.
+        if chaos_model == "one_sided":
+            if sigma_global > 0:
+                # Independent per-driver downside event each race
+                downside = corr_rng.exponential(scale=sigma_global, size=(n_sims, n))
+                chaos_noise = -downside
+            else:
+                chaos_noise = 0.0
+            # base Gumbel still applies
+            gumbel_term = gumbel_noise
+        else:  # symmetric (legacy)
+            chaos_scale = 1.0
+            if sigma_global > 0:
+                z_global = corr_rng.standard_normal(n_sims)              # (n_sims,)
+                chaos_scale = np.exp(sigma_global * z_global)[:, np.newaxis]
+            gumbel_term = chaos_scale * gumbel_noise
+            chaos_noise = 0.0
 
         # 3. Correlated DNFs: log-normal multiplier on DNF probabilities
         #    Some races have more incidents than others.
@@ -96,7 +118,7 @@ def simulate_races(
         else:
             effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
 
-        utilities = (log_lambdas[np.newaxis, :] + team_noise) + chaos_scale * gumbel_noise
+        utilities = (log_lambdas[np.newaxis, :] + team_noise) + gumbel_term + chaos_noise
     else:
         utilities = log_lambdas[np.newaxis, :] + gumbel_noise  # (n_sims, n_drivers)
         effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
@@ -464,25 +486,28 @@ def fit_plackett_luce(
         log_lambdas, sigma_drv = _unpack(x)
         p_dnfs = fixed_p_dnfs
 
-        # The win-market residual is computed via the deterministic analytic
-        # formula (Hermite quadrature × Laguerre quadrature × team-noise MC).
-        # This eliminates MC noise on the most heavily-weighted constraint
-        # and lets the optimizer drive both λ and σ to match the win market
-        # without the chaos floor we hit when fitting MC P(win) directly.
-        analytic_win = analytic_win_probs(
-            log_lambdas, p_dnfs, sigma_drv=sigma_drv,
-            team_indices=team_indices, correlation=correlation,
-            n_team_samples=n_team_samples,
-        )
-
-        # Placement markets (podium / top5 / top6 / top10) still need MC
-        # because chaos noise materially changes the position spread, not
-        # just the argmax. CRN seed makes this deterministic in (λ, σ).
+        # Placement markets (podium / top5 / top6 / top10) need MC because
+        # chaos noise materially changes the position spread, not just the
+        # argmax. CRN seed makes this deterministic in (λ, σ).
         pos_probs = simulate_races(
             log_lambdas, p_dnfs, n_sims=n_sims, seed=42,
             team_indices=team_indices, correlation=correlation,
             sigma_drv=sigma_drv,
         )
+
+        # Win residual: prefer the analytic formula (deterministic, no MC
+        # noise floor) when σ_drv is being fit AND we're in the symmetric
+        # chaos model the formula was derived for. Otherwise use MC.
+        is_symmetric = (correlation is None
+                        or correlation.get("chaos_model", "symmetric") == "symmetric")
+        if fit_sigma_drv and is_symmetric:
+            analytic_win = analytic_win_probs(
+                log_lambdas, p_dnfs, sigma_drv=sigma_drv,
+                team_indices=team_indices, correlation=correlation,
+                n_team_samples=n_team_samples,
+            )
+        else:
+            analytic_win = None
 
         loss = 0.0
         residuals = {}
@@ -504,7 +529,7 @@ def fit_plackett_luce(
                 continue
             weight = market_weights.get(market, 1.0)
             for i, obs_p in observed_probs[market].items():
-                if market == "win":
+                if market == "win" and analytic_win is not None:
                     model_p = analytic_win[i]
                 else:
                     model_p = pos_probs[i, :cutoff].sum()
@@ -590,10 +615,13 @@ def fit_plackett_luce(
         x0,
         method=method,
         callback=callback,
-        # Tighter tolerances + higher iter cap — the CRN seed makes the surface
-        # deterministic, so Powell can chase real minima instead of bailing on
-        # noisy plateaus (issue #36 had n_steps=8 / final_loss=0.6314).
-        options={"maxiter": 500, "ftol": 1e-7, "xtol": 1e-5},
+        # Powell tolerances. CRN keeps the surface deterministic so Powell
+        # can chase real minima instead of bailing on noisy plateaus
+        # (issue #36 had n_steps=8 / final_loss=0.6314). With one-sided
+        # chaos the loss landscape is much better-conditioned, so a few
+        # Powell sweeps reach near-optimum loss; tight ftol keeps Powell
+        # iterating long after the marginal improvements are noise.
+        options={"maxiter": 8, "ftol": 1e-4, "xtol": 1e-3},
     )
     elapsed = time.time() - start_time[0]
     print(f"  Converged: {result.success}, final loss: {result.fun:.6f}")

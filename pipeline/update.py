@@ -171,6 +171,7 @@ def run_pipeline(
     sigma_team: float = None,
     sigma_global: float = None,
     sigma_dnf: float = None,
+    chaos_model: str = None,
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
@@ -179,6 +180,7 @@ def run_pipeline(
         "sigma_team": sigma_team if sigma_team is not None else CORRELATION_DEFAULTS["sigma_team"],
         "sigma_global": sigma_global if sigma_global is not None else CORRELATION_DEFAULTS["sigma_global"],
         "sigma_dnf": sigma_dnf if sigma_dnf is not None else CORRELATION_DEFAULTS["sigma_dnf"],
+        "chaos_model": chaos_model or CORRELATION_DEFAULTS.get("chaos_model", "symmetric"),
     }
 
     print("=" * 60)
@@ -186,7 +188,8 @@ def run_pipeline(
     print("=" * 60)
     print(f"  Correlation: sigma_team={correlation['sigma_team']}, "
           f"sigma_global={correlation['sigma_global']}, "
-          f"sigma_dnf={correlation['sigma_dnf']}")
+          f"sigma_dnf={correlation['sigma_dnf']}, "
+          f"chaos_model={correlation['chaos_model']}")
 
     # Step 0: Fetch the active driver roster + team mapping from Jolpica F1 API.
     # This is the source of truth for who's driving — Oddschecker is matched
@@ -373,6 +376,11 @@ def main():
         help=f"DNF correlation (default: {CORRELATION_DEFAULTS['sigma_dnf']})",
     )
     parser.add_argument(
+        "--chaos-model", type=str, default=None,
+        choices=["one_sided", "symmetric"],
+        help=f"Chaos noise model (default: {CORRELATION_DEFAULTS.get('chaos_model', 'symmetric')})",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Scrape odds and print results, but skip model fitting and file writes",
@@ -444,6 +452,7 @@ def main():
         sigma_team=args.sigma_team,
         sigma_global=args.sigma_global,
         sigma_dnf=args.sigma_dnf,
+        chaos_model=args.chaos_model,
     )
 
 
