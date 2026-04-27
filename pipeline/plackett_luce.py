@@ -80,19 +80,39 @@ def simulate_races(
             z_team = corr_rng.standard_normal((n_sims, n_teams))  # (n_sims, n_teams)
             team_noise = sigma_team * z_team[:, team_indices]       # (n_sims, n_drivers)
 
-        # 2. Chaos noise. Two models supported:
-        #    - "symmetric" (legacy default, calibrated to historical race
+        # 2. Chaos noise. Three models supported:
+        #    - "symmetric" (legacy, calibrated to historical race
         #      finishing-position variance): log-normal multiplier on each
         #      driver's Gumbel — symmetric across drivers, can boost or hurt.
-        #    - "one_sided" (better for matching betting markets — see issue #36
-        #      discussion): per-driver, per-race exponential downside event,
+        #    - "one_sided" (current default — see issue #36 discussion):
+        #      per-driver, per-race exponential downside event,
         #      `utility -= Exp(σ_global)`. Drivers can fall back due to
         #      incidents/mechanical/strategy issues but can't gain pace they
         #      don't have. Decouples backmarker performance from favorites:
         #      Bottas's draw doesn't matter for whether Russell wins; only
-        #      whether Russell himself has trouble. Empirically eliminates
-        #      backmarker win-mass leakage and tightens favorite residuals.
-        if chaos_model == "one_sided":
+        #      whether Russell himself has trouble.
+        #    - "bimodal": continuous downside is replaced by a categorical
+        #      mixture per driver per race —
+        #          P(no chaos)   = 1 − p_mod − p_sev  (utility unchanged)
+        #          P(moderate)   = p_mod              (utility -= Exp(σ_mod))
+        #          P(severe)     = p_sev              (utility -= Exp(σ_sev))
+        #      Lets us separate "small spin / undercut / traffic" events
+        #      from rare "mechanical failure / crash / weather" events,
+        #      since their physical magnitudes differ. Exponential one-sided
+        #      is a special case (set p_mod=1, p_sev=0).
+        if chaos_model == "bimodal":
+            p_moderate = correlation.get("chaos_p_moderate", 0.30)
+            p_severe = correlation.get("chaos_p_severe", 0.05)
+            sigma_moderate = correlation.get("chaos_sigma_moderate", sigma_global)
+            sigma_severe = correlation.get("chaos_sigma_severe", sigma_global * 6.0)
+            u = corr_rng.random((n_sims, n))
+            mod_mask = (u < p_moderate).astype(np.float64)
+            sev_mask = ((u >= p_moderate) & (u < p_moderate + p_severe)).astype(np.float64)
+            mod_amt = corr_rng.exponential(scale=max(sigma_moderate, 1e-9), size=(n_sims, n))
+            sev_amt = corr_rng.exponential(scale=max(sigma_severe, 1e-9), size=(n_sims, n))
+            chaos_noise = -mod_mask * mod_amt - sev_mask * sev_amt
+            gumbel_term = gumbel_noise
+        elif chaos_model == "one_sided":
             if sigma_global > 0:
                 # Independent per-driver downside event each race
                 downside = corr_rng.exponential(scale=sigma_global, size=(n_sims, n))

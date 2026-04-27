@@ -175,13 +175,17 @@ def run_pipeline(
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
-    # Build correlation parameters (CLI overrides or defaults)
-    correlation = {
-        "sigma_team": sigma_team if sigma_team is not None else CORRELATION_DEFAULTS["sigma_team"],
-        "sigma_global": sigma_global if sigma_global is not None else CORRELATION_DEFAULTS["sigma_global"],
-        "sigma_dnf": sigma_dnf if sigma_dnf is not None else CORRELATION_DEFAULTS["sigma_dnf"],
-        "chaos_model": chaos_model or CORRELATION_DEFAULTS.get("chaos_model", "symmetric"),
-    }
+    # Build correlation parameters: start from defaults (so bimodal-specific
+    # knobs flow through automatically), then apply CLI overrides.
+    correlation = dict(CORRELATION_DEFAULTS)
+    if sigma_team is not None:
+        correlation["sigma_team"] = sigma_team
+    if sigma_global is not None:
+        correlation["sigma_global"] = sigma_global
+    if sigma_dnf is not None:
+        correlation["sigma_dnf"] = sigma_dnf
+    if chaos_model is not None:
+        correlation["chaos_model"] = chaos_model
 
     print("=" * 60)
     print("F1 Expected Points Pipeline")
@@ -377,7 +381,7 @@ def main():
     )
     parser.add_argument(
         "--chaos-model", type=str, default=None,
-        choices=["one_sided", "symmetric"],
+        choices=["bimodal", "one_sided", "symmetric"],
         help=f"Chaos noise model (default: {CORRELATION_DEFAULTS.get('chaos_model', 'symmetric')})",
     )
     parser.add_argument(

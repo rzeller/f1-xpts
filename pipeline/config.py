@@ -38,22 +38,33 @@ DEFAULT_TEAM_COLOR = "#888888"
 # sigma_team: Team race-day volatility (shared by teammates in each sim)
 # sigma_global: Chaos magnitude (interpretation depends on chaos_model)
 # sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
-# chaos_model: "one_sided" (default) — drivers can fall back due to incidents
-#   but can't gain pace they don't have; mathematically `utility -=
-#   Exp(σ_global)` per driver per race. Decouples backmarker performance from
-#   favorites (Bottas's draw doesn't affect Russell winning), and matches
-#   F1 reality where chaos = mistakes/mechanical/weather, not surprise speed.
-#   Tightens win residuals to ~1pp per top driver and eliminates backmarker
-#   leakage (issue #36 follow-up).
+# chaos_model: "bimodal" (default) — drivers most often have a normal day,
+#   sometimes have a moderate incident (small spin / undercut / traffic),
+#   rarely have a severe incident (mechanical failure / crash / weather).
+#   Each event is independent across drivers, so backmarker chaos doesn't
+#   raise their win prob, and severe-incident magnitude can be tuned
+#   independently of moderate-incident rate. Knobs:
+#     chaos_p_moderate     P(moderate incident) per driver per race
+#     chaos_p_severe       P(severe incident)
+#     chaos_sigma_moderate Exp scale for moderate (defaults to sigma_global)
+#     chaos_sigma_severe   Exp scale for severe   (defaults to 6×sigma_global)
+# chaos_model: "one_sided" — single exponential downside, equivalent to
+#   bimodal with p_moderate=1, p_severe=0. Simpler.
 # chaos_model: "symmetric" — legacy log-normal multiplier on Gumbel noise.
 #   Calibrated against historical race-variance via
 #   pipeline/calibrate_correlation.py (sigma_global=1.1715). Available for
 #   backward compatibility / comparison runs.
 CORRELATION_DEFAULTS = {
     "sigma_team": 0.6634,
-    "sigma_global": 0.5,        # tuned for one_sided chaos; was 1.1715 for symmetric
+    "sigma_global": 0.5,        # tuned for one_sided / bimodal; was 1.1715 for symmetric
     "sigma_dnf": 0.3285,
     "chaos_model": "one_sided",
+    # bimodal-only knobs; ignored by one_sided/symmetric. Defaults sketch a
+    # "30% moderate / 5% severe" shape with severe events 6× the moderate
+    # scale; needs per-race calibration to materially improve over one_sided.
+    "chaos_p_moderate": 0.30,
+    "chaos_p_severe": 0.05,
+    # chaos_sigma_moderate defaults to sigma_global; chaos_sigma_severe to 6×sigma_global.
 }
 
 SPRINT_WEEKENDS = [
