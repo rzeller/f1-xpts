@@ -56,19 +56,21 @@ DEFAULT_TEAM_COLOR = "#888888"
 #   backward compatibility / comparison runs.
 CORRELATION_DEFAULTS = {
     "sigma_team": 0.6634,
-    # Pace noise scaling per driver. Smaller σ_drv_base + larger σ_global is
-    # closer to F1 reality (driver pace per race is fairly consistent; race
-    # outcomes are dominated by incidents, not by who got the lucky Gumbel
-    # draw). Empirically (0.7, 2.0) sits on the Pareto frontier of win and
-    # podium residuals on Miami; the previous (1.0, 0.5) was strictly
-    # dominated.
+    # Pace noise scaling per driver. Smaller σ_drv_base + heavier-tailed
+    # chaos is closer to F1 reality (driver pace per race is fairly
+    # consistent; race outcomes are dominated by incidents whose magnitude
+    # has a fat tail — most are small, some are catastrophic).
     "sigma_drv_base": 0.7,
-    "sigma_global": 2.0,        # one_sided exp scale (was 0.5; symmetric used 1.1715)
+    # Lomax (Pareto Type II) chaos: -Lomax(α, σ) per driver per race. The
+    # heavier polynomial-decay tail (vs the exponential's e^-x decay) gives
+    # us more catastrophic incidents without inflating typical-magnitude
+    # ones — the latter is what was over-suppressing P(win) when we tried
+    # to scale Exp(σ) up to fix podium residuals.
+    "sigma_global": 3.0,
     "sigma_dnf": 0.3285,
-    "chaos_model": "one_sided",
-    # bimodal-only knobs; ignored by one_sided/symmetric. Defaults sketch a
-    # "30% moderate / 5% severe" shape with severe events 6× the moderate
-    # scale; needs per-race calibration to materially improve over one_sided.
+    "chaos_model": "lomax",
+    "chaos_alpha": 2.0,         # Lomax shape — lower = fatter tail
+    # bimodal-only knobs; ignored by other models.
     "chaos_p_moderate": 0.30,
     "chaos_p_severe": 0.05,
     # chaos_sigma_moderate defaults to sigma_global; chaos_sigma_severe to 6×sigma_global.

@@ -381,7 +381,7 @@ def main():
     )
     parser.add_argument(
         "--chaos-model", type=str, default=None,
-        choices=["bimodal", "one_sided", "symmetric"],
+        choices=["lomax", "bimodal", "one_sided", "symmetric"],
         help=f"Chaos noise model (default: {CORRELATION_DEFAULTS.get('chaos_model', 'symmetric')})",
     )
     parser.add_argument(

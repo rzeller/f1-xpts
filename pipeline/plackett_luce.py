@@ -121,6 +121,27 @@ def simulate_races(
             sev_amt = corr_rng.exponential(scale=max(sigma_severe, 1e-9), size=(n_sims, n))
             chaos_noise = -mod_mask * mod_amt - sev_mask * sev_amt
             gumbel_term = gumbel_noise
+        elif chaos_model == "lomax":
+            # Heavy-tailed downside: -Lomax(α, σ) per driver per race.
+            # Lomax = "exponential with gamma-distributed rate," so it
+            # corresponds to "different races have different chaos
+            # severities." Mode at 0, polynomial-decay tail (vs exponential).
+            # As α → ∞, recovers Exp(σ). Lower α = fatter tail. Mean
+            # = σ/(α-1) for α > 1.
+            #
+            # Why fatter tail helps: scaling Exp(σ) to push P(podium) down
+            # also reduces P(win) about as fast (every driver gets more
+            # typical-magnitude hits). With Lomax, the modal/typical hit
+            # stays small (P(win) preserved) but rare big hits get bigger
+            # (more drivers fall off podium occasionally). Decouples the
+            # win/podium residuals.
+            alpha = correlation.get("chaos_alpha", 2.0)
+            if sigma_global > 0:
+                magnitude = corr_rng.pareto(alpha, size=(n_sims, n)) * sigma_global
+                chaos_noise = -magnitude
+            else:
+                chaos_noise = 0.0
+            gumbel_term = gumbel_noise
         elif chaos_model == "one_sided":
             if sigma_global > 0:
                 # Independent per-driver downside event each race
