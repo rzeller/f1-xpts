@@ -24,6 +24,8 @@ def simulate_races(
     seed: int = 42,
     team_indices: np.ndarray = None,
     correlation: dict = None,
+    sigma_drv: np.ndarray = None,
+    chaos_alpha_drv: np.ndarray = None,
 ) -> np.ndarray:
     """
     Simulate races from the Plackett-Luce model with DNFs.
@@ -31,6 +33,11 @@ def simulate_races(
     Uses the Gumbel-max trick for vectorized PL sampling:
     ranking by (log_lambda + Gumbel noise) is equivalent to sequential
     PL draws, but runs entirely in numpy with no Python loops over sims.
+
+    `sigma_drv` (length n_drivers, default 1.0 each) is a per-driver scaling
+    on the Gumbel noise. Larger σ_i widens that driver's outcome distribution
+    around their λ-implied position; combined with chaos noise this gives
+    each driver a tunable "win-or-fade" vs. "consistent" shape.
 
     Parameters
     ----------
@@ -54,6 +61,17 @@ def simulate_races(
     # Gumbel-max trick: sample Gumbel(0,1) noise, add to log-lambdas, argsort
     # This gives a Plackett-Luce draw in O(n log n) with full vectorization
     gumbel_noise = rng.gumbel(size=(n_sims, n))  # (n_sims, n_drivers)
+    if sigma_drv is not None:
+        gumbel_noise = gumbel_noise * sigma_drv[np.newaxis, :]
+    elif correlation is not None and "sigma_drv_base" in correlation:
+        # Default per-driver Gumbel scale, applied uniformly when no explicit
+        # per-driver σ is given. Smaller values make wins more deterministic
+        # (less "lost a Gumbel coin flip to NOR" P2-P3 outcomes for top
+        # drivers) at the cost of needing larger chaos magnitude to keep
+        # backmarker leakage bounded.
+        sdb = correlation.get("sigma_drv_base", 1.0)
+        if sdb != 1.0:
+            gumbel_noise = gumbel_noise * sdb
 
     # --- Correlated noise layers ---
     # Use a separate RNG so that when correlation is disabled, the Gumbel
@@ -63,6 +81,7 @@ def simulate_races(
         sigma_team = correlation.get("sigma_team", 0.0)
         sigma_global = correlation.get("sigma_global", 0.0)
         sigma_dnf = correlation.get("sigma_dnf", 0.0)
+        chaos_model = correlation.get("chaos_model", "symmetric")
         n_teams = int(team_indices.max()) + 1
 
         # 1. Team race-day noise: one z per team per sim, shared by teammates
@@ -71,13 +90,90 @@ def simulate_races(
             z_team = corr_rng.standard_normal((n_sims, n_teams))  # (n_sims, n_teams)
             team_noise = sigma_team * z_team[:, team_indices]       # (n_sims, n_drivers)
 
-        # 2. Chaos scaling: log-normal multiplier on Gumbel noise
-        #    Higher chaos_scale → more upsets; lower → favorites dominate.
-        #    Using exp() keeps the scale strictly positive.
-        chaos_scale = 1.0
-        if sigma_global > 0:
-            z_global = corr_rng.standard_normal(n_sims)              # (n_sims,)
-            chaos_scale = np.exp(sigma_global * z_global)[:, np.newaxis]  # (n_sims, 1)
+        # 2. Chaos noise. Three models supported:
+        #    - "symmetric" (legacy, calibrated to historical race
+        #      finishing-position variance): log-normal multiplier on each
+        #      driver's Gumbel — symmetric across drivers, can boost or hurt.
+        #    - "one_sided" (current default — see issue #36 discussion):
+        #      per-driver, per-race exponential downside event,
+        #      `utility -= Exp(σ_global)`. Drivers can fall back due to
+        #      incidents/mechanical/strategy issues but can't gain pace they
+        #      don't have. Decouples backmarker performance from favorites:
+        #      Bottas's draw doesn't matter for whether Russell wins; only
+        #      whether Russell himself has trouble.
+        #    - "bimodal": continuous downside is replaced by a categorical
+        #      mixture per driver per race —
+        #          P(no chaos)   = 1 − p_mod − p_sev  (utility unchanged)
+        #          P(moderate)   = p_mod              (utility -= Exp(σ_mod))
+        #          P(severe)     = p_sev              (utility -= Exp(σ_sev))
+        #      Lets us separate "small spin / undercut / traffic" events
+        #      from rare "mechanical failure / crash / weather" events,
+        #      since their physical magnitudes differ. Exponential one-sided
+        #      is a special case (set p_mod=1, p_sev=0).
+        if chaos_model == "bimodal":
+            p_moderate = correlation.get("chaos_p_moderate", 0.30)
+            p_severe = correlation.get("chaos_p_severe", 0.05)
+            sigma_moderate = correlation.get("chaos_sigma_moderate", sigma_global)
+            sigma_severe = correlation.get("chaos_sigma_severe", sigma_global * 6.0)
+            u = corr_rng.random((n_sims, n))
+            mod_mask = (u < p_moderate).astype(np.float64)
+            sev_mask = ((u >= p_moderate) & (u < p_moderate + p_severe)).astype(np.float64)
+            mod_amt = corr_rng.exponential(scale=max(sigma_moderate, 1e-9), size=(n_sims, n))
+            sev_amt = corr_rng.exponential(scale=max(sigma_severe, 1e-9), size=(n_sims, n))
+            chaos_noise = -mod_mask * mod_amt - sev_mask * sev_amt
+            gumbel_term = gumbel_noise
+        elif chaos_model == "lomax":
+            # Heavy-tailed downside: -Lomax(α, σ) per driver per race.
+            # Lomax = "exponential with gamma-distributed rate," so it
+            # corresponds to "different races have different chaos
+            # severities." Mode at 0, polynomial-decay tail (vs exponential).
+            # As α → ∞, recovers Exp(σ). Lower α = fatter tail. Mean
+            # = σ/(α-1) for α > 1.
+            #
+            # Why fatter tail helps: scaling Exp(σ) to push P(podium) down
+            # also reduces P(win) about as fast (every driver gets more
+            # typical-magnitude hits). With Lomax, the modal/typical hit
+            # stays small (P(win) preserved) but rare big hits get bigger
+            # (more drivers fall off podium occasionally). Decouples the
+            # win/podium residuals.
+            #
+            # Per-driver α (chaos_alpha_drv) lets reliable drivers have
+            # thinner tails (rarer catastrophic events) and crash-prone
+            # drivers fatter tails. Sampled via inverse-CDF on Uniform(0,1)
+            # so α can be a per-driver array without a Python loop.
+            if sigma_global > 0:
+                if chaos_alpha_drv is not None:
+                    alpha = chaos_alpha_drv[np.newaxis, :]
+                else:
+                    alpha = correlation.get("chaos_alpha", 2.0)
+                u = corr_rng.random((n_sims, n))
+                # Lomax(α, σ) inverse CDF: σ · ((1-u)^(-1/α) - 1)
+                # Clip α away from 1 to keep mean finite.
+                if np.isscalar(alpha):
+                    alpha = max(alpha, 1.001)
+                else:
+                    alpha = np.maximum(alpha, 1.001)
+                magnitude = sigma_global * ((1.0 - u) ** (-1.0 / alpha) - 1.0)
+                chaos_noise = -magnitude
+            else:
+                chaos_noise = 0.0
+            gumbel_term = gumbel_noise
+        elif chaos_model == "one_sided":
+            if sigma_global > 0:
+                # Independent per-driver downside event each race
+                downside = corr_rng.exponential(scale=sigma_global, size=(n_sims, n))
+                chaos_noise = -downside
+            else:
+                chaos_noise = 0.0
+            # base Gumbel still applies
+            gumbel_term = gumbel_noise
+        else:  # symmetric (legacy)
+            chaos_scale = 1.0
+            if sigma_global > 0:
+                z_global = corr_rng.standard_normal(n_sims)              # (n_sims,)
+                chaos_scale = np.exp(sigma_global * z_global)[:, np.newaxis]
+            gumbel_term = chaos_scale * gumbel_noise
+            chaos_noise = 0.0
 
         # 3. Correlated DNFs: log-normal multiplier on DNF probabilities
         #    Some races have more incidents than others.
@@ -88,7 +184,7 @@ def simulate_races(
         else:
             effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
 
-        utilities = (log_lambdas[np.newaxis, :] + team_noise) + chaos_scale * gumbel_noise
+        utilities = (log_lambdas[np.newaxis, :] + team_noise) + gumbel_term + chaos_noise
     else:
         utilities = log_lambdas[np.newaxis, :] + gumbel_noise  # (n_sims, n_drivers)
         effective_p_dnfs = p_dnfs[np.newaxis, :]  # (1, n_drivers)
@@ -129,6 +225,131 @@ def simulate_races(
     return position_counts / n_sims
 
 
+# Gauss-Laguerre nodes/weights for ∫₀^∞ exp(-t) f(t) dt ≈ Σₖ wₖ f(tₖ).
+# Cached at module load — picking K=80 keeps top-driver win-prob error
+# comfortably below MC noise (verified on synthetic 22-driver fits).
+from numpy.polynomial.laguerre import laggauss as _laggauss
+_LAGUERRE_K = 80
+_LAGUERRE_NODES, _LAGUERRE_WEIGHTS = _laggauss(_LAGUERRE_K)
+_LAGUERRE_LOG_T = np.log(_LAGUERRE_NODES)  # (K,)
+
+# Gauss-Hermite nodes/weights for ∫_{-∞}^{∞} exp(-z²/2) / √(2π) f(z) dz.
+# Used for the chaos-noise integral over z_global ~ Normal(0,1). 12 nodes
+# is plenty for a smooth log-normal-multiplier integrand.
+from numpy.polynomial.hermite_e import hermegauss as _hermegauss
+_HERMITE_K = 12
+_HERMITE_NODES, _HERMITE_WEIGHTS = _hermegauss(_HERMITE_K)
+_HERMITE_WEIGHTS = _HERMITE_WEIGHTS / np.sqrt(2 * np.pi)  # normalize to N(0,1) measure
+
+
+def analytic_win_probs(
+    log_lambdas: np.ndarray,
+    p_dnfs: np.ndarray,
+    sigma_drv: np.ndarray = None,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
+    n_team_samples: int = 80,
+    seed: int = 4242,
+) -> np.ndarray:
+    """Deterministic P(driver i wins) via quadrature, replacing MC for the
+    win market only. Uses the heterogeneous-scale Gumbel-max identity:
+
+        P(i wins | μ, β) = ∫₀^∞ exp(-t) ∏_{j≠i} [p_dnf_j + (1 − p_dnf_j)
+                                                  · exp(-aᵢⱼ · t^{rᵢⱼ})] dt
+
+    where μⱼ = log(λⱼ) + σ_team · z_t(j), βⱼ = c · σ_drv_j, c = exp(σ_global · z),
+    aᵢⱼ = exp((μⱼ − μᵢ)/βⱼ), rᵢⱼ = βᵢ/βⱼ. Marginalized over the chaos noise
+    z ~ N(0, 1) by Gauss-Hermite (12 nodes) and over the team noise z_t by
+    Monte Carlo (deterministic at fixed seed). The final survival factor
+    multiplies by (1 − p_dnf_i).
+
+    Why this exists: the MC simulator can't reach P(win) values much below
+    1/n_sims, which broke the "anchor λ to win" inner loop for backmarkers.
+    The quadrature formula has no such floor — at λ_i → −∞, P(i wins) → 0
+    smoothly — so the bilevel anchor stays well-conditioned.
+
+    Returns: (n,) array of P(i wins) values summing to ≤ 1 (≈1 minus the
+    probability that everyone DNFs; deterministic to ~1e-3 vs MC).
+    """
+    n = len(log_lambdas)
+    if sigma_drv is None:
+        sigma_drv = np.ones(n)
+    if correlation is None:
+        sigma_team = sigma_global = sigma_dnf = 0.0
+    else:
+        sigma_team = correlation.get("sigma_team", 0.0)
+        sigma_global = correlation.get("sigma_global", 0.0)
+        sigma_dnf = correlation.get("sigma_dnf", 0.0)
+
+    n_teams = int(team_indices.max()) + 1 if team_indices is not None else 0
+
+    # Pre-sample team noise z_t for MC averaging (deterministic at fixed seed).
+    rng = np.random.default_rng(seed)
+    if sigma_team > 0 and n_teams > 0 and team_indices is not None:
+        z_team_samples = rng.standard_normal((n_team_samples, n_teams))  # (S, T)
+    else:
+        z_team_samples = np.zeros((1, max(n_teams, 1)))
+
+    # Pre-sample DNF correlation z_d for the survival mixture (independent
+    # of the inner Gumbel-max integral; we average it as a separate MC layer).
+    survival = 1.0 - p_dnfs  # (n,)
+
+    # Iterate over (chaos node, team-noise sample) combinations and accumulate.
+    win_probs = np.zeros(n)
+    total_weight = 0.0
+    log_t = _LAGUERRE_LOG_T  # (K,)
+    laguerre_w = _LAGUERRE_WEIGHTS  # (K,)
+
+    for k_chaos, (z_g, w_chaos) in enumerate(zip(_HERMITE_NODES, _HERMITE_WEIGHTS)):
+        c = np.exp(sigma_global * z_g) if sigma_global > 0 else 1.0
+        beta = c * sigma_drv  # (n,) per-driver scale this race-day
+
+        for s, z_t in enumerate(z_team_samples):
+            # Per-driver location with team noise.
+            if sigma_team > 0 and n_teams > 0:
+                mu = log_lambdas + sigma_team * z_t[team_indices]  # (n,)
+            else:
+                mu = log_lambdas
+
+            # Inner: P(i wins | this race) for each driver via Laguerre.
+            # Vectorize over j ≠ i using a precomputed broadcast.
+            # For each driver i: a[j] = exp((μⱼ − μᵢ)/βⱼ), r[j] = βᵢ/βⱼ
+            # log_term[k, j] = log(a[j]) + r[j] · log(t_k)
+            # mixture_factor[k, j] = (1 - p_dnf_j) · exp(-a[j] · t_k^{r[j]})
+            #                        + p_dnf_j  (driver j DNFs → "wins" against everyone)
+            # P(i wins | race) = Σ_k w_k · ∏_{j≠i} mixture_factor[k, j]
+            for i in range(n):
+                mask = np.arange(n) != i
+                mu_j = mu[mask]
+                beta_j = beta[mask]
+                p_dnf_j = p_dnfs[mask]
+
+                # log_a[j] = (μⱼ − μᵢ) / βⱼ
+                log_a = (mu_j - mu[i]) / beta_j  # (n-1,)
+                r = beta[i] / beta_j  # (n-1,)
+                # log_terms[k, j] = log_a[j] + r[j] · log(t_k)
+                log_terms = log_a[None, :] + r[None, :] * log_t[:, None]  # (K, n-1)
+                # exp(-a · t^r) per (k, j); clip to avoid overflow at extreme λ
+                neg_aterms = -np.exp(np.clip(log_terms, -50, 50))
+                survive_factor = np.exp(neg_aterms)  # (K, n-1) ∈ [0, 1]
+                # Mixture: j contributes survive_factor if it finishes, 1.0 if it DNFs
+                # (DNF equivalent to ∞ utility from i's perspective… wait, no — DNF means
+                # j is REMOVED from the race, so j doesn't beat i. Treat DNF j the same
+                # as j having infinitely-low utility, i.e. mixture factor = 1.)
+                mix = (1.0 - p_dnf_j[None, :]) * survive_factor + p_dnf_j[None, :]
+                prod = np.prod(mix, axis=1)  # (K,)
+                integral = np.sum(laguerre_w * prod)
+                win_probs[i] += w_chaos * integral
+
+            total_weight += w_chaos
+
+    # Average over team noise (uniform weight); chaos already weighted via Hermite.
+    win_probs = win_probs / len(z_team_samples)
+    # Apply survival to driver i (i must finish to win at all).
+    win_probs = win_probs * survival
+    return win_probs
+
+
 def compute_expected_points(
     pos_probs: np.ndarray,
     points_map: Dict[int, int],
@@ -162,14 +383,106 @@ def compute_variance(
     return var
 
 
+def anchor_lambda_to_win_market(
+    observed_win: Dict[int, float],
+    sigma_drv: np.ndarray,
+    p_dnfs: np.ndarray,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
+    init_log_lambdas: np.ndarray = None,
+    n_team_samples: int = 80,
+    max_iters: int = 30,
+    tol: float = 1e-3,
+) -> np.ndarray:
+    """Solve for log_lambdas s.t. analytic_win_probs(log_lambdas, σ_drv) ≈
+    observed_win. Uses fixed-point iteration in log-space:
+
+        log_λ_i ← log_λ_i + log(obs_p_win_i / analytic_p_win_i)
+
+    Convergence is fast (~5-10 iters) because the analytic mapping λ → P(win)
+    is monotonic per-driver and approximately multiplicative across drivers
+    in log-space. Unlike the MC-based anchor we tried earlier, this stays
+    well-conditioned for backmarkers because analytic_win_probs has no MC
+    floor — at λ_i → −∞, P(i wins) → 0 smoothly.
+    """
+    n = len(sigma_drv)
+    if init_log_lambdas is not None:
+        ll = init_log_lambdas.copy()
+    else:
+        ll = np.zeros(n)
+        for i, p in observed_win.items():
+            if p > 0:
+                ll[i] = np.log(max(p, 1e-12))
+        ll -= ll.mean()
+
+    obs_arr = np.array([observed_win.get(i, 1e-12) for i in range(n)])
+    obs_arr = np.maximum(obs_arr, 1e-12)
+    log_obs = np.log(obs_arr)
+
+    for _ in range(max_iters):
+        analytic = analytic_win_probs(
+            ll, p_dnfs, sigma_drv=sigma_drv,
+            team_indices=team_indices, correlation=correlation,
+            n_team_samples=n_team_samples,
+        )
+        analytic = np.maximum(analytic, 1e-12)
+        update = log_obs - np.log(analytic)
+        if np.max(np.abs(update)) < tol:
+            break
+        ll = ll + update
+        ll -= ll.mean()
+        ll = np.clip(ll, -15, 15)
+    return ll
+
+
+DEFAULT_MARKET_WEIGHTS = {
+    # The win market is the cleanest signal in the input odds (every other
+    # market is a placement aggregate). It's also where the regularization
+    # ceiling bites hardest — the optimizer's natural posture pulls all
+    # drivers toward the mean, which under-predicts favorites and over-
+    # predicts backmarkers. A 16x weight on the win market plus the
+    # relaxed `smoothness_reg` below brings top-of-field residuals to
+    # ~3-4pp on both Miami and Japan inputs. Going higher (24x+) trades
+    # placement-market fit for marginal win-market improvement (issue #36
+    # follow-up sweep, /tmp/sweep6.py).
+    "win": 16.0,
+    "podium": 1.0,
+    "top5": 1.0,
+    "top6": 1.0,
+    "top10": 1.0,
+}
+
+
 def fit_plackett_luce(
     observed_probs: Dict[str, Dict[str, float]],
     team_indices: np.ndarray,
     n_sims: int = 10000,
     method: str = "Powell",
-    team_reg: float = 0.02,
-    smoothness_reg: float = 0.005,
+    # The two regularizers below are heuristic: they exist to keep the
+    # optimizer from chasing noise in tiny markets, but at the original
+    # values (0.02 / 0.005) they also pinned favorite λ values too close
+    # to the field mean, capping how concentrated the modeled win
+    # distribution could be. Verified empirically (see /tmp/ceiling.py)
+    # that the simulator's chaos noise alone does NOT cap top-of-field
+    # P(win) — even at sigma_global=1.17 a sufficiently large λ ratio
+    # reaches P(win)≈0.80. So the ceiling we were hitting was the
+    # regularization, not the model.
+    team_reg: float = 0.005,
+    smoothness_reg: float = 0.0001,
+    sigma_drv_reg: float = 0.005,
+    chaos_alpha_drv_reg: float = 0.05,
     correlation: dict = None,
+    market_weights: dict = None,
+    # σ_drv per-driver volatility: experimental. Verified to give exact
+    # win-prob match via the analytic Gumbel-max formula (see
+    # analytic_win_probs), but the resulting joint 44-D Powell objective
+    # is too expensive for production (~10x slower per fit). Disabled by
+    # default; flip to True for offline experiments only.
+    fit_sigma_drv: bool = False,
+    # Per-driver chaos α — lets reliable drivers have thinner tails, crash-
+    # prone drivers fatter ones. Adds n parameters to the optimizer.
+    fit_chaos_alpha_drv: bool = False,
+    n_team_samples: int = 30,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
     Fit Plackett-Luce model parameters to match observed market probabilities.
@@ -183,6 +496,8 @@ def fit_plackett_luce(
     method : scipy optimizer method
     team_reg : regularization strength for teammate similarity
     smoothness_reg : regularization for parameter magnitudes (toward equal)
+    market_weights : per-market multiplier on squared residuals (defaults to
+        DEFAULT_MARKET_WEIGHTS, which up-weights the win market 4x).
 
     Returns
     -------
@@ -190,6 +505,8 @@ def fit_plackett_luce(
     p_dnfs : (n_drivers,) fitted DNF probabilities
     fit_info : dict with loss, residuals, etc.
     """
+    if market_weights is None:
+        market_weights = DEFAULT_MARKET_WEIGHTS
     n = len(team_indices)
 
     # Initial guess: in PL, P(i wins) ≈ λ_i / Σ λ_j, so log(P_win) is a
@@ -213,8 +530,19 @@ def fit_plackett_luce(
     else:
         fixed_p_dnfs = np.full(n, 0.10)
 
-    # Only optimize the 22 lambda parameters (not 44 = lambda + DNF)
-    x0 = init_log_lambdas.copy()
+    # Pack optimizer state. Layout (n drivers):
+    #   [0:n]               log_lambdas
+    #   [n:2n]      (opt)   log_sigma_drv (only when fit_sigma_drv)
+    #   [next n]    (opt)   z = log(α_drv - 1) (only when fit_chaos_alpha_drv)
+    # Both are independent opt-ins.
+    base_alpha = (correlation or {}).get("chaos_alpha", 2.0) if correlation else 2.0
+    z_alpha_init = np.log(max(base_alpha - 1.0, 0.001)) * np.ones(n)
+    parts = [init_log_lambdas]
+    if fit_sigma_drv:
+        parts.append(np.zeros(n))
+    if fit_chaos_alpha_drv:
+        parts.append(z_alpha_init)
+    x0 = np.concatenate(parts)
 
     n_params = len(x0)
     eval_count = [0]
@@ -225,25 +553,57 @@ def fit_plackett_luce(
     import time
     start_time = [time.time()]
 
+    def _unpack(x):
+        log_lambdas = x[:n]
+        offset = n
+        if fit_sigma_drv:
+            sigma_drv = np.exp(x[offset:offset + n])
+            offset += n
+        else:
+            sigma_drv = None
+        if fit_chaos_alpha_drv:
+            chaos_alpha_drv = 1.0 + np.exp(x[offset:offset + n])
+            offset += n
+        else:
+            chaos_alpha_drv = None
+        return log_lambdas, sigma_drv, chaos_alpha_drv
+
     def objective(x):
         eval_count[0] += 1
-        log_lambdas = x
+        log_lambdas, sigma_drv, chaos_alpha_drv = _unpack(x)
         p_dnfs = fixed_p_dnfs
 
-        # Use a different seed each eval for smoother optimization landscape
-        seed = 42 + eval_count[0]
+        # Placement markets (podium / top5 / top6 / top10) need MC because
+        # chaos noise materially changes the position spread, not just the
+        # argmax. CRN seed makes this deterministic in (λ, σ).
         pos_probs = simulate_races(
-            log_lambdas, p_dnfs, n_sims=n_sims, seed=seed,
+            log_lambdas, p_dnfs, n_sims=n_sims, seed=42,
             team_indices=team_indices, correlation=correlation,
+            sigma_drv=sigma_drv,
+            chaos_alpha_drv=chaos_alpha_drv,
         )
+
+        # Win residual: prefer the analytic formula (deterministic, no MC
+        # noise floor) when σ_drv is being fit AND we're in the symmetric
+        # chaos model the formula was derived for. Otherwise use MC.
+        is_symmetric = (correlation is None
+                        or correlation.get("chaos_model", "symmetric") == "symmetric")
+        if fit_sigma_drv and is_symmetric:
+            analytic_win = analytic_win_probs(
+                log_lambdas, p_dnfs, sigma_drv=sigma_drv,
+                team_indices=team_indices, correlation=correlation,
+                n_team_samples=n_team_samples,
+            )
+        else:
+            analytic_win = None
 
         loss = 0.0
         residuals = {}
         loss_data = 0.0
         loss_team = 0.0
         loss_shrink = 0.0
+        loss_sigma = 0.0
 
-        # Match observed cumulative probabilities
         market_cutoffs = {
             "win": 1,
             "podium": 3,
@@ -255,14 +615,17 @@ def fit_plackett_luce(
         for market, cutoff in market_cutoffs.items():
             if market not in observed_probs:
                 continue
+            weight = market_weights.get(market, 1.0)
             for i, obs_p in observed_probs[market].items():
-                model_p = pos_probs[i, :cutoff].sum()
+                if market == "win" and analytic_win is not None:
+                    model_p = analytic_win[i]
+                else:
+                    model_p = pos_probs[i, :cutoff].sum()
                 residual = model_p - obs_p
-                loss_data += residual ** 2
+                loss_data += weight * residual ** 2
                 residuals[(market, i)] = residual
 
         # DNF probabilities are fixed from odds, not optimized.
-        # (No DNF loss term needed.)
 
         # Regularization: teammates should have similar lambdas
         n_teams = int(team_indices.max()) + 1 if len(team_indices) else 0
@@ -276,7 +639,25 @@ def fit_plackett_luce(
         mean_ll = log_lambdas.mean()
         loss_shrink = smoothness_reg * np.sum((log_lambdas - mean_ll) ** 2)
 
-        loss = loss_data + loss_team + loss_shrink
+        # Regularization: σ_drv toward 1 (i.e. log σ toward 0). Anchors the
+        # outer optimization — without this the optimizer can drive σ to
+        # extreme values where the Hermite quadrature loses precision.
+        offset_reg = n
+        if fit_sigma_drv:
+            loss_sigma = sigma_drv_reg * np.sum(x[offset_reg:offset_reg + n] ** 2)
+            offset_reg += n
+
+        # Regularization: chaos_alpha_drv toward the global default α (i.e.
+        # log(α-1) toward log(default-1)). Without this the optimizer pushes
+        # individual drivers' α to extreme values.
+        loss_alpha = 0.0
+        if fit_chaos_alpha_drv:
+            z_default = np.log(max(base_alpha - 1.0, 0.001))
+            loss_alpha = chaos_alpha_drv_reg * np.sum(
+                (x[offset_reg:offset_reg + n] - z_default) ** 2
+            )
+
+        loss = loss_data + loss_team + loss_shrink + loss_sigma + loss_alpha
 
         if loss < best_loss[0]:
             best_loss[0] = loss
@@ -289,6 +670,8 @@ def fit_plackett_luce(
                 "data": round(loss_data, 6),
                 "team": round(loss_team, 6),
                 "shrink": round(loss_shrink, 6),
+                "sigma": round(loss_sigma, 6),
+                "alpha": round(loss_alpha, 6),
             })
 
         # Log every eval with timing
@@ -296,7 +679,8 @@ def fit_plackett_luce(
         evals_per_sec = eval_count[0] / max(elapsed, 0.01)
         print(
             f"  eval {eval_count[0]:5d} | "
-            f"loss={loss:.6f} (data={loss_data:.6f} team={loss_team:.6f} shrink={loss_shrink:.6f}) | "
+            f"loss={loss:.6f} (data={loss_data:.6f} team={loss_team:.6f} "
+            f"shrink={loss_shrink:.6f} sigma={loss_sigma:.6f}) | "
             f"best={best_loss[0]:.6f} | "
             f"{elapsed:.1f}s ({evals_per_sec:.1f} eval/s)",
             flush=True,
@@ -332,7 +716,13 @@ def fit_plackett_luce(
         x0,
         method=method,
         callback=callback,
-        options={"maxiter": 200, "ftol": 1e-8},
+        # Powell tolerances. CRN keeps the surface deterministic so Powell
+        # can chase real minima instead of bailing on noisy plateaus
+        # (issue #36 had n_steps=8 / final_loss=0.6314). With one-sided
+        # chaos the loss landscape is much better-conditioned, so a few
+        # Powell sweeps reach near-optimum loss; tight ftol keeps Powell
+        # iterating long after the marginal improvements are noise.
+        options={"maxiter": 8, "ftol": 1e-4, "xtol": 1e-3},
     )
     elapsed = time.time() - start_time[0]
     print(f"  Converged: {result.success}, final loss: {result.fun:.6f}")
@@ -340,16 +730,18 @@ def fit_plackett_luce(
     if hasattr(result, 'message'):
         print(f"  Message: {result.message}")
 
-    log_lambdas = result.x
+    log_lambdas, sigma_drv, chaos_alpha_drv = _unpack(result.x)
     p_dnfs = fixed_p_dnfs
 
     # Normalize: set mean log_lambda to 0 (arbitrary scale)
-    log_lambdas -= log_lambdas.mean()
+    log_lambdas = log_lambdas - log_lambdas.mean()
 
     # Compute final residuals with a large simulation for accuracy
     final_pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=50000, seed=99999,
         team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
     market_cutoffs = {"win": 1, "podium": 3, "top5": 5, "top6": 6, "top10": 10}
     residuals = []
@@ -377,11 +769,18 @@ def fit_plackett_luce(
         "n_params": n_params,
         "team_reg": team_reg,
         "smoothness_reg": smoothness_reg,
+        "sigma_drv_reg": sigma_drv_reg if fit_sigma_drv else None,
+        "chaos_alpha_drv_reg": chaos_alpha_drv_reg if fit_chaos_alpha_drv else None,
+        "fit_sigma_drv": fit_sigma_drv,
+        "fit_chaos_alpha_drv": fit_chaos_alpha_drv,
+        "market_weights": dict(market_weights),
         "message": result.message if hasattr(result, "message") else "",
         "loss_history": loss_history,
         "step_losses": step_losses,
         "residuals": residuals,
         "correlation": correlation,
+        "sigma_drv": [float(s) for s in sigma_drv] if sigma_drv is not None else None,
+        "chaos_alpha_drv": [float(a) for a in chaos_alpha_drv] if chaos_alpha_drv is not None else None,
     }
 
     return log_lambdas, p_dnfs, fit_info
@@ -395,6 +794,8 @@ def generate_full_output(
     n_sims: int = 50000,
     team_indices: np.ndarray = None,
     correlation: dict = None,
+    sigma_drv: np.ndarray = None,
+    chaos_alpha_drv: np.ndarray = None,
 ) -> List[dict]:
     """
     Generate the complete output for all drivers.
@@ -406,6 +807,8 @@ def generate_full_output(
     pos_probs = simulate_races(
         log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
         team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
 
     drivers_output = []
@@ -432,6 +835,8 @@ def generate_full_output(
             "abbr": driver_info["abbr"],
             "team_idx": driver_info["team_idx"],
             "lambda": float(log_lambdas[i]),
+            "sigma_drv": float(sigma_drv[i]) if sigma_drv is not None else 1.0,
+            "chaos_alpha": float(chaos_alpha_drv[i]) if chaos_alpha_drv is not None else None,
             "p_dnf": float(p_dnfs[i]),
             "ep_race": round(ep_race, 2),
             "ep_sprint": round(ep_sprint, 2),

@@ -653,6 +653,15 @@ def get_observed_probs(
     1. If `scrape` is True, attempt to fetch fresh odds from Oddschecker.
     2. Merge with manual file if provided (manual overrides scrape per-market).
     3. Fall back to manual file alone if scraping is disabled or yields nothing.
+
+    Returns
+    -------
+    (observed_probs, race_info, raw_odds)
+        observed_probs : {market: {driver_idx: fair_probability}}
+        race_info : {race, date, is_sprint}
+        raw_odds : {market: {driver_name: american_odds}} — pre-devig snapshot
+            (post merge of scrape + manual). Saved to meta.raw_odds so future
+            audits can tell scraper / devig / model failures apart (issue #36).
     """
     raw_odds: Dict[str, Dict[str, float]] = {}
     race_info = {"race": "Unknown", "date": "", "is_sprint": False}
@@ -700,4 +709,4 @@ def get_observed_probs(
         top_str = ", ".join(f"{roster[i]['abbr']}={p:.3f}" for i, p in top)
         print(f"  {market} ({n} drivers): {top_str}")
 
-    return observed_probs, race_info
+    return observed_probs, race_info, raw_odds

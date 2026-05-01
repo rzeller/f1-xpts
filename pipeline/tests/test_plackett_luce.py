@@ -1,5 +1,6 @@
 """Tests for plackett_luce.py — simulation, expected points, and model fitting."""
 
+import json
 import sys
 import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
@@ -12,6 +13,8 @@ from plackett_luce import (
     compute_variance,
     generate_full_output,
     find_top_lineups,
+    fit_plackett_luce,
+    analytic_win_probs,
 )
 from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY
 
@@ -141,6 +144,52 @@ class TestSimulateRaces:
         assert result.shape == (N_DRIVERS, N_DRIVERS + 1)
         for i in range(N_DRIVERS):
             assert result[i].sum() == pytest.approx(1.0, abs=0.01)
+
+
+# --- analytic_win_probs (closed-form Gumbel-max win probability) ---
+
+
+class TestAnalyticWinProbs:
+    """Verify the deterministic analytic win-probability formula matches
+    Plackett-Luce closed form in the no-noise homogeneous-σ limit and the
+    MC simulator with chaos noise."""
+
+    def test_matches_pl_closed_form_no_noise(self):
+        # No chaos, no team noise, σ_drv=1, no DNF: analytic should match
+        # the exact Gumbel-max formula λ_i / Σ λ_j.
+        rng = np.random.default_rng(0)
+        log_lambdas = rng.normal(0, 1.0, 10)
+        log_lambdas -= log_lambdas.mean()
+        p_dnfs = np.zeros(10)
+        ana = analytic_win_probs(log_lambdas, p_dnfs)
+        closed = np.exp(log_lambdas) / np.sum(np.exp(log_lambdas))
+        # Top driver should match closed form to <0.001 (Laguerre quadrature
+        # has small error in the deep tail but the top driver is well within
+        # the well-resolved region).
+        top = np.argmax(log_lambdas)
+        assert abs(ana[top] - closed[top]) < 0.001
+
+    def test_matches_mc_under_chaos(self):
+        # Full model with chaos + team noise + DNF — analytic should track
+        # MC simulator within ~MC noise + small Hermite/Laguerre quadrature
+        # error.
+        rng = np.random.default_rng(0)
+        n = 22
+        log_lambdas = rng.normal(0, 1.2, n)
+        log_lambdas -= log_lambdas.mean()
+        p_dnfs = np.full(n, 0.10)
+        team_indices = np.repeat(np.arange(11), 2)
+        correlation = {"sigma_team": 0.5, "sigma_global": 0.8, "sigma_dnf": 0.0}
+
+        mc = simulate_races(log_lambdas, p_dnfs, n_sims=50_000, seed=42,
+                            team_indices=team_indices, correlation=correlation)[:, 0]
+        ana = analytic_win_probs(log_lambdas, p_dnfs,
+                                  team_indices=team_indices, correlation=correlation,
+                                  n_team_samples=120)
+        # Top-5 favorites should match within 3pp (analytic team-noise MC has
+        # ~0.025 StdErr at 120 samples; this is a moderately loose bound).
+        top5 = np.argsort(-log_lambdas)[:5]
+        assert np.max(np.abs(ana[top5] - mc[top5])) < 0.03
 
 
 # --- compute_expected_points ---
@@ -316,3 +365,123 @@ class TestFindTopLineups:
         for lineup in lineups:
             expected = lineup["ep_base_total"] + lineup["ep_bonus_total"]
             assert lineup["ep_grand_total"] == pytest.approx(expected, abs=0.02)
+
+
+# --- fit_plackett_luce regression: issue #36 ---
+
+MIAMI_SNAPSHOT = os.path.join(
+    os.path.dirname(__file__), "..", "..",
+    "public", "data", "races", "miami-gp", "20260426T164052Z.json",
+)
+
+
+def _reconstruct_inputs_from_snapshot(snapshot_path: str):
+    """Rebuild the inputs that fed fit_plackett_luce from a saved snapshot.
+
+    `fit.residuals` records every (market, driver_idx, observed) tuple the
+    optimizer saw — enough to drive a deterministic re-fit without the
+    scraper. driver_idx ordering matches `fit.market_inputs[*].drivers`.
+    """
+    with open(snapshot_path) as f:
+        snap = json.load(f)
+
+    abbr_to_team = {d["abbr"]: d["team_idx"] for d in snap["drivers"]}
+    idx_order = snap["fit"]["market_inputs"][0]["drivers"]
+    team_indices = np.array([abbr_to_team[a] for a in idx_order])
+    abbr_by_idx = {i: abbr for i, abbr in enumerate(idx_order)}
+
+    observed_probs: dict = {}
+    for r in snap["fit"]["residuals"]:
+        observed_probs.setdefault(r["market"], {})[r["driver_idx"]] = r["observed"]
+
+    return {
+        "observed_probs": observed_probs,
+        "team_indices": team_indices,
+        "correlation": snap["meta"]["correlation"],
+        "team_reg": snap["fit"]["team_reg"],
+        "smoothness_reg": snap["fit"]["smoothness_reg"],
+        "abbr_by_idx": abbr_by_idx,
+    }
+
+
+@pytest.mark.skipif(
+    not os.path.exists(MIAMI_SNAPSHOT),
+    reason="Miami GP snapshot fixture not present",
+)
+class TestFitFromMiamiSnapshot:
+    """Regression for issue #36: λ_RUS must beat λ_ANT given Miami's win odds."""
+
+    @pytest.fixture(scope="class")
+    def fit_result(self):
+        # Use the snapshot's correlation (calibrated against historical races)
+        # but the current defaults for team_reg / smoothness_reg / market_weights.
+        # Those are heuristic regularizers, not historical-fit parameters, and
+        # the snapshot's looser values were what allowed the original bug.
+        inputs = _reconstruct_inputs_from_snapshot(MIAMI_SNAPSHOT)
+        log_lambdas, p_dnfs, fit_info = fit_plackett_luce(
+            observed_probs=inputs["observed_probs"],
+            team_indices=inputs["team_indices"],
+            n_sims=10000,
+            correlation=inputs["correlation"],
+        )
+        abbr_by_idx = inputs["abbr_by_idx"]
+        rus_idx = next(i for i, a in abbr_by_idx.items() if a == "RUS")
+        ant_idx = next(i for i, a in abbr_by_idx.items() if a == "ANT")
+        return {
+            "log_lambdas": log_lambdas,
+            "fit_info": fit_info,
+            "rus_idx": rus_idx,
+            "ant_idx": ant_idx,
+            "observed_probs": inputs["observed_probs"],
+        }
+
+    def test_within_team_order_preserved(self, fit_result):
+        # Acceptance criterion from issue #36: observed P(RUS win) > P(ANT win),
+        # so λ_RUS must beat λ_ANT.
+        ll = fit_result["log_lambdas"]
+        rus, ant = fit_result["rus_idx"], fit_result["ant_idx"]
+        assert ll[rus] > ll[ant], f"λ_RUS={ll[rus]:.4f} not > λ_ANT={ll[ant]:.4f}"
+
+    def test_top_favorite_residuals_under_4pp(self, fit_result):
+        # Snapshot had RUS win residual = -0.1028 and NOR -0.083 (favorites
+        # systematically under-fit). With the relaxed regularizers + 16x win
+        # weight, top favorites must come within 4pp of the devigged probs.
+        win_residuals = {
+            r["driver_idx"]: r["residual"]
+            for r in fit_result["fit_info"]["residuals"]
+            if r["market"] == "win"
+        }
+        rus = fit_result["rus_idx"]
+        ant = fit_result["ant_idx"]
+        assert abs(win_residuals[rus]) < 0.04, (
+            f"RUS win residual {win_residuals[rus]:.4f} not under 4pp"
+        )
+        assert abs(win_residuals[ant]) < 0.04, (
+            f"ANT win residual {win_residuals[ant]:.4f} not under 4pp"
+        )
+
+    def test_rus_model_winprob_above_ant(self, fit_result):
+        # In the final 50K-sim eval, RUS must beat ANT on modeled P(win),
+        # mirroring observed odds (0.3652 vs 0.3508).
+        rus, ant = fit_result["rus_idx"], fit_result["ant_idx"]
+        win_models = {
+            r["driver_idx"]: r["model"]
+            for r in fit_result["fit_info"]["residuals"]
+            if r["market"] == "win"
+        }
+        assert win_models[rus] > win_models[ant], (
+            f"model P(RUS win)={win_models[rus]:.4f} not > P(ANT win)={win_models[ant]:.4f}"
+        )
+
+    def test_fit_is_deterministic(self):
+        # Run the fit twice from scratch — CRN + same n_sims → bit-exact.
+        inputs = _reconstruct_inputs_from_snapshot(MIAMI_SNAPSHOT)
+        kwargs = dict(
+            observed_probs=inputs["observed_probs"],
+            team_indices=inputs["team_indices"],
+            n_sims=2000,
+            correlation=inputs["correlation"],
+        )
+        ll_a, _, _ = fit_plackett_luce(**kwargs)
+        ll_b, _, _ = fit_plackett_luce(**kwargs)
+        np.testing.assert_array_equal(ll_a, ll_b)

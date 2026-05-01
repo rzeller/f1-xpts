@@ -54,6 +54,7 @@ def build_output_json(
     devig_method: str = "shin",
     run_type: str = "",
     correlation: dict = None,
+    raw_odds: dict = None,
 ) -> dict:
     """Assemble the final JSON that the frontend reads."""
     # Build market input summary (translate driver_idx → abbr via roster)
@@ -89,6 +90,10 @@ def build_output_json(
             "fit_converged": fit_info.get("success", None),
             "run_type": run_type,
             "correlation": correlation,
+            # Pre-devig snapshot of the odds that fed this run, keyed by the
+            # driver names as the scraper / manual file produced them. Lets us
+            # tell scraper / devig / model failures apart in audits (issue #36).
+            "raw_odds": raw_odds,
         },
         "teams": teams,
         "scoring": {
@@ -109,6 +114,11 @@ def build_output_json(
             "n_params": fit_info.get("n_params", None),
             "team_reg": fit_info.get("team_reg", None),
             "smoothness_reg": fit_info.get("smoothness_reg", None),
+            "sigma_drv_reg": fit_info.get("sigma_drv_reg", None),
+            "chaos_alpha_drv_reg": fit_info.get("chaos_alpha_drv_reg", None),
+            "fit_sigma_drv": fit_info.get("fit_sigma_drv", None),
+            "fit_chaos_alpha_drv": fit_info.get("fit_chaos_alpha_drv", None),
+            "market_weights": fit_info.get("market_weights", None),
             "message": fit_info.get("message", ""),
             "loss_history": fit_info.get("loss_history", []),
             "step_losses": fit_info.get("step_losses", []),
@@ -163,22 +173,30 @@ def run_pipeline(
     sigma_team: float = None,
     sigma_global: float = None,
     sigma_dnf: float = None,
+    chaos_model: str = None,
+    fit_chaos_alpha_drv: bool = False,
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
-    # Build correlation parameters (CLI overrides or defaults)
-    correlation = {
-        "sigma_team": sigma_team if sigma_team is not None else CORRELATION_DEFAULTS["sigma_team"],
-        "sigma_global": sigma_global if sigma_global is not None else CORRELATION_DEFAULTS["sigma_global"],
-        "sigma_dnf": sigma_dnf if sigma_dnf is not None else CORRELATION_DEFAULTS["sigma_dnf"],
-    }
+    # Build correlation parameters: start from defaults (so bimodal-specific
+    # knobs flow through automatically), then apply CLI overrides.
+    correlation = dict(CORRELATION_DEFAULTS)
+    if sigma_team is not None:
+        correlation["sigma_team"] = sigma_team
+    if sigma_global is not None:
+        correlation["sigma_global"] = sigma_global
+    if sigma_dnf is not None:
+        correlation["sigma_dnf"] = sigma_dnf
+    if chaos_model is not None:
+        correlation["chaos_model"] = chaos_model
 
     print("=" * 60)
     print("F1 Expected Points Pipeline")
     print("=" * 60)
     print(f"  Correlation: sigma_team={correlation['sigma_team']}, "
           f"sigma_global={correlation['sigma_global']}, "
-          f"sigma_dnf={correlation['sigma_dnf']}")
+          f"sigma_dnf={correlation['sigma_dnf']}, "
+          f"chaos_model={correlation['chaos_model']}")
 
     # Step 0: Fetch the active driver roster + team mapping from Jolpica F1 API.
     # This is the source of truth for who's driving — Oddschecker is matched
@@ -194,7 +212,7 @@ def run_pipeline(
 
     # Step 1: Get observed probabilities (keyed by roster index)
     print("\n[1/4] Loading odds data...")
-    observed_probs, race_info = get_observed_probs(
+    observed_probs, race_info, raw_odds = get_observed_probs(
         roster=roster,
         name_map=name_map,
         manual_file=manual_file,
@@ -232,12 +250,16 @@ def run_pipeline(
         team_indices=team_indices,
         n_sims=n_fit_sims,
         correlation=correlation,
+        fit_chaos_alpha_drv=fit_chaos_alpha_drv,
     )
 
     print(f"\n  Fit complete. Loss: {fit_info['loss']:.6f}")
 
     # Step 3: Generate full simulation output
     print("\n[3/4] Running final simulation (50K races)...")
+    sigma_drv = np.array(fit_info["sigma_drv"]) if fit_info.get("sigma_drv") else None
+    chaos_alpha_drv = (np.array(fit_info["chaos_alpha_drv"])
+                       if fit_info.get("chaos_alpha_drv") else None)
     drivers_data = generate_full_output(
         log_lambdas,
         p_dnfs,
@@ -246,6 +268,8 @@ def run_pipeline(
         n_sims=n_final_sims,
         team_indices=team_indices,
         correlation=correlation,
+        sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
 
     # Print summary
@@ -276,6 +300,7 @@ def run_pipeline(
         devig_method=devig_method,
         run_type=run_type,
         correlation=correlation,
+        raw_odds=raw_odds,
     )
 
     # Write latest.json (what the frontend reads)
@@ -362,6 +387,15 @@ def main():
         help=f"DNF correlation (default: {CORRELATION_DEFAULTS['sigma_dnf']})",
     )
     parser.add_argument(
+        "--chaos-model", type=str, default=None,
+        choices=["lomax", "bimodal", "one_sided", "symmetric"],
+        help=f"Chaos noise model (default: {CORRELATION_DEFAULTS.get('chaos_model', 'symmetric')})",
+    )
+    parser.add_argument(
+        "--fit-chaos-alpha-drv", action="store_true",
+        help="Fit per-driver chaos α (Lomax shape) — adds n params to optimizer.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Scrape odds and print results, but skip model fitting and file writes",
@@ -391,7 +425,7 @@ def main():
             roster = fetch_current_roster()
             name_map = build_name_map(roster)
             print(f"  {len(roster)} drivers, {len(teams_from_roster(roster))} teams")
-            observed_probs, race_info = get_observed_probs(
+            observed_probs, race_info, _raw_odds = get_observed_probs(
                 roster=roster,
                 name_map=name_map,
                 manual_file=args.manual,
@@ -433,6 +467,8 @@ def main():
         sigma_team=args.sigma_team,
         sigma_global=args.sigma_global,
         sigma_dnf=args.sigma_dnf,
+        chaos_model=args.chaos_model,
+        fit_chaos_alpha_drv=args.fit_chaos_alpha_drv,
     )
 
 

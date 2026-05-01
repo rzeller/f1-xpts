@@ -34,16 +34,46 @@ TEAM_COLORS = {
 }
 DEFAULT_TEAM_COLOR = "#888888"
 
-# Race-day correlation parameters (hierarchical noise model)
-# Calibrated via pipeline/calibrate_correlation.py against F1 summary statistics.
-# Re-run with --data flag on real historical results for precise values.
+# Race-day correlation parameters (hierarchical noise model).
 # sigma_team: Team race-day volatility (shared by teammates in each sim)
-# sigma_global: Field-wide chaos scaling (log-normal multiplier on Gumbel noise)
+# sigma_global: Chaos magnitude (interpretation depends on chaos_model)
 # sigma_dnf: DNF correlation (log-normal multiplier on DNF probabilities per sim)
+# chaos_model: "bimodal" (default) — drivers most often have a normal day,
+#   sometimes have a moderate incident (small spin / undercut / traffic),
+#   rarely have a severe incident (mechanical failure / crash / weather).
+#   Each event is independent across drivers, so backmarker chaos doesn't
+#   raise their win prob, and severe-incident magnitude can be tuned
+#   independently of moderate-incident rate. Knobs:
+#     chaos_p_moderate     P(moderate incident) per driver per race
+#     chaos_p_severe       P(severe incident)
+#     chaos_sigma_moderate Exp scale for moderate (defaults to sigma_global)
+#     chaos_sigma_severe   Exp scale for severe   (defaults to 6×sigma_global)
+# chaos_model: "one_sided" — single exponential downside, equivalent to
+#   bimodal with p_moderate=1, p_severe=0. Simpler.
+# chaos_model: "symmetric" — legacy log-normal multiplier on Gumbel noise.
+#   Calibrated against historical race-variance via
+#   pipeline/calibrate_correlation.py (sigma_global=1.1715). Available for
+#   backward compatibility / comparison runs.
 CORRELATION_DEFAULTS = {
     "sigma_team": 0.6634,
-    "sigma_global": 1.1715,
+    # Pace noise scaling per driver. Smaller σ_drv_base + heavier-tailed
+    # chaos is closer to F1 reality (driver pace per race is fairly
+    # consistent; race outcomes are dominated by incidents whose magnitude
+    # has a fat tail — most are small, some are catastrophic).
+    "sigma_drv_base": 0.7,
+    # Lomax (Pareto Type II) chaos: -Lomax(α, σ) per driver per race. The
+    # heavier polynomial-decay tail (vs the exponential's e^-x decay) gives
+    # us more catastrophic incidents without inflating typical-magnitude
+    # ones — the latter is what was over-suppressing P(win) when we tried
+    # to scale Exp(σ) up to fix podium residuals.
+    "sigma_global": 3.0,
     "sigma_dnf": 0.3285,
+    "chaos_model": "lomax",
+    "chaos_alpha": 2.0,         # Lomax shape — lower = fatter tail
+    # bimodal-only knobs; ignored by other models.
+    "chaos_p_moderate": 0.30,
+    "chaos_p_severe": 0.05,
+    # chaos_sigma_moderate defaults to sigma_global; chaos_sigma_severe to 6×sigma_global.
 }
 
 SPRINT_WEEKENDS = [

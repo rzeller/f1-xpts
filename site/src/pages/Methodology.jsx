@@ -294,16 +294,19 @@ export default function Methodology({ data }) {
         </p>
         <ol style={{ color: 'var(--text-muted)', fontSize: '0.85rem', lineHeight: 1.7, marginLeft: 18, marginBottom: 10, maxWidth: 640 }}>
           <li style={{ marginBottom: 6 }}>Start with an initial guess for all 22 {'\u03BB'} values (based on the win probabilities).</li>
-          <li style={{ marginBottom: 6 }}>Simulate ~20,000 races using those {'\u03BB'} values. From the simulated results, compute model-implied
-            cumulative probabilities: P(top 1), P(top 3), P(top 6), P(top 10) for each driver.</li>
+          <li style={{ marginBottom: 6 }}>Simulate ~20,000 races using those {'\u03BB'} values — with the <em>same</em> race-day
+            chaos model used in Step 3 (Lomax incident hits, team noise, correlated DNFs). From
+            the simulated results, compute model-implied cumulative probabilities: P(top 1),
+            P(top 3), P(top 6), P(top 10) for each driver.</li>
           <li style={{ marginBottom: 6 }}>Compare those model probabilities to the devigged market probabilities by computing the loss (details below).</li>
           <li style={{ marginBottom: 6 }}>The optimizer (scipy's <strong>Powell's method</strong> — a derivative-free
             direction-set method) uses the loss to search for better parameters. Powell's method
             doesn't need gradients: it optimizes along one coordinate direction at a time, then
-            builds up conjugate directions from the pattern of improvements. This is well-suited
-            to our stochastic loss surface where finite-difference gradients would be noisy.</li>
+            builds up conjugate directions from the pattern of improvements.</li>
           <li style={{ marginBottom: 6 }}>Repeat: simulate another ~20K races with the updated {'\u03BB'} values, compute loss, take another step.
-            Each evaluation uses a different random seed to smooth the stochastic loss surface.</li>
+            Each evaluation uses the <em>same</em> random seed (Common Random Numbers) — Powell's
+            line searches need a smooth surface, so we reuse the same noise draws across
+            evaluations and let the {'\u03BB'} values do all the moving.</li>
         </ol>
         <h3>The Objective Function</h3>
         <p>
@@ -325,6 +328,7 @@ export default function Methodology({ data }) {
             <strong style={{ color: 'var(--text-bright)' }}>L</strong> ={'  '}
             <span style={{ color: 'var(--text-muted)' }}>
               {'\u03A3'}<sub>market, driver</sub>{' '}
+              w<sub>market</sub> {'\u00B7'}
               ( P<sub>model</sub>(driver, market) {'\u2212'} P<sub>market</sub>(driver, market) )<sup>2</sup>
             </span>
           </div>
@@ -353,7 +357,15 @@ export default function Methodology({ data }) {
           term is mild shrinkage toward the mean, preventing extreme {'\u03BB'} values when data is sparse.
         </p>
         <p>
-          After ~100-200 iterations (2-4 million simulated races total), the optimizer converges.
+          One subtle but important detail: w<sub>market</sub> is not uniform. The win market is
+          weighted higher than the placement markets (podium / top 6 / top 10). Within a team
+          where the podium and top-N odds tie for both drivers (Russell vs Antonelli, say), the
+          win market is the <em>only</em> signal that distinguishes teammates — but its absolute
+          residuals are small (favorites at ~0.35, longshots at ~0.0002) so without up-weighting
+          it gets dominated by placement-market residuals (~0.15 average).
+        </p>
+        <p>
+          After roughly 250 evaluations (5 million simulated races total), the optimizer converges.
           A lower fit loss means the model better reproduces the market odds.
         </p>
 
@@ -498,18 +510,22 @@ export default function Methodology({ data }) {
             padding: '12px 16px',
           }}>
             <div style={{ color: 'var(--text-bright)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 4 }}>
-              Chaos Scaling
+              One-Sided Chaos
               {data.meta.correlation && (
                 <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
                   {'\u03C3'}<sub>global</sub> = {data.meta.correlation.sigma_global}
+                  {data.meta.correlation.chaos_alpha != null && (
+                    <>, {'\u03B1'} = {data.meta.correlation.chaos_alpha}</>
+                  )}
                 </span>
               )}
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
-              Each race draws a "chaos level" that scales the randomness in finishing positions.
-              High chaos (rain, safety cars, multi-car incidents) means more upsets and the
-              pre-race pecking order matters less. Low chaos means the favorites dominate.
-              This is applied as a log-normal multiplier on the Gumbel noise.
+              Each driver, each race, takes a one-sided "incident" hit drawn from a heavy-tailed
+              Lomax distribution. Most races the hit is tiny (clean weekend); rarely it's catastrophic
+              (mechanical failure, crash, lap-1 carnage). Drivers don't suddenly perform <em>better</em> than
+              their pace — chaos is downside only. Independent across drivers, so a backmarker's bad
+              day doesn't help favorites win.
             </p>
           </div>
           <div className="corr-layer" style={{
@@ -555,13 +571,20 @@ export default function Methodology({ data }) {
               noise layer captures this — your portfolio of 5 drivers is better diversified when
               you spread across teams.
             </p>
-            <h4>Chaos creates fat tails</h4>
+            <h4>Why a heavy-tailed downside</h4>
             <p>
-              The chaos scaling means some simulated races are very predictable (favorites dominate)
-              and others are wild (upsets everywhere). This creates fatter tails in the position
-              distributions compared to a model without chaos variation. For midfield and backmarker
-              drivers, this slightly increases expected points — they have more paths to a surprise
-              result — while for favorites, it slightly decreases expected points.
+              Two markets pin down the same driver in different ways: <em>P(win)</em> says how
+              often they're best on the day, <em>P(podium)</em> says how often they're top-3. A
+              symmetric Gumbel-only model can't satisfy both at once for the top favorites — scaling
+              the noise up to push their podium share down also pushes their win share down by
+              roughly the same amount.
+            </p>
+            <p>
+              The one-sided Lomax fixes that. Its polynomial tail (vs the exponential's e<sup>-x</sup>)
+              lets typical races stay clean — preserving <em>P(win)</em> — while occasional catastrophic
+              hits drop a favorite off the podium. The tail magnitude {'α'} controls how heavy: lower {'α'} =
+              more extreme rare incidents. Empirically this decouples the win and podium residuals
+              that a symmetric model can't fit jointly.
             </p>
             <h4>DNF clustering is real</h4>
             <p>
@@ -572,12 +595,17 @@ export default function Methodology({ data }) {
             </p>
             <h4>How the parameters are calibrated</h4>
             <p>
-              The three sigma values are calibrated from historical F1 results by matching three
-              summary statistics: teammate finishing-position residual correlation (constrains{' '}
-              {'\u03C3'}<sub>team</sub>), the coefficient of variation of per-race finishing spread
-              (constrains {'\u03C3'}<sub>global</sub>), and the DNF count overdispersion ratio
-              (constrains {'\u03C3'}<sub>dnf</sub>). These are structural properties of F1 racing that
-              are relatively stable across seasons.
+              {'\u03C3'}<sub>team</sub> and {'\u03C3'}<sub>dnf</sub> are calibrated from historical F1
+              results — teammate finishing-position residual correlation (for {'\u03C3'}<sub>team</sub>)
+              and DNF count overdispersion ratio (for {'\u03C3'}<sub>dnf</sub>). Both are structural
+              properties of F1 that move slowly across seasons.
+            </p>
+            <p>
+              The chaos parameters ({'\u03C3'}<sub>global</sub> and {'\u03B1'}) are tuned to minimize the
+              joint win/podium residual on representative races, since neither maps cleanly onto a
+              single historical summary statistic — Lomax tail magnitude depends on how many extreme
+              incidents you'd attribute to "racing chaos" vs the more reliable mechanical-failure DNF
+              channel.
             </p>
           </div>
         </details>
