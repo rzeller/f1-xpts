@@ -115,7 +115,9 @@ def build_output_json(
             "team_reg": fit_info.get("team_reg", None),
             "smoothness_reg": fit_info.get("smoothness_reg", None),
             "sigma_drv_reg": fit_info.get("sigma_drv_reg", None),
+            "chaos_alpha_drv_reg": fit_info.get("chaos_alpha_drv_reg", None),
             "fit_sigma_drv": fit_info.get("fit_sigma_drv", None),
+            "fit_chaos_alpha_drv": fit_info.get("fit_chaos_alpha_drv", None),
             "market_weights": fit_info.get("market_weights", None),
             "message": fit_info.get("message", ""),
             "loss_history": fit_info.get("loss_history", []),
@@ -172,6 +174,7 @@ def run_pipeline(
     sigma_global: float = None,
     sigma_dnf: float = None,
     chaos_model: str = None,
+    fit_chaos_alpha_drv: bool = False,
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
@@ -247,6 +250,7 @@ def run_pipeline(
         team_indices=team_indices,
         n_sims=n_fit_sims,
         correlation=correlation,
+        fit_chaos_alpha_drv=fit_chaos_alpha_drv,
     )
 
     print(f"\n  Fit complete. Loss: {fit_info['loss']:.6f}")
@@ -254,6 +258,8 @@ def run_pipeline(
     # Step 3: Generate full simulation output
     print("\n[3/4] Running final simulation (50K races)...")
     sigma_drv = np.array(fit_info["sigma_drv"]) if fit_info.get("sigma_drv") else None
+    chaos_alpha_drv = (np.array(fit_info["chaos_alpha_drv"])
+                       if fit_info.get("chaos_alpha_drv") else None)
     drivers_data = generate_full_output(
         log_lambdas,
         p_dnfs,
@@ -263,6 +269,7 @@ def run_pipeline(
         team_indices=team_indices,
         correlation=correlation,
         sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
 
     # Print summary
@@ -385,6 +392,10 @@ def main():
         help=f"Chaos noise model (default: {CORRELATION_DEFAULTS.get('chaos_model', 'symmetric')})",
     )
     parser.add_argument(
+        "--fit-chaos-alpha-drv", action="store_true",
+        help="Fit per-driver chaos α (Lomax shape) — adds n params to optimizer.",
+    )
+    parser.add_argument(
         "--dry-run",
         action="store_true",
         help="Scrape odds and print results, but skip model fitting and file writes",
@@ -457,6 +468,7 @@ def main():
         sigma_global=args.sigma_global,
         sigma_dnf=args.sigma_dnf,
         chaos_model=args.chaos_model,
+        fit_chaos_alpha_drv=args.fit_chaos_alpha_drv,
     )
 
 

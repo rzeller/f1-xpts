@@ -25,6 +25,7 @@ def simulate_races(
     team_indices: np.ndarray = None,
     correlation: dict = None,
     sigma_drv: np.ndarray = None,
+    chaos_alpha_drv: np.ndarray = None,
 ) -> np.ndarray:
     """
     Simulate races from the Plackett-Luce model with DNFs.
@@ -135,9 +136,24 @@ def simulate_races(
             # stays small (P(win) preserved) but rare big hits get bigger
             # (more drivers fall off podium occasionally). Decouples the
             # win/podium residuals.
-            alpha = correlation.get("chaos_alpha", 2.0)
+            #
+            # Per-driver α (chaos_alpha_drv) lets reliable drivers have
+            # thinner tails (rarer catastrophic events) and crash-prone
+            # drivers fatter tails. Sampled via inverse-CDF on Uniform(0,1)
+            # so α can be a per-driver array without a Python loop.
             if sigma_global > 0:
-                magnitude = corr_rng.pareto(alpha, size=(n_sims, n)) * sigma_global
+                if chaos_alpha_drv is not None:
+                    alpha = chaos_alpha_drv[np.newaxis, :]
+                else:
+                    alpha = correlation.get("chaos_alpha", 2.0)
+                u = corr_rng.random((n_sims, n))
+                # Lomax(α, σ) inverse CDF: σ · ((1-u)^(-1/α) - 1)
+                # Clip α away from 1 to keep mean finite.
+                if np.isscalar(alpha):
+                    alpha = max(alpha, 1.001)
+                else:
+                    alpha = np.maximum(alpha, 1.001)
+                magnitude = sigma_global * ((1.0 - u) ** (-1.0 / alpha) - 1.0)
                 chaos_noise = -magnitude
             else:
                 chaos_noise = 0.0
@@ -454,6 +470,7 @@ def fit_plackett_luce(
     team_reg: float = 0.005,
     smoothness_reg: float = 0.0001,
     sigma_drv_reg: float = 0.005,
+    chaos_alpha_drv_reg: float = 0.05,
     correlation: dict = None,
     market_weights: dict = None,
     # σ_drv per-driver volatility: experimental. Verified to give exact
@@ -462,6 +479,9 @@ def fit_plackett_luce(
     # is too expensive for production (~10x slower per fit). Disabled by
     # default; flip to True for offline experiments only.
     fit_sigma_drv: bool = False,
+    # Per-driver chaos α — lets reliable drivers have thinner tails, crash-
+    # prone drivers fatter ones. Adds n parameters to the optimizer.
+    fit_chaos_alpha_drv: bool = False,
     n_team_samples: int = 30,
 ) -> Tuple[np.ndarray, np.ndarray, dict]:
     """
@@ -510,12 +530,19 @@ def fit_plackett_luce(
     else:
         fixed_p_dnfs = np.full(n, 0.10)
 
-    # Pack optimizer state. With per-driver σ, x = [log_λ, log_σ_drv] (44-D).
-    # Without (legacy), x = [log_λ] (22-D).
+    # Pack optimizer state. Layout (n drivers):
+    #   [0:n]               log_lambdas
+    #   [n:2n]      (opt)   log_sigma_drv (only when fit_sigma_drv)
+    #   [next n]    (opt)   z = log(α_drv - 1) (only when fit_chaos_alpha_drv)
+    # Both are independent opt-ins.
+    base_alpha = (correlation or {}).get("chaos_alpha", 2.0) if correlation else 2.0
+    z_alpha_init = np.log(max(base_alpha - 1.0, 0.001)) * np.ones(n)
+    parts = [init_log_lambdas]
     if fit_sigma_drv:
-        x0 = np.concatenate([init_log_lambdas, np.zeros(n)])
-    else:
-        x0 = init_log_lambdas.copy()
+        parts.append(np.zeros(n))
+    if fit_chaos_alpha_drv:
+        parts.append(z_alpha_init)
+    x0 = np.concatenate(parts)
 
     n_params = len(x0)
     eval_count = [0]
@@ -528,12 +555,22 @@ def fit_plackett_luce(
 
     def _unpack(x):
         log_lambdas = x[:n]
-        sigma_drv = np.exp(x[n:2 * n]) if fit_sigma_drv else None
-        return log_lambdas, sigma_drv
+        offset = n
+        if fit_sigma_drv:
+            sigma_drv = np.exp(x[offset:offset + n])
+            offset += n
+        else:
+            sigma_drv = None
+        if fit_chaos_alpha_drv:
+            chaos_alpha_drv = 1.0 + np.exp(x[offset:offset + n])
+            offset += n
+        else:
+            chaos_alpha_drv = None
+        return log_lambdas, sigma_drv, chaos_alpha_drv
 
     def objective(x):
         eval_count[0] += 1
-        log_lambdas, sigma_drv = _unpack(x)
+        log_lambdas, sigma_drv, chaos_alpha_drv = _unpack(x)
         p_dnfs = fixed_p_dnfs
 
         # Placement markets (podium / top5 / top6 / top10) need MC because
@@ -543,6 +580,7 @@ def fit_plackett_luce(
             log_lambdas, p_dnfs, n_sims=n_sims, seed=42,
             team_indices=team_indices, correlation=correlation,
             sigma_drv=sigma_drv,
+            chaos_alpha_drv=chaos_alpha_drv,
         )
 
         # Win residual: prefer the analytic formula (deterministic, no MC
@@ -604,10 +642,22 @@ def fit_plackett_luce(
         # Regularization: σ_drv toward 1 (i.e. log σ toward 0). Anchors the
         # outer optimization — without this the optimizer can drive σ to
         # extreme values where the Hermite quadrature loses precision.
+        offset_reg = n
         if fit_sigma_drv:
-            loss_sigma = sigma_drv_reg * np.sum(x[n:2 * n] ** 2)
+            loss_sigma = sigma_drv_reg * np.sum(x[offset_reg:offset_reg + n] ** 2)
+            offset_reg += n
 
-        loss = loss_data + loss_team + loss_shrink + loss_sigma
+        # Regularization: chaos_alpha_drv toward the global default α (i.e.
+        # log(α-1) toward log(default-1)). Without this the optimizer pushes
+        # individual drivers' α to extreme values.
+        loss_alpha = 0.0
+        if fit_chaos_alpha_drv:
+            z_default = np.log(max(base_alpha - 1.0, 0.001))
+            loss_alpha = chaos_alpha_drv_reg * np.sum(
+                (x[offset_reg:offset_reg + n] - z_default) ** 2
+            )
+
+        loss = loss_data + loss_team + loss_shrink + loss_sigma + loss_alpha
 
         if loss < best_loss[0]:
             best_loss[0] = loss
@@ -621,6 +671,7 @@ def fit_plackett_luce(
                 "team": round(loss_team, 6),
                 "shrink": round(loss_shrink, 6),
                 "sigma": round(loss_sigma, 6),
+                "alpha": round(loss_alpha, 6),
             })
 
         # Log every eval with timing
@@ -679,7 +730,7 @@ def fit_plackett_luce(
     if hasattr(result, 'message'):
         print(f"  Message: {result.message}")
 
-    log_lambdas, sigma_drv = _unpack(result.x)
+    log_lambdas, sigma_drv, chaos_alpha_drv = _unpack(result.x)
     p_dnfs = fixed_p_dnfs
 
     # Normalize: set mean log_lambda to 0 (arbitrary scale)
@@ -690,6 +741,7 @@ def fit_plackett_luce(
         log_lambdas, p_dnfs, n_sims=50000, seed=99999,
         team_indices=team_indices, correlation=correlation,
         sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
     market_cutoffs = {"win": 1, "podium": 3, "top5": 5, "top6": 6, "top10": 10}
     residuals = []
@@ -718,7 +770,9 @@ def fit_plackett_luce(
         "team_reg": team_reg,
         "smoothness_reg": smoothness_reg,
         "sigma_drv_reg": sigma_drv_reg if fit_sigma_drv else None,
+        "chaos_alpha_drv_reg": chaos_alpha_drv_reg if fit_chaos_alpha_drv else None,
         "fit_sigma_drv": fit_sigma_drv,
+        "fit_chaos_alpha_drv": fit_chaos_alpha_drv,
         "market_weights": dict(market_weights),
         "message": result.message if hasattr(result, "message") else "",
         "loss_history": loss_history,
@@ -726,6 +780,7 @@ def fit_plackett_luce(
         "residuals": residuals,
         "correlation": correlation,
         "sigma_drv": [float(s) for s in sigma_drv] if sigma_drv is not None else None,
+        "chaos_alpha_drv": [float(a) for a in chaos_alpha_drv] if chaos_alpha_drv is not None else None,
     }
 
     return log_lambdas, p_dnfs, fit_info
@@ -740,6 +795,7 @@ def generate_full_output(
     team_indices: np.ndarray = None,
     correlation: dict = None,
     sigma_drv: np.ndarray = None,
+    chaos_alpha_drv: np.ndarray = None,
 ) -> List[dict]:
     """
     Generate the complete output for all drivers.
@@ -752,6 +808,7 @@ def generate_full_output(
         log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
         team_indices=team_indices, correlation=correlation,
         sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
     )
 
     drivers_output = []
@@ -779,6 +836,7 @@ def generate_full_output(
             "team_idx": driver_info["team_idx"],
             "lambda": float(log_lambdas[i]),
             "sigma_drv": float(sigma_drv[i]) if sigma_drv is not None else 1.0,
+            "chaos_alpha": float(chaos_alpha_drv[i]) if chaos_alpha_drv is not None else None,
             "p_dnf": float(p_dnfs[i]),
             "ep_race": round(ep_race, 2),
             "ep_sprint": round(ep_sprint, 2),
