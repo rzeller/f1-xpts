@@ -498,18 +498,22 @@ export default function Methodology({ data }) {
             padding: '12px 16px',
           }}>
             <div style={{ color: 'var(--text-bright)', fontWeight: 600, fontSize: '0.85rem', marginBottom: 4 }}>
-              Chaos Scaling
+              One-Sided Chaos
               {data.meta.correlation && (
                 <span style={{ color: 'var(--text-dim)', fontWeight: 400, marginLeft: 8 }}>
                   {'\u03C3'}<sub>global</sub> = {data.meta.correlation.sigma_global}
+                  {data.meta.correlation.chaos_alpha != null && (
+                    <>, {'\u03B1'} = {data.meta.correlation.chaos_alpha}</>
+                  )}
                 </span>
               )}
             </div>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)', margin: 0, lineHeight: 1.6 }}>
-              Each race draws a "chaos level" that scales the randomness in finishing positions.
-              High chaos (rain, safety cars, multi-car incidents) means more upsets and the
-              pre-race pecking order matters less. Low chaos means the favorites dominate.
-              This is applied as a log-normal multiplier on the Gumbel noise.
+              Each driver, each race, takes a one-sided "incident" hit drawn from a heavy-tailed
+              Lomax distribution. Most races the hit is tiny (clean weekend); rarely it's catastrophic
+              (mechanical failure, crash, lap-1 carnage). Drivers don't suddenly perform <em>better</em> than
+              their pace \u2014 chaos is downside only. Independent across drivers, so a backmarker's bad
+              day doesn't help favorites win.
             </p>
           </div>
           <div className="corr-layer" style={{
@@ -555,13 +559,20 @@ export default function Methodology({ data }) {
               noise layer captures this — your portfolio of 5 drivers is better diversified when
               you spread across teams.
             </p>
-            <h4>Chaos creates fat tails</h4>
+            <h4>Why a heavy-tailed downside</h4>
             <p>
-              The chaos scaling means some simulated races are very predictable (favorites dominate)
-              and others are wild (upsets everywhere). This creates fatter tails in the position
-              distributions compared to a model without chaos variation. For midfield and backmarker
-              drivers, this slightly increases expected points — they have more paths to a surprise
-              result — while for favorites, it slightly decreases expected points.
+              Two markets pin down the same driver in different ways: <em>P(win)</em> says how
+              often they're best on the day, <em>P(podium)</em> says how often they're top-3. A
+              symmetric Gumbel-only model can't satisfy both at once for the top favorites — scaling
+              the noise up to push their podium share down also pushes their win share down by
+              roughly the same amount.
+            </p>
+            <p>
+              The one-sided Lomax fixes that. Its polynomial tail (vs the exponential's e<sup>-x</sup>)
+              lets typical races stay clean — preserving <em>P(win)</em> — while occasional catastrophic
+              hits drop a favorite off the podium. The tail magnitude {'α'} controls how heavy: lower {'α'} =
+              more extreme rare incidents. Empirically this decouples the win and podium residuals
+              that a symmetric model can't fit jointly.
             </p>
             <h4>DNF clustering is real</h4>
             <p>
@@ -572,12 +583,17 @@ export default function Methodology({ data }) {
             </p>
             <h4>How the parameters are calibrated</h4>
             <p>
-              The three sigma values are calibrated from historical F1 results by matching three
-              summary statistics: teammate finishing-position residual correlation (constrains{' '}
-              {'\u03C3'}<sub>team</sub>), the coefficient of variation of per-race finishing spread
-              (constrains {'\u03C3'}<sub>global</sub>), and the DNF count overdispersion ratio
-              (constrains {'\u03C3'}<sub>dnf</sub>). These are structural properties of F1 racing that
-              are relatively stable across seasons.
+              {'\u03C3'}<sub>team</sub> and {'\u03C3'}<sub>dnf</sub> are calibrated from historical F1
+              results \u2014 teammate finishing-position residual correlation (for {'\u03C3'}<sub>team</sub>)
+              and DNF count overdispersion ratio (for {'\u03C3'}<sub>dnf</sub>). Both are structural
+              properties of F1 that move slowly across seasons.
+            </p>
+            <p>
+              The chaos parameters ({'\u03C3'}<sub>global</sub> and {'\u03B1'}) are tuned to minimize the
+              joint win/podium residual on representative races, since neither maps cleanly onto a
+              single historical summary statistic \u2014 Lomax tail magnitude depends on how many extreme
+              incidents you'd attribute to "racing chaos" vs the more reliable mechanical-failure DNF
+              channel.
             </p>
           </div>
         </details>
