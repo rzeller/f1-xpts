@@ -9,7 +9,9 @@
     "devig_method": "shin",
     "fit_loss": 0.2788882570386641,
     "fit_converged": true,
-    "run_type": ""
+    "run_type": "",
+    "backfilled_at": "2026-05-02T18:44:13.796363+00:00",
+    "backfill_note": "DNF penalty corrected from -10 to -10; per-driver EPs and lineups recomputed from existing position_distribution arrays."
   },
   "teams": [
     {
@@ -80,7 +82,8 @@
       "7": 2,
       "8": 1
     },
-    "dnf_penalty": -10
+    "dnf_penalty": -10,
+    "exact_bonus": 10
   },
   "drivers": [
     {
@@ -1034,7 +1037,7 @@
       "ep_base_total": 45.1,
       "ep_bonus_total": 6.477,
       "ep_grand_total": 51.58,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 2,
@@ -1083,7 +1086,7 @@
       "ep_base_total": 45.09,
       "ep_bonus_total": 6.424,
       "ep_grand_total": 51.51,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 3,
@@ -1132,7 +1135,7 @@
       "ep_base_total": 44.29,
       "ep_bonus_total": 6.349,
       "ep_grand_total": 50.64,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 4,
@@ -1181,7 +1184,7 @@
       "ep_base_total": 44.1,
       "ep_bonus_total": 6.357,
       "ep_grand_total": 50.46,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 5,
@@ -1230,7 +1233,7 @@
       "ep_base_total": 43.8,
       "ep_bonus_total": 6.336,
       "ep_grand_total": 50.14,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 6,
@@ -1279,7 +1282,7 @@
       "ep_base_total": 43.35,
       "ep_bonus_total": 6.275,
       "ep_grand_total": 49.62,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 7,
@@ -1328,7 +1331,7 @@
       "ep_base_total": 42.79,
       "ep_bonus_total": 6.253,
       "ep_grand_total": 49.04,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 8,
@@ -1377,7 +1380,7 @@
       "ep_base_total": 42.74,
       "ep_bonus_total": 6.218,
       "ep_grand_total": 48.96,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 9,
@@ -1426,7 +1429,7 @@
       "ep_base_total": 42.48,
       "ep_bonus_total": 6.184,
       "ep_grand_total": 48.66,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     },
     {
       "rank": 10,
@@ -1475,7 +1478,7 @@
       "ep_base_total": 41.99,
       "ep_bonus_total": 6.177,
       "ep_grand_total": 48.17,
-      "exact_pos_bonus": 10.0
+      "exact_pos_bonus": 10
     }
   ],
   "fit": {

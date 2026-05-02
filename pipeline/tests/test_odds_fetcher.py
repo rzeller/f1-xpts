@@ -100,65 +100,90 @@ class TestLoadManualOdds:
 
 
 class TestProcessOddsToFairProbs:
+    """`process_odds_to_fair_probs` takes event-keyed input
+    `{event: {market: {driver: odds}}}` and returns the same shape with fair
+    probabilities. Tests wrap their single-event fixtures under a "race" key.
+    """
+
     @pytest.fixture
     def win_odds(self):
         return {
-            "win": {
-                "Russell": -150,
-                "Antonelli": 200,
-                "Leclerc": 600,
-                "Hamilton": 800,
+            "race": {
+                "win": {
+                    "Russell": -150,
+                    "Antonelli": 200,
+                    "Leclerc": 600,
+                    "Hamilton": 800,
+                }
             }
         }
 
     def test_win_market_sums_to_one(self, win_odds, name_map):
         result = process_odds_to_fair_probs(win_odds, name_map)
-        probs = result["win"]
+        probs = result["race"]["win"]
         assert sum(probs.values()) == pytest.approx(1.0, abs=1e-4)
 
     def test_win_market_uses_driver_indices(self, win_odds, name_map):
         result = process_odds_to_fair_probs(win_odds, name_map)
         # Russell is roster index 0
-        assert 0 in result["win"]
+        assert 0 in result["race"]["win"]
 
     def test_win_favorite_has_highest_prob(self, win_odds, name_map):
         result = process_odds_to_fair_probs(win_odds, name_map)
-        probs = result["win"]
+        probs = result["race"]["win"]
         assert probs[0] == max(probs.values())
 
     def test_placement_market(self, name_map):
         raw = {
-            "podium": {
-                "Russell": -300,
-                "Antonelli": -200,
-                "Leclerc": 120,
-                "Hamilton": 150,
+            "race": {
+                "podium": {
+                    "Russell": -300,
+                    "Antonelli": -200,
+                    "Leclerc": 120,
+                    "Hamilton": 150,
+                }
             }
         }
         result = process_odds_to_fair_probs(raw, name_map)
-        probs = result["podium"]
+        probs = result["race"]["podium"]
         # Podium probs should sum to ~3 (3 podium slots), modulo small overround
         assert sum(probs.values()) == pytest.approx(3.0, abs=0.5)
 
     def test_dnf_market(self, name_map):
         raw = {
-            "dnf": {
-                "Russell": 1200,   # low DNF chance
-                "Verstappen": 500, # higher DNF chance
+            "race": {
+                "dnf": {
+                    "Russell": 1200,   # low DNF chance
+                    "Verstappen": 500, # higher DNF chance
+                }
             }
         }
         result = process_odds_to_fair_probs(raw, name_map)
-        dnf = result["dnf"]
+        dnf = result["race"]["dnf"]
         ver_idx = resolve_driver_index("Verstappen", name_map)
         rus_idx = resolve_driver_index("Russell", name_map)
         assert dnf[ver_idx] > dnf[rus_idx]
 
     def test_unknown_driver_skipped(self, name_map):
-        raw = {"win": {"Russell": -150, "UnknownDriver": 5000}}
+        raw = {"race": {"win": {"Russell": -150, "UnknownDriver": 5000}}}
         result = process_odds_to_fair_probs(raw, name_map)
-        assert 0 in result["win"]
-        assert len(result["win"]) == 1
+        assert 0 in result["race"]["win"]
+        assert len(result["race"]["win"]) == 1
 
     def test_empty_market_skipped(self, name_map):
-        result = process_odds_to_fair_probs({"win": {}}, name_map)
-        assert "win" not in result
+        result = process_odds_to_fair_probs({"race": {"win": {}}}, name_map)
+        assert "win" not in result["race"]
+
+    def test_dual_event_sprint_weekend(self, name_map):
+        """Sprint weekend: both race and sprint events get devigged independently."""
+        raw = {
+            "race": {"win": {"Russell": -150, "Antonelli": 200, "Leclerc": 600, "Hamilton": 800}},
+            "sprint": {"win": {"Antonelli": 165, "Russell": 250, "Leclerc": 500, "Hamilton": 700}},
+        }
+        result = process_odds_to_fair_probs(raw, name_map)
+        assert "race" in result and "sprint" in result
+        assert sum(result["race"]["win"].values()) == pytest.approx(1.0, abs=1e-4)
+        assert sum(result["sprint"]["win"].values()) == pytest.approx(1.0, abs=1e-4)
+        # Sprint favorite is Antonelli (index 1), race favorite is Russell (index 0)
+        assert max(result["race"]["win"], key=result["race"]["win"].get) == 0
+        assert max(result["sprint"]["win"], key=result["sprint"]["win"].get) == 1

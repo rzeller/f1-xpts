@@ -14,7 +14,7 @@ import numpy as np
 from itertools import combinations, permutations
 from scipy.optimize import minimize, linear_sum_assignment
 from typing import Dict, List, Tuple, Optional
-from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, CORRELATION_DEFAULTS
+from config import RACE_POINTS, SPRINT_POINTS, DNF_PENALTY, EXACT_BONUS, CORRELATION_DEFAULTS
 
 
 def simulate_races(
@@ -786,6 +786,144 @@ def fit_plackett_luce(
     return log_lambdas, p_dnfs, fit_info
 
 
+def simulate_event_metrics(
+    log_lambdas: np.ndarray,
+    p_dnfs: np.ndarray,
+    points_table: Dict[int, int],
+    n_sims: int = 50000,
+    seed: int = 12345,
+    team_indices: np.ndarray = None,
+    correlation: dict = None,
+    sigma_drv: np.ndarray = None,
+    chaos_alpha_drv: np.ndarray = None,
+) -> dict:
+    """
+    Run one event's worth of simulations and return per-driver metrics.
+
+    Returns a dict with parallel arrays indexed by driver:
+      pos_probs      : (n_drivers, n_drivers + 1) full position distribution
+      ep             : (n_drivers,) expected points under this event's table
+      std_dev        : (n_drivers,) std dev of points
+      p_win, p_podium, p_top6, p_top10, p_no_points : (n_drivers,) summaries
+
+    The event-agnostic split exists so race and sprint can each have their
+    own PL fit + simulation on sprint weekends.
+    """
+    pos_probs = simulate_races(
+        log_lambdas, p_dnfs, n_sims=n_sims, seed=seed,
+        team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv,
+        chaos_alpha_drv=chaos_alpha_drv,
+    )
+
+    n = len(log_lambdas)
+    ep = np.zeros(n)
+    std_dev = np.zeros(n)
+    for i in range(n):
+        dist = pos_probs[i]
+        ep[i] = compute_expected_points(dist, points_table)
+        std_dev[i] = np.sqrt(compute_variance(dist, points_table))
+
+    p_win = pos_probs[:, 0]
+    p_podium = pos_probs[:, :3].sum(axis=1)
+    p_top6 = pos_probs[:, :6].sum(axis=1)
+    p_top10 = pos_probs[:, :10].sum(axis=1)
+    p_no_points = 1.0 - p_top10 - pos_probs[:, -1]
+
+    return {
+        "pos_probs": pos_probs,
+        "ep": ep,
+        "std_dev": std_dev,
+        "p_win": p_win,
+        "p_podium": p_podium,
+        "p_top6": p_top6,
+        "p_top10": p_top10,
+        "p_no_points": p_no_points,
+    }
+
+
+def assemble_driver_records(
+    drivers: List[dict],
+    race_metrics: dict,
+    race_log_lambdas: np.ndarray,
+    race_p_dnfs: np.ndarray,
+    race_sigma_drv: np.ndarray = None,
+    race_chaos_alpha_drv: np.ndarray = None,
+    sprint_metrics: dict = None,
+    sprint_log_lambdas: np.ndarray = None,
+    sprint_p_dnfs: np.ndarray = None,
+    sprint_sigma_drv: np.ndarray = None,
+    sprint_chaos_alpha_drv: np.ndarray = None,
+) -> List[dict]:
+    """
+    Combine race + (optional) sprint event metrics into per-driver output records.
+
+    For sprint weekends, sprint_metrics + sprint_log_lambdas come from a
+    separate PL fit on sprint odds; ep_sprint and the *_sprint stats reflect
+    the sprint-specific model. For non-sprint weekends, pass sprint_metrics=None.
+
+    The race-fit fields keep their unsuffixed names (lambda, p_dnf,
+    position_distribution, p_win, ...) for backward compat with the
+    Methodology page and any existing dashboard code. Sprint-fit fields
+    get the _sprint suffix.
+    """
+    n = len(drivers)
+    drivers_output = []
+
+    for i in range(n):
+        race_dist = race_metrics["pos_probs"][i]
+        ep_race = float(race_metrics["ep"][i])
+
+        if sprint_metrics is not None:
+            ep_sprint = float(sprint_metrics["ep"][i])
+        else:
+            ep_sprint = 0.0
+        ep_total = ep_race + ep_sprint
+
+        rec = {
+            "name": drivers[i]["name"],
+            "abbr": drivers[i]["abbr"],
+            "team_idx": drivers[i]["team_idx"],
+            "lambda": float(race_log_lambdas[i]),
+            "sigma_drv": float(race_sigma_drv[i]) if race_sigma_drv is not None else 1.0,
+            "chaos_alpha": float(race_chaos_alpha_drv[i]) if race_chaos_alpha_drv is not None else None,
+            "p_dnf": float(race_p_dnfs[i]),
+            "ep_race": round(ep_race, 2),
+            "ep_sprint": round(ep_sprint, 2),
+            "ep_total": round(ep_total, 2),
+            "std_dev": round(float(race_metrics["std_dev"][i]), 2),
+            "p_win": round(float(race_metrics["p_win"][i]), 4),
+            "p_podium": round(float(race_metrics["p_podium"][i]), 4),
+            "p_top6": round(float(race_metrics["p_top6"][i]), 4),
+            "p_top10": round(float(race_metrics["p_top10"][i]), 4),
+            "p_no_points": round(float(race_metrics["p_no_points"][i]), 4),
+            "position_distribution": [round(float(race_dist[k]), 5) for k in range(len(race_dist))],
+        }
+
+        if sprint_metrics is not None:
+            sprint_dist = sprint_metrics["pos_probs"][i]
+            rec.update({
+                "lambda_sprint": float(sprint_log_lambdas[i]) if sprint_log_lambdas is not None else None,
+                "sigma_drv_sprint": float(sprint_sigma_drv[i]) if sprint_sigma_drv is not None else 1.0,
+                "chaos_alpha_sprint": float(sprint_chaos_alpha_drv[i]) if sprint_chaos_alpha_drv is not None else None,
+                "p_dnf_sprint": float(sprint_p_dnfs[i]),
+                "std_dev_sprint": round(float(sprint_metrics["std_dev"][i]), 2),
+                "p_win_sprint": round(float(sprint_metrics["p_win"][i]), 4),
+                "p_podium_sprint": round(float(sprint_metrics["p_podium"][i]), 4),
+                "p_top6_sprint": round(float(sprint_metrics["p_top6"][i]), 4),
+                "p_top10_sprint": round(float(sprint_metrics["p_top10"][i]), 4),
+                "p_no_points_sprint": round(float(sprint_metrics["p_no_points"][i]), 4),
+                "position_distribution_sprint": [
+                    round(float(sprint_dist[k]), 5) for k in range(len(sprint_dist))
+                ],
+            })
+
+        drivers_output.append(rec)
+
+    drivers_output.sort(key=lambda d: -d["ep_total"])
+    return drivers_output
+
+
 def generate_full_output(
     log_lambdas: np.ndarray,
     p_dnfs: np.ndarray,
@@ -798,70 +936,58 @@ def generate_full_output(
     chaos_alpha_drv: np.ndarray = None,
 ) -> List[dict]:
     """
-    Generate the complete output for all drivers.
+    Backward-compatible single-fit driver output.
 
-    `drivers` is the active roster (from roster.fetch_current_roster). Each
-    entry must have name/abbr/team_idx fields. The output preserves these
-    plus the model's computed statistics, ready to be serialized to JSON.
+    Used when only a race PL fit exists (every non-sprint weekend, or when
+    sprint odds aren't available). For sprint weekends with dual fits, call
+    simulate_event_metrics + assemble_driver_records directly.
     """
-    pos_probs = simulate_races(
-        log_lambdas, p_dnfs, n_sims=n_sims, seed=12345,
-        team_indices=team_indices, correlation=correlation,
-        sigma_drv=sigma_drv,
-        chaos_alpha_drv=chaos_alpha_drv,
+    race_metrics = simulate_event_metrics(
+        log_lambdas, p_dnfs, RACE_POINTS,
+        n_sims=n_sims, team_indices=team_indices, correlation=correlation,
+        sigma_drv=sigma_drv, chaos_alpha_drv=chaos_alpha_drv,
     )
-
-    drivers_output = []
-    for i in range(len(log_lambdas)):
-        dist = pos_probs[i]
-        ep_race = compute_expected_points(dist, RACE_POINTS)
-        ep_sprint = compute_expected_points(dist, SPRINT_POINTS) if is_sprint else 0.0
-        ep_total = ep_race + ep_sprint
-
-        var_race = compute_variance(dist, RACE_POINTS)
-        std_race = np.sqrt(var_race)
-
-        # Key probabilities
-        p_win = float(dist[0])
-        p_podium = float(dist[:3].sum())
-        p_top6 = float(dist[:6].sum())
-        p_top10 = float(dist[:10].sum())
-        p_no_points = float(1.0 - p_top10 - dist[-1])
-
-        driver_info = drivers[i]
-
-        drivers_output.append({
-            "name": driver_info["name"],
-            "abbr": driver_info["abbr"],
-            "team_idx": driver_info["team_idx"],
-            "lambda": float(log_lambdas[i]),
-            "sigma_drv": float(sigma_drv[i]) if sigma_drv is not None else 1.0,
-            "chaos_alpha": float(chaos_alpha_drv[i]) if chaos_alpha_drv is not None else None,
-            "p_dnf": float(p_dnfs[i]),
-            "ep_race": round(ep_race, 2),
-            "ep_sprint": round(ep_sprint, 2),
-            "ep_total": round(ep_total, 2),
-            "std_dev": round(std_race, 2),
-            "p_win": round(p_win, 4),
-            "p_podium": round(p_podium, 4),
-            "p_top6": round(p_top6, 4),
-            "p_top10": round(p_top10, 4),
-            "p_no_points": round(p_no_points, 4),
-            # Full distribution (for charts)
-            "position_distribution": [round(float(dist[k]), 5) for k in range(len(dist))],
-        })
-
-    # Sort by expected total points
-    drivers_output.sort(key=lambda d: -d["ep_total"])
-
-    return drivers_output
+    if is_sprint:
+        # Single-fit sprint path: reuse the race PL distribution to score sprint
+        # points (legacy behavior — only correct when no separate sprint odds).
+        sprint_metrics = {
+            "pos_probs": race_metrics["pos_probs"],
+            "ep": np.array([
+                compute_expected_points(race_metrics["pos_probs"][i], SPRINT_POINTS)
+                for i in range(len(log_lambdas))
+            ]),
+            "std_dev": np.zeros(len(log_lambdas)),
+            "p_win": race_metrics["p_win"],
+            "p_podium": race_metrics["p_podium"],
+            "p_top6": race_metrics["p_top6"],
+            "p_top10": race_metrics["p_top10"],
+            "p_no_points": race_metrics["p_no_points"],
+        }
+        # Compute sprint std_dev from the same distribution but sprint scoring
+        for i in range(len(log_lambdas)):
+            sprint_metrics["std_dev"][i] = np.sqrt(
+                compute_variance(race_metrics["pos_probs"][i], SPRINT_POINTS)
+            )
+        return assemble_driver_records(
+            drivers, race_metrics, log_lambdas, p_dnfs,
+            race_sigma_drv=sigma_drv, race_chaos_alpha_drv=chaos_alpha_drv,
+            sprint_metrics=sprint_metrics,
+            sprint_log_lambdas=log_lambdas, sprint_p_dnfs=p_dnfs,
+            sprint_sigma_drv=sigma_drv, sprint_chaos_alpha_drv=chaos_alpha_drv,
+        )
+    return assemble_driver_records(
+        drivers, race_metrics, log_lambdas, p_dnfs,
+        race_sigma_drv=sigma_drv, race_chaos_alpha_drv=chaos_alpha_drv,
+    )
 
 
 def find_top_lineups(
     drivers_data: List[dict],
     n_picks: int = 5,
-    exact_pos_bonus: float = 10.0,
+    exact_pos_bonus: float = EXACT_BONUS,
     top_n: int = 10,
+    score_key: str = "ep_total",
+    dist_keys: Tuple[str, ...] = ("position_distribution",),
 ) -> List[dict]:
     """
     Find the top_n highest-scoring ordered lineups by expected points
@@ -876,19 +1002,20 @@ def find_top_lineups(
     At 22 drivers / 5 picks: C(22,5)=26,334 selections × 5!=120 permutations.
     The inner product is computed entirely in numpy with no Python inner loop.
 
-    Score matrix identity
-    ---------------------
-    total[combo, perm] = Σ_i  ep_base[combo[i]] + pos_bonus[combo[i], perm[i]]
-                       = ep_base_sum[combo]  +  Σ_i B[combo, i, perm[i]]
-
-    where B[c,i,s] = pos_bonus[combo_c_driver_i, slot_s].
-
     Parameters
     ----------
     drivers_data : list of driver dicts from generate_full_output
     n_picks : number of picks (default 5)
-    exact_pos_bonus : bonus for exact position match (default 10)
+    exact_pos_bonus : bonus for exact position match (default EXACT_BONUS)
     top_n : number of lineups to return (default 10)
+    score_key : driver-dict key for the per-driver base ep used in lineup scoring
+        (e.g. "ep_total" for combined, "ep_race", "ep_sprint")
+    dist_keys : tuple of driver-dict keys whose position distributions are
+        SUMMED to compute the slot bonus. The slot bonus represents
+        P(driver finishes pos = slot) summed across applicable events. Use
+        ("position_distribution",) for race-only or single-fit weekends, or
+        ("position_distribution", "position_distribution_sprint") for the
+        combined race+sprint lineup on dual-fit sprint weekends.
 
     Returns
     -------
@@ -896,13 +1023,16 @@ def find_top_lineups(
         rank, picks, ep_base_total, ep_bonus_total, ep_grand_total
     """
     n = len(drivers_data)
-    ep_totals = np.array([d["ep_total"] for d in drivers_data])
+    ep_totals = np.array([d[score_key] for d in drivers_data])
 
-    # pos_bonus[d, s] = P(driver d finishes position s+1) * exact_pos_bonus
-    pos_bonus = np.array([
-        [d["position_distribution"][s] * exact_pos_bonus for s in range(n_picks)]
-        for d in drivers_data
-    ])  # (n_drivers, n_picks)
+    # pos_bonus[d, s] = (Σ_event P(driver d finishes position s+1)) * exact_pos_bonus
+    pos_bonus = np.zeros((n, n_picks))
+    for dk in dist_keys:
+        pos_bonus += np.array([
+            [d[dk][s] for s in range(n_picks)]
+            for d in drivers_data
+        ])
+    pos_bonus *= exact_pos_bonus
 
     # All C(n, n_picks) driver-index combinations: shape (n_combos, n_picks)
     all_combos = np.array(list(combinations(range(n), n_picks)))  # (26334, 5)

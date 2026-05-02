@@ -88,7 +88,34 @@ export default function Dashboard({ data }) {
       </div>
 
       {data.top_lineups?.length > 0 && (
-        <OptimalLineup lineups={data.top_lineups} teams={data.teams} />
+        <OptimalLineup
+          lineups={data.top_lineups}
+          teams={data.teams}
+          title={data.meta.is_sprint ? 'Top Lineups — Combined (Sprint + Race)' : 'Top Lineups'}
+          subtitle={
+            data.meta.is_sprint
+              ? `Same 5 picks scored across both events (sprint + race), including the +${data.scoring?.exact_bonus ?? 10} exact-position bonus per event. This is what you actually pick — the per-event sections below show what would be optimal if the league let you pick separately.`
+              : undefined
+          }
+        />
+      )}
+
+      {data.meta.is_sprint && data.top_lineups_race?.length > 0 && (
+        <OptimalLineup
+          lineups={data.top_lineups_race}
+          teams={data.teams}
+          title="Top Lineups — Grand Prix only"
+          subtitle="Hypothetical: optimal 5 picks if the lineup were scored against the Grand Prix only (sprint ignored)."
+        />
+      )}
+
+      {data.meta.is_sprint && data.top_lineups_sprint?.length > 0 && (
+        <OptimalLineup
+          lineups={data.top_lineups_sprint}
+          teams={data.teams}
+          title="Top Lineups — Sprint only"
+          subtitle="Hypothetical: optimal 5 picks if the lineup were scored against the sprint only (Grand Prix ignored). Useful for spotting drivers whose sprint odds diverge from race odds."
+        />
       )}
 
       <footer className="dash-footer">
