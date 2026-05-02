@@ -1,19 +1,26 @@
 """
-Odds fetcher: scrapes F1 race odds from Oddschecker via headless Chromium.
+Odds fetcher: scrapes F1 race + sprint odds from Oddschecker via headless Chromium.
 
 Manual JSON input is the fallback / override for markets the scraper doesn't
 cover. Both sources can be combined — manual overrides scraped for the same
 market.
 
-Markets scraped (when present):
+Markets scraped (per event, when present):
   - win    → race winner (outright)
   - podium → podium finish (top 3)
   - top5   → top-5 finish        (Oddschecker market: Top 5 Finish)
   - top10  → points finish       (Oddschecker market: Points Finish)
+  - dnf    → "Not To Be Classified" (binary per driver)
 
-Oddschecker no longer publishes a DNF market for F1. We fall back to a
-default per-driver DNF probability in the model fitter when one isn't
-provided.
+Sprint weekends:
+  When the schedule flags is_sprint, the scraper also visits the
+  `<race-slug>-sprint/...` paths (e.g. miami-grand-prix-sprint/winner) and
+  returns sprint odds under a separate event key. The dual-fit pipeline
+  fits a separate Plackett-Luce model per event.
+
+Return shape (event-keyed):
+  {"race":   {"win": {...}, "podium": {...}, ...},
+   "sprint": {"win": {...}, ...}}     # only on sprint weekends
 
 Race discovery:
   We derive the next-race slug from public/data/schedule.json rather than
@@ -59,6 +66,10 @@ MARKET_URL_CANDIDATES: Dict[str, List[str]] = {
     "podium": ["podium-finish"],
     "top5": ["top-5-finish"],
     "top10": ["points-finish"],
+    # Oddschecker re-introduced the DNF market under "Not To Be Classified".
+    # The slug also appears with hyphenation variants on some race pages.
+    "dnf": ["not-to-be-classified", "to-not-be-classified",
+            "driver-not-to-finish", "driver-to-retire", "to-retire"],
 }
 
 # Each market URL on Oddschecker actually renders several market accordions
@@ -71,6 +82,7 @@ MARKET_HEADING_TEXT: Dict[str, str] = {
     "podium": "Podium Finish",
     "top5": "Top 5 Finish",
     "top10": "Points Finish",
+    "dnf": "Not To Be Classified",
 }
 
 # Default page nav timeout (ms). Oddschecker is heavy; give it room.
@@ -475,12 +487,54 @@ def _next_race_from_schedule(
     }
 
 
-def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, float]], dict]:
+def _scrape_event_markets(
+    browser,
+    event_label: str,
+    base_url: str,
+    user_agent: str,
+    debug_dir: Optional[str] = None,
+) -> Dict[str, Dict[str, float]]:
+    """Scrape every market in MARKET_URL_CANDIDATES for one event under base_url.
+
+    base_url is e.g. ".../miami-grand-prix" for race or
+    ".../miami-grand-prix-sprint" for sprint. Returns {market: {driver: odds}}.
+    """
+    out: Dict[str, Dict[str, float]] = {}
+    for market_key, slugs in MARKET_URL_CANDIDATES.items():
+        print(f"\nScraping {event_label}/{market_key}...")
+        heading = MARKET_HEADING_TEXT[market_key]
+        for slug in slugs:
+            url = f"{base_url}/{slug}"
+            context = browser.new_context(
+                viewport={"width": 1366, "height": 900},
+                user_agent=user_agent,
+                locale="en-GB",
+            )
+            try:
+                page = context.new_page()
+                page.set_default_timeout(PAGE_TIMEOUT_MS)
+                odds = _scrape_market_page(page, url, heading, debug_dir=debug_dir)
+            finally:
+                try:
+                    context.close()
+                except Exception:
+                    pass
+            if odds:
+                out[market_key] = odds
+                break
+        if market_key not in out:
+            print(f"  {event_label}/{market_key}: no odds found across {len(slugs)} URL candidate(s)")
+    return out
+
+
+def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, Dict[str, float]]], dict]:
     """
     Scrape all available F1 markets for the next race from Oddschecker.
 
-    Returns (raw_odds_by_market, race_info) where raw_odds_by_market maps
-    'win'/'podium'/'top6'/'dnf' → { driver_name: american_odds }.
+    Returns (raw_odds_by_event, race_info) where raw_odds_by_event maps
+    'race'/'sprint' → {market: {driver_name: american_odds}}. The 'sprint'
+    key is only populated on sprint weekends where Oddschecker exposes a
+    /…-sprint/* market path.
 
     A fresh browser context is opened for each market URL attempt: a single
     bad URL (redirect, 403) on Oddschecker poisons the session via Cloudflare
@@ -505,9 +559,12 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
         "is_sprint": next_race["is_sprint"],
     }
     race_url = f"{ODDSCHECKER_BASE}/{next_race['slug']}"
+    sprint_url = f"{race_url}-sprint" if next_race["is_sprint"] else None
     print(f"  next race: {next_race['name']} ({race_url})")
+    if sprint_url:
+        print(f"  sprint event: {sprint_url}")
 
-    raw_odds: Dict[str, Dict[str, float]] = {}
+    raw_odds: Dict[str, Dict[str, Dict[str, float]]] = {}
 
     user_agent = (
         "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
@@ -517,30 +574,18 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=not headed)
         try:
-            for market_key, slugs in MARKET_URL_CANDIDATES.items():
-                print(f"\nScraping {market_key} market...")
-                heading = MARKET_HEADING_TEXT[market_key]
-                for slug in slugs:
-                    url = f"{race_url}/{slug}"
-                    context = browser.new_context(
-                        viewport={"width": 1366, "height": 900},
-                        user_agent=user_agent,
-                        locale="en-GB",
-                    )
-                    try:
-                        page = context.new_page()
-                        page.set_default_timeout(PAGE_TIMEOUT_MS)
-                        odds = _scrape_market_page(page, url, heading, debug_dir=debug_dir)
-                    finally:
-                        try:
-                            context.close()
-                        except Exception:
-                            pass
-                    if odds:
-                        raw_odds[market_key] = odds
-                        break
-                if market_key not in raw_odds:
-                    print(f"  {market_key}: no odds found across {len(slugs)} URL candidate(s)")
+            race_markets = _scrape_event_markets(
+                browser, "race", race_url, user_agent, debug_dir=debug_dir,
+            )
+            if race_markets:
+                raw_odds["race"] = race_markets
+
+            if sprint_url:
+                sprint_markets = _scrape_event_markets(
+                    browser, "sprint", sprint_url, user_agent, debug_dir=debug_dir,
+                )
+                if sprint_markets:
+                    raw_odds["sprint"] = sprint_markets
         finally:
             browser.close()
 
@@ -556,27 +601,24 @@ def load_manual_odds(filepath: str) -> dict:
     """
     Load manually-entered odds from a JSON file.
 
-    Expected format: see CLAUDE.md "Manual Odds Input Template"
+    Two supported shapes:
+      1. Single-event (race-only):
+         { "markets": { "win": {...}, "podium": {...}, ... } }
+      2. Dual-event (sprint weekend, separate sprint odds):
+         { "markets_race": {...}, "markets_sprint": {...} }
+         (or `markets` may still be present and is treated as race odds)
+
+    See CLAUDE.md "Manual Odds Input Template" for examples.
     """
     with open(filepath) as f:
         data = json.load(f)
     return data
 
 
-def process_odds_to_fair_probs(
-    raw_odds: dict,
-    name_map: Dict[str, int],
-    devig_method: str = "shin",
-) -> Dict[str, Dict[int, float]]:
-    """
-    Convert raw odds (from scraper or manual) into fair probabilities mapped to
-    roster indices. `name_map` is built from the active roster via
-    roster.build_name_map; any odds-source name that doesn't resolve to a
-    roster slot is dropped with a warning.
-    """
-    observed_probs = {}
-
-    for market_name, market_odds in raw_odds.items():
+def _process_one_event(event_odds: dict, name_map: Dict[str, int], devig_method: str) -> Dict[str, Dict[int, float]]:
+    """Devig + map names→idx for one event's markets."""
+    observed_probs: Dict[str, Dict[int, float]] = {}
+    for market_name, market_odds in event_odds.items():
         if not market_odds:
             continue
 
@@ -637,6 +679,21 @@ def process_odds_to_fair_probs(
     return observed_probs
 
 
+def process_odds_to_fair_probs(
+    raw_odds: dict,
+    name_map: Dict[str, int],
+    devig_method: str = "shin",
+) -> Dict[str, Dict[str, Dict[int, float]]]:
+    """
+    Convert raw event-keyed odds into fair probabilities mapped to roster
+    indices. Returns {event: {market: {driver_idx: fair_prob}}}.
+    """
+    return {
+        event: _process_one_event(event_odds, name_map, devig_method)
+        for event, event_odds in raw_odds.items()
+    }
+
+
 def get_observed_probs(
     roster: List[dict],
     name_map: Dict[str, int],
@@ -647,23 +704,25 @@ def get_observed_probs(
     debug_dir: Optional[str] = None,
 ) -> tuple:
     """
-    Main entry point: get observed probabilities keyed by roster index.
+    Main entry point: get event-keyed observed probabilities.
 
     Priority:
     1. If `scrape` is True, attempt to fetch fresh odds from Oddschecker.
-    2. Merge with manual file if provided (manual overrides scrape per-market).
+    2. Merge with manual file if provided (manual overrides scrape per-market,
+       per-event).
     3. Fall back to manual file alone if scraping is disabled or yields nothing.
 
     Returns
     -------
     (observed_probs, race_info, raw_odds)
-        observed_probs : {market: {driver_idx: fair_probability}}
+        observed_probs : {event: {market: {driver_idx: fair_probability}}}
+            event ∈ {"race", "sprint"}; "sprint" only present on sprint
+            weekends with sprint-specific odds.
         race_info : {race, date, is_sprint}
-        raw_odds : {market: {driver_name: american_odds}} — pre-devig snapshot
-            (post merge of scrape + manual). Saved to meta.raw_odds so future
-            audits can tell scraper / devig / model failures apart (issue #36).
+        raw_odds : {event: {market: {driver_name: american_odds}}} — pre-devig
+            snapshot (post merge of scrape + manual). Saved to meta.raw_odds.
     """
-    raw_odds: Dict[str, Dict[str, float]] = {}
+    raw_odds: Dict[str, Dict[str, Dict[str, float]]] = {}
     race_info = {"race": "Unknown", "date": "", "is_sprint": False}
 
     # Attempt scrape
@@ -677,18 +736,35 @@ def get_observed_probs(
         if scraped_odds:
             raw_odds.update(scraped_odds)
             race_info = scraped_info
-            print(f"  Scraped markets: {list(scraped_odds.keys())}")
+            print(f"  Scraped events: {list(scraped_odds.keys())}")
+            for event, markets in scraped_odds.items():
+                print(f"    {event}: {list(markets.keys())}")
 
-    # Load manual file (supplements or overrides scraped)
+    # Load manual file (supplements or overrides scraped per event/market).
     if manual_file and os.path.exists(manual_file):
         print(f"\nLoading manual odds from {manual_file}")
         data = load_manual_odds(manual_file)
-        for market, odds in data.get("markets", {}).items():
-            if market in raw_odds:
-                print(f"  Manual overrides scraped for: {market}")
-            else:
-                print(f"  Manual adds: {market}")
-            raw_odds[market] = odds
+
+        # Three accepted shapes (in priority order):
+        #   markets_race / markets_sprint  → explicit per-event sections
+        #   markets                        → race-only (legacy)
+        manual_events: Dict[str, Dict[str, Dict[str, float]]] = {}
+        if "markets_race" in data or "markets_sprint" in data:
+            if "markets_race" in data:
+                manual_events["race"] = data["markets_race"]
+            if "markets_sprint" in data:
+                manual_events["sprint"] = data["markets_sprint"]
+        elif "markets" in data:
+            manual_events["race"] = data["markets"]
+
+        for event, event_markets in manual_events.items():
+            event_bucket = raw_odds.setdefault(event, {})
+            for market, odds in event_markets.items():
+                if market in event_bucket:
+                    print(f"  Manual overrides scraped for: {event}/{market}")
+                else:
+                    print(f"  Manual adds: {event}/{market}")
+                event_bucket[market] = odds
 
         if race_info["race"] == "Unknown":
             race_info = {
@@ -702,11 +778,13 @@ def get_observed_probs(
 
     observed_probs = process_odds_to_fair_probs(raw_odds, name_map, devig_method)
 
-    print(f"\nFinal markets: {list(observed_probs.keys())}")
-    for market, probs in observed_probs.items():
-        n = len(probs)
-        top = sorted(probs.items(), key=lambda x: -x[1])[:3]
-        top_str = ", ".join(f"{roster[i]['abbr']}={p:.3f}" for i, p in top)
-        print(f"  {market} ({n} drivers): {top_str}")
+    print(f"\nFinal events: {list(observed_probs.keys())}")
+    for event, event_probs in observed_probs.items():
+        print(f"\n  [{event}] markets: {list(event_probs.keys())}")
+        for market, probs in event_probs.items():
+            n = len(probs)
+            top = sorted(probs.items(), key=lambda x: -x[1])[:3]
+            top_str = ", ".join(f"{roster[i]['abbr']}={p:.3f}" for i, p in top)
+            print(f"    {market} ({n} drivers): {top_str}")
 
     return observed_probs, race_info, raw_odds

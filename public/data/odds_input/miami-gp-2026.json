@@ -2,7 +2,8 @@
   "race": "Miami Grand Prix",
   "date": "2026-05-03",
   "is_sprint": true,
-  "markets": {
+  "_comment": "Dual-event manual odds. Race + Sprint are fit separately and produce three optimal-lineup sets (combined / race-only / sprint-only). Sprint odds below are illustrative — replace with current Oddschecker sprint lines before relying on output.",
+  "markets_race": {
     "win": {
       "Russell": -120, "Norris": 180, "Leclerc": 400,
       "Antonelli": 450, "Hamilton": 600, "Piastri": 700,
@@ -42,6 +43,38 @@
       "Ocon": 700, "Colapinto": 500, "Stroll": 400,
       "Hulkenberg": 350, "Bortoleto": 350,
       "Perez": 300, "Bottas": 300
+    }
+  },
+  "markets_sprint": {
+    "win": {
+      "Antonelli": 165, "Russell": 250, "Leclerc": 500,
+      "Piastri": 700, "Norris": 350, "Hamilton": 800,
+      "Verstappen": 1100, "Lawson": 3500, "Albon": 5000,
+      "Sainz": 5000, "Bearman": 6000, "Gasly": 6000,
+      "Tsunoda": 9000, "Alonso": 9000, "Hadjar": 12000,
+      "Ocon": 15000, "Colapinto": 18000, "Stroll": 22000,
+      "Hulkenberg": 28000, "Bortoleto": 40000,
+      "Perez": 45000, "Bottas": 55000
+    },
+    "podium": {
+      "Antonelli": -200, "Russell": -130, "Leclerc": 130,
+      "Piastri": 200, "Norris": -120, "Hamilton": 180,
+      "Verstappen": 250, "Lawson": 700, "Albon": 900,
+      "Sainz": 1000, "Bearman": 1300, "Gasly": 1600,
+      "Tsunoda": 2200, "Alonso": 2200, "Hadjar": 2700,
+      "Ocon": 3800, "Colapinto": 4800, "Stroll": 6000,
+      "Hulkenberg": 7500, "Bortoleto": 9500,
+      "Perez": 13000, "Bottas": 19000
+    },
+    "dnf": {
+      "Russell": 1400, "Norris": 1100, "Leclerc": 1000,
+      "Antonelli": 900, "Hamilton": 1100, "Piastri": 1000,
+      "Verstappen": 600, "Lawson": 600, "Albon": 700,
+      "Sainz": 700, "Bearman": 800, "Gasly": 800,
+      "Tsunoda": 800, "Alonso": 500, "Hadjar": 700,
+      "Ocon": 800, "Colapinto": 600, "Stroll": 500,
+      "Hulkenberg": 450, "Bortoleto": 450,
+      "Perez": 400, "Bottas": 400
     }
   }
 }

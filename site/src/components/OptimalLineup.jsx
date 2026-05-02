@@ -6,21 +6,25 @@ import { useState } from 'react';
  * Shows a compact summary table of the top N lineups (one row each),
  * then a full per-driver breakdown for whichever lineup is selected.
  */
-export default function OptimalLineup({ lineups, teams }) {
+export default function OptimalLineup({ lineups, teams, title, subtitle }) {
   const [selectedRank, setSelectedRank] = useState(1);
   if (!lineups?.length) return null;
 
   const selected = lineups.find(l => l.rank === selectedRank) ?? lineups[0];
+  const resolvedTitle = title ?? `Top ${lineups.length} Lineups`;
+  const defaultSubtitle = (
+    <>
+      Ordered by expected points including the +{lineups[0].exact_pos_bonus} exact-position
+      bonus (earned when a driver finishes in the same slot as their pick number).
+      Click a row to see the full breakdown.
+    </>
+  );
 
   return (
     <div className="optimal-lineup">
       <div className="lineup-header">
-        <h3 className="lineup-title">Top {lineups.length} Lineups</h3>
-        <p className="lineup-subtitle">
-          Ordered by expected points including the +{lineups[0].exact_pos_bonus} exact-position
-          bonus (earned when a driver finishes in the same slot as their pick number).
-          Click a row to see the full breakdown.
-        </p>
+        <h3 className="lineup-title">{resolvedTitle}</h3>
+        <p className="lineup-subtitle">{subtitle ?? defaultSubtitle}</p>
       </div>
 
       {/* Summary table — one row per lineup */}

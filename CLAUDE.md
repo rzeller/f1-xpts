@@ -17,13 +17,15 @@ This is NOT the official F1 Fantasy game. Our family league uses simplified scor
 
 **Grand Prix race finish:**
 - P1=25, P2=18, P3=15, P4=12, P5=10, P6=8, P7=6, P8=4, P9=2, P10=1, P11-P22=0
-- DNF/NC = **-20 points**
+- DNF/NC = **-10 points**
 
 **Sprint race finish (6 weekends: China, Miami, Canada, Great Britain, Netherlands, Singapore):**
 - P1=8, P2=7, P3=6, P4=5, P5=4, P6=3, P7=2, P8=1, P9+=0
-- DNF/NC = **-20 points**
+- DNF/NC = **-10 points**
 
-**That's it.** No qualifying points, no positions gained, no overtakes, no fastest lap bonus, no Driver of the Day. Each player picks 5 drivers before qualifying each weekend (same drivers for sprint + race). No budget cap.
+**Exact-position pick bonus:** each player submits 5 picks in slots 1–5; a pick in slot N earns **+10 bonus points** when that driver finishes in position N. The bonus is awarded per event — on a sprint weekend the same pick can earn the bonus once for the sprint and once for the Grand Prix.
+
+**That's it.** No qualifying points, no positions gained, no overtakes, no fastest lap bonus, no Driver of the Day. Each player picks 5 drivers before qualifying each weekend (same drivers for sprint + race). No budget cap. Source of truth for scoring constants is the league's `scorer.py` (mirrored in `pipeline/config.py`).
 
 ## Architecture
 

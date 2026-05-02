@@ -117,7 +117,9 @@
         "Sergio Perez": 10000.0,
         "Valtteri Bottas": 10000.0
       }
-    }
+    },
+    "backfilled_at": "2026-05-02T18:44:13.838577+00:00",
+    "backfill_note": "DNF penalty corrected from -20 to -10; per-driver EPs and lineups recomputed from existing position_distribution arrays."
   },
   "teams": [
     {
@@ -199,7 +201,8 @@
       "7": 2,
       "8": 1
     },
-    "dnf_penalty": -20
+    "dnf_penalty": -10,
+    "exact_bonus": 10
   },
   "drivers": [
     {
@@ -210,10 +213,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 12.16,
-      "ep_sprint": 2.88,
-      "ep_total": 15.04,
-      "std_dev": 13.83,
+      "ep_race": 13.21,
+      "ep_sprint": 3.93,
+      "ep_total": 17.15,
+      "std_dev": 11.52,
       "p_win": 0.3254,
       "p_podium": 0.5955,
       "p_top6": 0.7207,
@@ -253,10 +256,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 11.27,
-      "ep_sprint": 2.67,
-      "ep_total": 13.94,
-      "std_dev": 13.39,
+      "ep_race": 12.31,
+      "ep_sprint": 3.71,
+      "ep_total": 16.02,
+      "std_dev": 11.12,
       "p_win": 0.2545,
       "p_podium": 0.5576,
       "p_top6": 0.7072,
@@ -296,10 +299,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 7.97,
-      "ep_sprint": 1.61,
-      "ep_total": 9.58,
-      "std_dev": 12.18,
+      "ep_race": 9.03,
+      "ep_sprint": 2.68,
+      "ep_total": 11.71,
+      "std_dev": 9.92,
       "p_win": 0.1072,
       "p_podium": 0.3726,
       "p_top6": 0.6187,
@@ -339,10 +342,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 7.33,
-      "ep_sprint": 1.4,
-      "ep_total": 8.74,
-      "std_dev": 11.86,
+      "ep_race": 8.39,
+      "ep_sprint": 2.46,
+      "ep_total": 10.84,
+      "std_dev": 9.62,
       "p_win": 0.0881,
       "p_podium": 0.3299,
       "p_top6": 0.5935,
@@ -382,10 +385,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 6.79,
-      "ep_sprint": 1.21,
-      "ep_total": 8.0,
-      "std_dev": 11.6,
+      "ep_race": 7.84,
+      "ep_sprint": 2.26,
+      "ep_total": 10.1,
+      "std_dev": 9.36,
       "p_win": 0.0727,
       "p_podium": 0.2964,
       "p_top6": 0.5688,
@@ -425,10 +428,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 5.54,
-      "ep_sprint": 0.7,
-      "ep_total": 6.24,
-      "std_dev": 11.16,
+      "ep_race": 6.63,
+      "ep_sprint": 1.79,
+      "ep_total": 8.42,
+      "std_dev": 8.86,
       "p_win": 0.0486,
       "p_podium": 0.2259,
       "p_top6": 0.5108,
@@ -468,10 +471,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 4.27,
-      "ep_sprint": 0.22,
-      "ep_total": 4.48,
-      "std_dev": 10.42,
+      "ep_race": 5.34,
+      "ep_sprint": 1.29,
+      "ep_total": 6.63,
+      "std_dev": 8.13,
       "p_win": 0.0296,
       "p_podium": 0.1541,
       "p_top6": 0.4311,
@@ -511,10 +514,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 3.86,
-      "ep_sprint": 0.07,
-      "ep_total": 3.93,
-      "std_dev": 10.14,
+      "ep_race": 4.92,
+      "ep_sprint": 1.13,
+      "ep_total": 6.05,
+      "std_dev": 7.84,
       "p_win": 0.0231,
       "p_podium": 0.1324,
       "p_top6": 0.4036,
@@ -554,10 +557,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 2.86,
-      "ep_sprint": -0.35,
-      "ep_total": 2.52,
-      "std_dev": 9.67,
+      "ep_race": 3.94,
+      "ep_sprint": 0.73,
+      "ep_total": 4.67,
+      "std_dev": 7.34,
       "p_win": 0.0156,
       "p_podium": 0.0946,
       "p_top6": 0.3304,
@@ -597,10 +600,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 2.69,
-      "ep_sprint": -0.4,
-      "ep_total": 2.29,
-      "std_dev": 9.49,
+      "ep_race": 3.75,
+      "ep_sprint": 0.66,
+      "ep_total": 4.41,
+      "std_dev": 7.18,
       "p_win": 0.0134,
       "p_podium": 0.0869,
       "p_top6": 0.3159,
@@ -640,10 +643,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 2.61,
-      "ep_sprint": -0.42,
-      "ep_total": 2.19,
-      "std_dev": 9.4,
+      "ep_race": 3.66,
+      "ep_sprint": 0.63,
+      "ep_total": 4.29,
+      "std_dev": 7.09,
       "p_win": 0.0124,
       "p_podium": 0.0819,
       "p_top6": 0.309,
@@ -683,10 +686,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": 0.01,
-      "ep_sprint": -1.44,
-      "ep_total": -1.43,
-      "std_dev": 7.78,
+      "ep_race": 1.07,
+      "ep_sprint": -0.38,
+      "ep_total": 0.69,
+      "std_dev": 5.26,
       "p_win": 0.0024,
       "p_podium": 0.019,
       "p_top6": 0.1137,
@@ -726,10 +729,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -0.25,
-      "ep_sprint": -1.55,
-      "ep_total": -1.8,
-      "std_dev": 7.65,
+      "ep_race": 0.82,
+      "ep_sprint": -0.48,
+      "ep_total": 0.34,
+      "std_dev": 5.08,
       "p_win": 0.002,
       "p_podium": 0.0156,
       "p_top6": 0.0985,
@@ -769,10 +772,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -0.66,
-      "ep_sprint": -1.71,
-      "ep_total": -2.37,
-      "std_dev": 7.38,
+      "ep_race": 0.42,
+      "ep_sprint": -0.63,
+      "ep_total": -0.21,
+      "std_dev": 4.73,
       "p_win": 0.0013,
       "p_podium": 0.0108,
       "p_top6": 0.0728,
@@ -812,10 +815,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -0.78,
-      "ep_sprint": -1.73,
-      "ep_total": -2.5,
-      "std_dev": 7.22,
+      "ep_race": 0.29,
+      "ep_sprint": -0.67,
+      "ep_total": -0.38,
+      "std_dev": 4.56,
       "p_win": 0.0012,
       "p_podium": 0.0086,
       "p_top6": 0.0631,
@@ -855,10 +858,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -0.97,
-      "ep_sprint": -1.77,
-      "ep_total": -2.74,
-      "std_dev": 7.02,
+      "ep_race": 0.08,
+      "ep_sprint": -0.72,
+      "ep_total": -0.64,
+      "std_dev": 4.34,
       "p_win": 0.0008,
       "p_podium": 0.0069,
       "p_top6": 0.0506,
@@ -898,10 +901,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -1.14,
-      "ep_sprint": -1.86,
-      "ep_total": -3.0,
-      "std_dev": 6.99,
+      "ep_race": -0.07,
+      "ep_sprint": -0.79,
+      "ep_total": -0.85,
+      "std_dev": 4.24,
       "p_win": 0.0008,
       "p_podium": 0.0054,
       "p_top6": 0.044,
@@ -941,10 +944,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -1.37,
-      "ep_sprint": -1.92,
-      "ep_total": -3.29,
-      "std_dev": 6.78,
+      "ep_race": -0.31,
+      "ep_sprint": -0.86,
+      "ep_total": -1.17,
+      "std_dev": 3.99,
       "p_win": 0.0006,
       "p_podium": 0.0041,
       "p_top6": 0.0304,
@@ -984,10 +987,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -1.95,
-      "ep_sprint": -2.07,
-      "ep_total": -4.02,
-      "std_dev": 6.26,
+      "ep_race": -0.89,
+      "ep_sprint": -1.02,
+      "ep_total": -1.91,
+      "std_dev": 3.26,
       "p_win": 0.0001,
       "p_podium": 0.0005,
       "p_top6": 0.0049,
@@ -1020,49 +1023,6 @@
       ]
     },
     {
-      "name": "Sergio P\u00e9rez",
-      "abbr": "PER",
-      "team_idx": 9,
-      "lambda": -3.638444313544504,
-      "sigma_drv": 1.0,
-      "chaos_alpha": null,
-      "p_dnf": 0.1,
-      "ep_race": -1.99,
-      "ep_sprint": -2.06,
-      "ep_total": -4.05,
-      "std_dev": 6.17,
-      "p_win": 0.0,
-      "p_podium": 0.0003,
-      "p_top6": 0.0027,
-      "p_top10": 0.0322,
-      "p_no_points": 0.8639,
-      "position_distribution": [
-        0.0,
-        8e-05,
-        0.00018,
-        0.00036,
-        0.0007,
-        0.00138,
-        0.00244,
-        0.00472,
-        0.00806,
-        0.01428,
-        0.02494,
-        0.03948,
-        0.05796,
-        0.07944,
-        0.09798,
-        0.11742,
-        0.12222,
-        0.1163,
-        0.09682,
-        0.06462,
-        0.03566,
-        0.01106,
-        0.1039
-      ]
-    },
-    {
       "name": "Lance Stroll",
       "abbr": "STR",
       "team_idx": 10,
@@ -1070,10 +1030,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -1.97,
-      "ep_sprint": -2.1,
-      "ep_total": -4.07,
-      "std_dev": 6.32,
+      "ep_race": -0.89,
+      "ep_sprint": -1.03,
+      "ep_total": -1.93,
+      "std_dev": 3.31,
       "p_win": 0.0001,
       "p_podium": 0.0007,
       "p_top6": 0.0053,
@@ -1106,6 +1066,49 @@
       ]
     },
     {
+      "name": "Sergio P\u00e9rez",
+      "abbr": "PER",
+      "team_idx": 9,
+      "lambda": -3.638444313544504,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.1,
+      "ep_race": -0.95,
+      "ep_sprint": -1.02,
+      "ep_total": -1.97,
+      "std_dev": 3.16,
+      "p_win": 0.0,
+      "p_podium": 0.0003,
+      "p_top6": 0.0027,
+      "p_top10": 0.0322,
+      "p_no_points": 0.8639,
+      "position_distribution": [
+        0.0,
+        8e-05,
+        0.00018,
+        0.00036,
+        0.0007,
+        0.00138,
+        0.00244,
+        0.00472,
+        0.00806,
+        0.01428,
+        0.02494,
+        0.03948,
+        0.05796,
+        0.07944,
+        0.09798,
+        0.11742,
+        0.12222,
+        0.1163,
+        0.09682,
+        0.06462,
+        0.03566,
+        0.01106,
+        0.1039
+      ]
+    },
+    {
       "name": "Valtteri Bottas",
       "abbr": "BOT",
       "team_idx": 9,
@@ -1113,10 +1116,10 @@
       "sigma_drv": 1.0,
       "chaos_alpha": null,
       "p_dnf": 0.1,
-      "ep_race": -2.03,
-      "ep_sprint": -2.13,
-      "ep_total": -4.16,
-      "std_dev": 6.31,
+      "ep_race": -0.95,
+      "ep_sprint": -1.05,
+      "ep_total": -2.0,
+      "std_dev": 3.26,
       "p_win": 0.0001,
       "p_podium": 0.0004,
       "p_top6": 0.0042,
@@ -1158,7 +1161,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1166,7 +1169,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1174,7 +1177,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1182,7 +1185,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.111
         },
         {
@@ -1190,14 +1193,14 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 0.912
         }
       ],
-      "ep_base_total": 55.3,
+      "ep_base_total": 65.82,
       "ep_bonus_total": 8.542,
-      "ep_grand_total": 63.84,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 74.36,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 2,
@@ -1207,7 +1210,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1215,7 +1218,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1223,7 +1226,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1231,7 +1234,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.111
         },
         {
@@ -1239,14 +1242,14 @@
           "name": "Lewis Hamilton",
           "abbr": "HAM",
           "team_idx": 2,
-          "ep_base": 6.24,
+          "ep_base": 8.42,
           "slot_bonus_ev": 0.982
         }
       ],
-      "ep_base_total": 53.54,
+      "ep_base_total": 64.14,
       "ep_bonus_total": 8.612,
-      "ep_grand_total": 62.15,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 72.75,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 3,
@@ -1256,7 +1259,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1264,7 +1267,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1272,7 +1275,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1280,7 +1283,7 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 1.102
         },
         {
@@ -1288,14 +1291,14 @@
           "name": "Lewis Hamilton",
           "abbr": "HAM",
           "team_idx": 2,
-          "ep_base": 6.24,
+          "ep_base": 8.42,
           "slot_bonus_ev": 0.982
         }
       ],
-      "ep_base_total": 52.8,
+      "ep_base_total": 63.4,
       "ep_bonus_total": 8.604,
-      "ep_grand_total": 61.4,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 72.0,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 4,
@@ -1305,7 +1308,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1313,7 +1316,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1321,7 +1324,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.263
         },
         {
@@ -1329,7 +1332,7 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 1.102
         },
         {
@@ -1337,14 +1340,14 @@
           "name": "Lewis Hamilton",
           "abbr": "HAM",
           "team_idx": 2,
-          "ep_base": 6.24,
+          "ep_base": 8.42,
           "slot_bonus_ev": 0.982
         }
       ],
-      "ep_base_total": 51.96,
+      "ep_base_total": 62.53,
       "ep_bonus_total": 8.547,
-      "ep_grand_total": 60.51,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 71.08,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 5,
@@ -1354,7 +1357,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1362,7 +1365,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1370,7 +1373,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1378,7 +1381,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.111
         },
         {
@@ -1386,14 +1389,14 @@
           "name": "Max Verstappen",
           "abbr": "VER",
           "team_idx": 4,
-          "ep_base": 4.48,
+          "ep_base": 6.63,
           "slot_bonus_ev": 0.944
         }
       ],
-      "ep_base_total": 51.78,
+      "ep_base_total": 62.35,
       "ep_bonus_total": 8.574,
-      "ep_grand_total": 60.35,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 70.92,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 6,
@@ -1403,7 +1406,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1411,7 +1414,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1419,7 +1422,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1427,7 +1430,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.111
         },
         {
@@ -1435,14 +1438,14 @@
           "name": "Isack Hadjar",
           "abbr": "HAD",
           "team_idx": 4,
-          "ep_base": 3.93,
+          "ep_base": 6.05,
           "slot_bonus_ev": 0.938
         }
       ],
-      "ep_base_total": 51.23,
+      "ep_base_total": 61.77,
       "ep_bonus_total": 8.568,
-      "ep_grand_total": 59.8,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 70.34,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 7,
@@ -1452,7 +1455,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1460,7 +1463,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1468,7 +1471,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1476,7 +1479,7 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 1.102
         },
         {
@@ -1484,14 +1487,14 @@
           "name": "Max Verstappen",
           "abbr": "VER",
           "team_idx": 4,
-          "ep_base": 4.48,
+          "ep_base": 6.63,
           "slot_bonus_ev": 0.944
         }
       ],
-      "ep_base_total": 51.04,
+      "ep_base_total": 61.61,
       "ep_bonus_total": 8.565,
-      "ep_grand_total": 59.61,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 70.18,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 8,
@@ -1501,7 +1504,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1509,7 +1512,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1517,7 +1520,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1525,7 +1528,7 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 1.102
         },
         {
@@ -1533,14 +1536,14 @@
           "name": "Isack Hadjar",
           "abbr": "HAD",
           "team_idx": 4,
-          "ep_base": 3.93,
+          "ep_base": 6.05,
           "slot_bonus_ev": 0.938
         }
       ],
-      "ep_base_total": 50.49,
+      "ep_base_total": 61.03,
       "ep_bonus_total": 8.56,
-      "ep_grand_total": 59.05,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 69.59,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 9,
@@ -1550,7 +1553,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1558,7 +1561,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1566,7 +1569,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.263
         },
         {
@@ -1574,7 +1577,7 @@
           "name": "Lando Norris",
           "abbr": "NOR",
           "team_idx": 1,
-          "ep_base": 8.0,
+          "ep_base": 10.1,
           "slot_bonus_ev": 1.102
         },
         {
@@ -1582,14 +1585,14 @@
           "name": "Max Verstappen",
           "abbr": "VER",
           "team_idx": 4,
-          "ep_base": 4.48,
+          "ep_base": 6.63,
           "slot_bonus_ev": 0.944
         }
       ],
-      "ep_base_total": 50.2,
+      "ep_base_total": 60.74,
       "ep_bonus_total": 8.508,
-      "ep_grand_total": 58.71,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 69.25,
+      "exact_pos_bonus": 10
     },
     {
       "rank": 10,
@@ -1599,7 +1602,7 @@
           "name": "Andrea Kimi Antonelli",
           "abbr": "ANT",
           "team_idx": 0,
-          "ep_base": 15.04,
+          "ep_base": 17.15,
           "slot_bonus_ev": 3.254
         },
         {
@@ -1607,7 +1610,7 @@
           "name": "George Russell",
           "abbr": "RUS",
           "team_idx": 0,
-          "ep_base": 13.94,
+          "ep_base": 16.02,
           "slot_bonus_ev": 1.944
         },
         {
@@ -1615,7 +1618,7 @@
           "name": "Charles Leclerc",
           "abbr": "LEC",
           "team_idx": 2,
-          "ep_base": 9.58,
+          "ep_base": 11.71,
           "slot_bonus_ev": 1.32
         },
         {
@@ -1623,7 +1626,7 @@
           "name": "Oscar Piastri",
           "abbr": "PIA",
           "team_idx": 1,
-          "ep_base": 8.74,
+          "ep_base": 10.84,
           "slot_bonus_ev": 1.111
         },
         {
@@ -1631,14 +1634,14 @@
           "name": "Pierre Gasly",
           "abbr": "GAS",
           "team_idx": 3,
-          "ep_base": 2.52,
+          "ep_base": 4.67,
           "slot_bonus_ev": 0.804
         }
       ],
-      "ep_base_total": 49.82,
+      "ep_base_total": 60.39,
       "ep_bonus_total": 8.433,
-      "ep_grand_total": 58.25,
-      "exact_pos_bonus": 10.0
+      "ep_grand_total": 68.82,
+      "exact_pos_bonus": 10
     }
   ],
   "fit": {
