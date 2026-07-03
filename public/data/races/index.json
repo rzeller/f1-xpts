@@ -34,7 +34,14 @@
       "date": "2026-06-28",
       "is_sprint": false,
       "generated_at": "2026-06-21T06:09:28.719090+00:00"
+    },
+    {
+      "slug": "british-gp",
+      "name": "British Grand Prix",
+      "date": "2026-07-05",
+      "is_sprint": true,
+      "generated_at": "2026-07-03T14:24:09.274801+00:00"
     }
   ],
-  "latest": "austrian-gp"
+  "latest": "british-gp"
 }
