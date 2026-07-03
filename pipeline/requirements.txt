@@ -2,3 +2,8 @@ numpy>=1.24
 scipy>=1.11
 requests>=2.31
 playwright>=1.44
+# patchright is a stealth drop-in for playwright's sync_api (masks
+# navigator.webdriver / the CDP Runtime.enable leak) used to get past
+# Oddschecker's Cloudflare bot management. The scraper falls back to plain
+# playwright if it's absent. Pinned <2 to avoid a surprise major bump.
+patchright>=1.61,<2

@@ -150,16 +150,38 @@ jobs:
         if: steps.check.outputs.should_run == 'true'
         run: pip install -r pipeline/requirements.txt
 
-      - name: Install Playwright Chromium
+      - name: Install browser
         if: steps.check.outputs.should_run == 'true'
-        run: python -m playwright install --with-deps chromium
+        # patchright drives real Google Chrome (preinstalled on ubuntu-latest,
+        # used via channel="chrome"); this installs its bundled Chromium + OS
+        # deps as the fallback and for the headful/xvfb path.
+        run: python -m patchright install --with-deps chromium
 
       - name: Run pipeline
         if: steps.check.outputs.should_run == 'true'
         env:
           RUN_TYPE: ${{ steps.check.outputs.run_type }}
+          # Dump page HTML + screenshots here when the scraper is blocked, so a
+          # failed run leaves a post-mortem (uploaded as an artifact below).
+          SCRAPER_DEBUG_DIR: scraper-debug
+          # Set repo variable SCRAPER_HEADFUL=1 to run a headful browser under
+          # xvfb (stronger anti-bot posture) without a code change.
+          SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
         run: |
-          python pipeline/update.py --output public/data --run-type "$RUN_TYPE"
+          if [ -n "$SCRAPER_HEADFUL" ]; then
+            xvfb-run -a python pipeline/update.py --output public/data --run-type "$RUN_TYPE"
+          else
+            python pipeline/update.py --output public/data --run-type "$RUN_TYPE"
+          fi
+
+      - name: Upload scraper debug artifacts
+        if: always() && steps.check.outputs.should_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: scraper-debug
+          path: scraper-debug/
+          if-no-files-found: ignore
+          retention-days: 7
 
       - name: Create PR and merge (triggers Vercel redeploy)
         if: steps.check.outputs.should_run == 'true'

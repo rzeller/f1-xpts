@@ -24,15 +24,24 @@ Return shape (event-keyed):
 
 Race discovery:
   We derive the next-race slug from public/data/schedule.json rather than
-  crawling the Oddschecker hub. The hub crawl loaded enough JS / fired enough
-  selector queries that Cloudflare fingerprinted the headless browser and
-  served 403 challenges on every subsequent market URL. Going straight to a
-  known race URL in a fresh browser context avoids that.
+  crawling the Oddschecker hub, to keep the browsing footprint minimal.
+
+Anti-bot (Cloudflare):
+  Oddschecker sits behind Cloudflare bot management. The scraper warms up ONE
+  browser context on the event hub page, then reuses it (keeping the clearance
+  cookies) across all of that event's market URLs, with human-like pacing and a
+  referer. It prefers real Chrome via patchright (a stealth playwright drop-in).
+  If a market is hard-blocked (403/challenge) it rotates to a fresh context once
+  and retries. See _scrape_event_markets / _ScraperBrowser.
 """
 
 import json
 import os
+import random
 import re
+import shutil
+import tempfile
+import time
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -88,6 +97,17 @@ MARKET_HEADING_TEXT: Dict[str, str] = {
 # Default page nav timeout (ms). Oddschecker is heavy; give it room.
 PAGE_TIMEOUT_MS = 45000
 NAV_WAIT_MS = 15000
+
+# Human-like pacing between market navigations (seconds). Oddschecker sits
+# behind Cloudflare bot management; back-to-back requests from a datacenter IP
+# are a bot tell, so we dwell between pages. Volume is tiny (4-10 pages/run) so
+# this is cheap.
+PACE_MIN_S = 3.0
+PACE_MAX_S = 8.0
+# Dwell on the warm-up hub page so Cloudflare hands out clearance cookies in a
+# low-suspicion context before we hit deep market URLs.
+WARMUP_DWELL_MIN_S = 2.0
+WARMUP_DWELL_MAX_S = 4.0
 
 
 def resolve_driver_index(name: str, name_map: Dict[str, int]) -> Optional[int]:
@@ -312,12 +332,49 @@ def _dump_debug(page, debug_dir: Optional[str], label: str) -> None:
         print(f"    [debug] dump failed: {e}")
 
 
+# Cloudflare interstitial / "are you human" markers. Kept specific so a normal
+# market page (which may mention Cloudflare in scripts) is not misclassified.
+_CHALLENGE_MARKERS = (
+    "just a moment",
+    "attention required",
+    "verify you are human",
+    "needs to review the security of your connection",
+    "checking if the site connection is secure",
+    "enable javascript and cookies to continue",
+)
+
+
+def _looks_like_challenge(page) -> bool:
+    """True if the page is a Cloudflare challenge/interstitial rather than content."""
+    try:
+        title = (page.title() or "").lower()
+    except Exception:
+        title = ""
+    if any(m in title for m in _CHALLENGE_MARKERS):
+        return True
+    try:
+        text = page.evaluate(
+            "() => (document.body && document.body.innerText || '').slice(0, 3000)"
+        ) or ""
+    except Exception:
+        text = ""
+    text = text.lower()
+    return any(m in text for m in _CHALLENGE_MARKERS)
+
+
+def _slug_tail(url: str) -> str:
+    """Last path segment of a URL, for use in debug-dump filenames."""
+    return url.rstrip("/").rsplit("/", 1)[-1] or "page"
+
+
 def _scrape_market_page(
     page,
     url: str,
     expected_heading: str,
+    referer: Optional[str] = None,
     debug_dir: Optional[str] = None,
-) -> Dict[str, float]:
+    max_attempts: int = 3,
+) -> Tuple[Dict[str, float], bool]:
     """
     Visit an Oddschecker market page and extract { driver_name: american_odds }.
 
@@ -326,18 +383,45 @@ def _scrape_market_page(
     the same page in arbitrary order, so we have to find the right one by name
     rather than relying on position.
 
-    Returns {} on failure (404, redirect to a different page, no rows, etc.).
+    Returns (odds, blocked). `blocked` is True when the page was a Cloudflare
+    403/429/challenge — the caller can then rotate to a fresh context and retry.
+    A plain empty result (404, redirect, no rows) returns ({}, False).
     """
     print(f"  → {url}")
-    try:
-        resp = page.goto(url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
-    except Exception as e:
-        print(f"    nav failed: {e}")
-        return {}
 
-    if resp is not None and resp.status >= 400:
-        print(f"    HTTP {resp.status} — skipping")
-        return {}
+    # Navigate, retrying on a Cloudflare block with backoff. A 403/challenge on
+    # the same warmed session rarely clears on retry, but a short backoff gives
+    # Cloudflare's rate window room; if it stays blocked we surface blocked=True
+    # so the caller can rotate the context once.
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = page.goto(
+                url,
+                wait_until="domcontentloaded",
+                timeout=PAGE_TIMEOUT_MS,
+                referer=referer,
+            )
+        except Exception as e:
+            print(f"    nav failed: {e}")
+            return {}, False
+
+        status = resp.status if resp is not None else 0
+        if status in (403, 429) or _looks_like_challenge(page):
+            print(f"    SCRAPER_BLOCKED status={status} url={url}")
+            _dump_debug(page, debug_dir, f"blocked_{status}_{_slug_tail(url)}")
+            if attempt < max_attempts:
+                backoff = 5.0 * attempt + random.uniform(0.0, 3.0)
+                print(f"    blocked — backing off {backoff:.1f}s "
+                      f"(attempt {attempt}/{max_attempts})")
+                time.sleep(backoff)
+                continue
+            return {}, True
+
+        if status >= 400:
+            print(f"    HTTP {status} — skipping")
+            return {}, False
+
+        break  # got a usable (<400, non-challenge) response
 
     # If Oddschecker redirected us away from the URL we asked for (e.g. an
     # unknown market slug bounces to the F1 hub), treat it as a not-found.
@@ -346,7 +430,8 @@ def _scrape_market_page(
     requested = url.rstrip("/").split("?", 1)[0]
     if landed != requested:
         print(f"    redirected to {landed} — treating as not-found")
-        return {}
+        _dump_debug(page, debug_dir, f"redirect_{_slug_tail(url)}")
+        return {}, False
 
     _dismiss_overlays(page)
     _wait_for_market_bets(page)
@@ -369,7 +454,7 @@ def _scrape_market_page(
     )
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
-        return {}
+        return {}, False
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
     market_scope = market_article.locator('[class*="AccordionWrapper"]').first
@@ -398,8 +483,8 @@ def _scrape_market_page(
 
     if not rows:
         print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
-        _dump_debug(page, debug_dir, f"market_norows_{url.rstrip('/').rsplit('/', 1)[-1]}")
-        return {}
+        _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}")
+        return {}, False
 
     print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
 
@@ -420,8 +505,8 @@ def _scrape_market_page(
 
     print(f"    extracted {len(odds)} drivers")
     if not odds:
-        _dump_debug(page, debug_dir, f"market_noresolved_{url.rstrip('/').rsplit('/', 1)[-1]}")
-    return odds
+        _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}")
+    return odds, False
 
 
 def _oddschecker_slug(repo_slug: str) -> str:
@@ -487,38 +572,205 @@ def _next_race_from_schedule(
     }
 
 
+def _import_sync_playwright():
+    """Import the sync Playwright API, preferring patchright (stealth) if present.
+
+    patchright is a drop-in for playwright's sync_api with anti-detection
+    patches (masks navigator.webdriver, avoids the CDP Runtime.enable leak). If
+    it isn't installed we fall back to vanilla playwright so the pipeline still
+    runs. Returns (sync_playwright, is_patchright).
+    """
+    try:
+        from patchright.sync_api import sync_playwright
+        return sync_playwright, True
+    except ImportError:
+        pass
+    try:
+        from playwright.sync_api import sync_playwright
+        return sync_playwright, False
+    except ImportError as e:
+        raise RuntimeError(
+            "Playwright is required for Oddschecker scraping. Install with: "
+            "pip install patchright && patchright install chrome"
+        ) from e
+
+
+def _resolve_headless(headed: bool) -> bool:
+    """Run headful when `headed` is set or SCRAPER_HEADFUL is truthy.
+
+    SCRAPER_HEADFUL lets CI flip to an xvfb-run headful browser (a stronger
+    anti-bot posture) without a code change.
+    """
+    if headed:
+        return False
+    env = os.environ.get("SCRAPER_HEADFUL", "").strip().lower()
+    if env not in ("", "0", "false", "no"):
+        return False
+    return True
+
+
+class _ScraperBrowser:
+    """Owns the Playwright browser/context lifecycle for one scrape run.
+
+    Prefers a persistent real-Chrome context (most human-like, best against
+    Cloudflare bot management), degrading to a persistent bundled-Chromium
+    context, then to a plainly-launched browser — so it still runs where Chrome
+    isn't installed. The first strategy that launches is pinned for the rest of
+    the run. `new_context()` hands out a fresh context (used both for the normal
+    per-event context and the one-time rotate-after-block recovery); `close()`
+    tears everything down, including temp profile dirs.
+
+    Per patchright's guidance we do NOT set a custom user-agent, custom headers,
+    or a fixed viewport — letting real Chrome present its native, coherent
+    fingerprint (the old hardcoded Linux Chrome/124 UA was itself a tell).
+    """
+
+    def __init__(self, p, headless: bool):
+        self._p = p
+        self._headless = headless
+        self._strategy = None            # pinned once one works
+        self._contexts = []
+        self._browser = None
+        self._profile_dirs = []
+
+    def _persistent(self, channel):
+        profile = tempfile.mkdtemp(prefix="oc-profile-")
+        self._profile_dirs.append(profile)
+        kwargs = dict(
+            user_data_dir=profile,
+            headless=self._headless,
+            no_viewport=True,
+            locale="en-US",
+        )
+        if channel:
+            kwargs["channel"] = channel
+        return self._p.chromium.launch_persistent_context(**kwargs)
+
+    def _persistent_chrome(self):
+        return self._persistent(channel="chrome")
+
+    def _persistent_chromium(self):
+        return self._persistent(channel=None)
+
+    def _plain_launch(self):
+        if self._browser is None:
+            self._browser = self._p.chromium.launch(headless=self._headless)
+        return self._browser.new_context(locale="en-US")
+
+    def _strategies(self):
+        return [self._persistent_chrome, self._persistent_chromium, self._plain_launch]
+
+    def new_context(self):
+        if self._strategy is not None:
+            ctx = self._strategy()
+            self._contexts.append(ctx)
+            return ctx
+        last_err = None
+        for strat in self._strategies():
+            try:
+                ctx = strat()
+            except Exception as e:
+                last_err = e
+                print(f"  launch strategy {strat.__name__} unavailable: {e}")
+                continue
+            self._strategy = strat
+            self._contexts.append(ctx)
+            print(f"  browser: {strat.__name__} (headless={self._headless})")
+            return ctx
+        raise RuntimeError(f"Could not launch any browser context: {last_err}")
+
+    def close_context(self, ctx):
+        try:
+            ctx.close()
+        except Exception:
+            pass
+        if ctx in self._contexts:
+            self._contexts.remove(ctx)
+
+    def close(self):
+        for ctx in list(self._contexts):
+            try:
+                ctx.close()
+            except Exception:
+                pass
+        if self._browser is not None:
+            try:
+                self._browser.close()
+            except Exception:
+                pass
+        for d in self._profile_dirs:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+def _warm_up(page, hub_url: str) -> None:
+    """Visit the event hub first so Cloudflare grants clearance cookies in a
+    low-suspicion context before we request deep market URLs."""
+    print(f"  warm-up: {hub_url}")
+    try:
+        page.goto(hub_url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    except Exception as e:
+        print(f"    warm-up nav failed: {e}")
+        return
+    _dismiss_overlays(page)
+    time.sleep(random.uniform(WARMUP_DWELL_MIN_S, WARMUP_DWELL_MAX_S))
+
+
 def _scrape_event_markets(
-    browser,
+    browser: "_ScraperBrowser",
     event_label: str,
     base_url: str,
-    user_agent: str,
     debug_dir: Optional[str] = None,
 ) -> Dict[str, Dict[str, float]]:
-    """Scrape every market in MARKET_URL_CANDIDATES for one event under base_url.
+    """Scrape every market for one event under base_url, reusing ONE warmed
+    browser context across all markets.
 
-    base_url is e.g. ".../miami-grand-prix" for race or
-    ".../miami-grand-prix-sprint" for sprint. Returns {market: {driver: odds}}.
+    Reusing the context keeps the Cloudflare clearance cookies the warm-up
+    earned — the previous per-URL fresh-context approach threw those away, so
+    every request after the first looked like a new cookieless visitor and got
+    a 403. Markets are hit with human-like pacing between navigations, `win`
+    first (it establishes the session and is the most valuable market for a
+    partial run). On a hard block we rotate to a fresh context ONCE and retry
+    the blocked market — the old "poisoned session" escape hatch, kept as a
+    recovery path rather than the default.
+
+    base_url is e.g. ".../miami-grand-prix" (race) or
+    ".../miami-grand-prix-sprint" (sprint). Returns {market: {driver: odds}}.
     """
     out: Dict[str, Dict[str, float]] = {}
+
+    context = browser.new_context()
+    page = context.new_page()
+    page.set_default_timeout(PAGE_TIMEOUT_MS)
+    _warm_up(page, base_url)
+    rotated = False
+    first_nav = True
+
     for market_key, slugs in MARKET_URL_CANDIDATES.items():
         print(f"\nScraping {event_label}/{market_key}...")
         heading = MARKET_HEADING_TEXT[market_key]
         for slug in slugs:
             url = f"{base_url}/{slug}"
-            context = browser.new_context(
-                viewport={"width": 1366, "height": 900},
-                user_agent=user_agent,
-                locale="en-GB",
+            if not first_nav:
+                time.sleep(random.uniform(PACE_MIN_S, PACE_MAX_S))
+            first_nav = False
+
+            odds, blocked = _scrape_market_page(
+                page, url, heading, referer=base_url, debug_dir=debug_dir,
             )
-            try:
+
+            if blocked and not rotated:
+                rotated = True
+                print("  rotating to a fresh browser context after block...")
+                browser.close_context(context)
+                context = browser.new_context()
                 page = context.new_page()
                 page.set_default_timeout(PAGE_TIMEOUT_MS)
-                odds = _scrape_market_page(page, url, heading, debug_dir=debug_dir)
-            finally:
-                try:
-                    context.close()
-                except Exception:
-                    pass
+                time.sleep(random.uniform(PACE_MIN_S, PACE_MAX_S))
+                _warm_up(page, base_url)
+                odds, blocked = _scrape_market_page(
+                    page, url, heading, referer=base_url, debug_dir=debug_dir,
+                )
+
             if odds:
                 out[market_key] = odds
                 break
@@ -536,17 +788,11 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
     key is only populated on sprint weekends where Oddschecker exposes a
     /…-sprint/* market path.
 
-    A fresh browser context is opened for each market URL attempt: a single
-    bad URL (redirect, 403) on Oddschecker poisons the session via Cloudflare
-    fingerprinting, so we don't reuse a context that's seen a failure.
+    A single browser context is warmed on the event hub and reused across all
+    of that event's market URLs so Cloudflare's clearance cookies persist. If a
+    market is hard-blocked, the context is rotated once and the market retried.
     """
-    try:
-        from playwright.sync_api import sync_playwright
-    except ImportError as e:
-        raise RuntimeError(
-            "Playwright is required for Oddschecker scraping. "
-            "Install with: pip install playwright && playwright install chromium"
-        ) from e
+    sync_playwright, is_patchright = _import_sync_playwright()
 
     print("Discovering next F1 race from schedule.json...")
     next_race = _next_race_from_schedule()
@@ -561,28 +807,25 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
     race_url = f"{ODDSCHECKER_BASE}/{next_race['slug']}"
     sprint_url = f"{race_url}-sprint" if next_race["is_sprint"] else None
     print(f"  next race: {next_race['name']} ({race_url})")
+    print(f"  scraper engine: {'patchright' if is_patchright else 'playwright'}")
     if sprint_url:
         print(f"  sprint event: {sprint_url}")
 
+    headless = _resolve_headless(headed)
     raw_odds: Dict[str, Dict[str, Dict[str, float]]] = {}
 
-    user_agent = (
-        "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-    )
-
     with sync_playwright() as p:
-        browser = p.chromium.launch(headless=not headed)
+        browser = _ScraperBrowser(p, headless=headless)
         try:
             race_markets = _scrape_event_markets(
-                browser, "race", race_url, user_agent, debug_dir=debug_dir,
+                browser, "race", race_url, debug_dir=debug_dir,
             )
             if race_markets:
                 raw_odds["race"] = race_markets
 
             if sprint_url:
                 sprint_markets = _scrape_event_markets(
-                    browser, "sprint", sprint_url, user_agent, debug_dir=debug_dir,
+                    browser, "sprint", sprint_url, debug_dir=debug_dir,
                 )
                 if sprint_markets:
                     raw_odds["sprint"] = sprint_markets

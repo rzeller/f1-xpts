@@ -193,6 +193,7 @@ def run_pipeline(
     sigma_dnf: float = None,
     chaos_model: str = None,
     fit_chaos_alpha_drv: bool = False,
+    debug_dir: str = None,
 ):
     """Run the full pipeline: fetch odds → fit model → simulate → output JSON."""
 
@@ -236,6 +237,7 @@ def run_pipeline(
         manual_file=manual_file,
         scrape=scrape,
         devig_method=devig_method,
+        debug_dir=debug_dir,
     )
 
     if not observed_probs or "race" not in observed_probs:
@@ -558,6 +560,7 @@ def main():
         sigma_dnf=args.sigma_dnf,
         chaos_model=args.chaos_model,
         fit_chaos_alpha_drv=args.fit_chaos_alpha_drv,
+        debug_dir=args.debug_dir or os.environ.get("SCRAPER_DEBUG_DIR") or None,
     )
 
 

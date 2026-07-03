@@ -23,11 +23,18 @@ jobs:
       - name: Install dependencies
         run: pip install -r pipeline/requirements.txt
 
-      - name: Install Playwright Chromium
-        run: python -m playwright install --with-deps chromium
+      - name: Install browser
+        run: python -m patchright install --with-deps chromium
 
       - name: Run scraper dry run
-        run: python pipeline/update.py --dry-run --debug-dir scraper-debug
+        env:
+          SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
+        run: |
+          if [ -n "$SCRAPER_HEADFUL" ]; then
+            xvfb-run -a python pipeline/update.py --dry-run --debug-dir scraper-debug
+          else
+            python pipeline/update.py --dry-run --debug-dir scraper-debug
+          fi
 
       - name: Upload debug artifacts
         if: always()
