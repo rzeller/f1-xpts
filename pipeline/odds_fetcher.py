@@ -661,6 +661,33 @@ def _resolve_headless(headed: bool) -> bool:
     return True
 
 
+# Resource types we don't need for reading odds tables. Blocking them cuts
+# proxy bandwidth and load time by a large factor without touching the odds
+# markup or Cloudflare's JS challenge (documents, scripts and XHR still load).
+_BLOCKED_RESOURCE_TYPES = {"image", "media", "font"}
+
+
+def _block_heavy_resources(route) -> None:
+    """Playwright route handler: abort image/media/font requests, allow the rest."""
+    try:
+        if route.request.resource_type in _BLOCKED_RESOURCE_TYPES:
+            route.abort()
+            return
+    except Exception:
+        pass
+    try:
+        route.continue_()
+    except Exception:
+        pass
+
+
+def _should_block_resources() -> bool:
+    """Block heavy resources unless SCRAPER_LOAD_IMAGES is set (escape hatch in
+    case a future Cloudflare check ever expects image/font loads)."""
+    env = os.environ.get("SCRAPER_LOAD_IMAGES", "").strip().lower()
+    return env in ("", "0", "false", "no")
+
+
 def _proxy_from_env() -> Optional[dict]:
     """Build a Playwright proxy config from env vars, or None if unset.
 
@@ -745,11 +772,19 @@ class _ScraperBrowser:
     def _strategies(self):
         return [self._persistent_chrome, self._persistent_chromium, self._plain_launch]
 
+    def _register(self, ctx):
+        """Track the context for cleanup and apply resource blocking."""
+        if _should_block_resources():
+            try:
+                ctx.route("**/*", _block_heavy_resources)
+            except Exception as e:
+                print(f"  resource blocking unavailable: {e}")
+        self._contexts.append(ctx)
+        return ctx
+
     def new_context(self):
         if self._strategy is not None:
-            ctx = self._strategy()
-            self._contexts.append(ctx)
-            return ctx
+            return self._register(self._strategy())
         last_err = None
         for strat in self._strategies():
             try:
@@ -759,9 +794,8 @@ class _ScraperBrowser:
                 print(f"  launch strategy {strat.__name__} unavailable: {e}")
                 continue
             self._strategy = strat
-            self._contexts.append(ctx)
             print(f"  browser: {strat.__name__} (headless={self._headless})")
-            return ctx
+            return self._register(ctx)
         raise RuntimeError(f"Could not launch any browser context: {last_err}")
 
     def close_context(self, ctx):
