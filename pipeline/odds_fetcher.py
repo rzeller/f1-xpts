@@ -362,6 +362,56 @@ def _looks_like_challenge(page) -> bool:
     return any(m in text for m in _CHALLENGE_MARKERS)
 
 
+# Markers of an OUTRIGHT block (IP/ASN reputation, rate limit) as opposed to a
+# solvable JS/managed challenge. If we see these, no browser-side tweak from
+# this egress IP will help — only a different IP (proxy / self-hosted runner)
+# or the manual-odds fallback will.
+_HARD_BLOCK_MARKERS = (
+    "you have been blocked",
+    "sorry, you have been blocked",
+    "access denied",
+    "error 1006",
+    "error 1007",
+    "error 1008",
+    "error 1009",
+    "error 1010",
+    "error 1015",
+)
+
+
+def _block_details(resp, page) -> str:
+    """One-line diagnostic classifying a Cloudflare block: CHALLENGE (solvable,
+    JS/managed) vs HARD_BLOCK (IP/ASN reputation — no browser fix helps) vs
+    UNKNOWN, plus the cf-ray / cf-mitigated / server headers and a body snippet.
+    """
+    ray = mitigated = server = "?"
+    try:
+        h = resp.headers if resp is not None else {}
+        ray = h.get("cf-ray", "?")
+        mitigated = h.get("cf-mitigated", "?")
+        server = h.get("server", "?")
+    except Exception:
+        pass
+    try:
+        title = (page.title() or "").strip()
+    except Exception:
+        title = ""
+    try:
+        text = page.evaluate("() => (document.body && document.body.innerText) || ''") or ""
+    except Exception:
+        text = ""
+    low = (title + " " + text).lower()
+    if any(m in low for m in _HARD_BLOCK_MARKERS):
+        kind = "HARD_BLOCK"
+    elif any(m in low for m in _CHALLENGE_MARKERS):
+        kind = "CHALLENGE"
+    else:
+        kind = "UNKNOWN"
+    snippet = " ".join(text.split())[:220]
+    return (f"kind={kind} cf-ray={ray} cf-mitigated={mitigated} server={server} "
+            f"title={title!r} body={snippet!r}")
+
+
 def _slug_tail(url: str) -> str:
     """Last path segment of a URL, for use in debug-dump filenames."""
     return url.rstrip("/").rsplit("/", 1)[-1] or "page"
@@ -373,7 +423,7 @@ def _scrape_market_page(
     expected_heading: str,
     referer: Optional[str] = None,
     debug_dir: Optional[str] = None,
-    max_attempts: int = 3,
+    max_attempts: int = 2,
 ) -> Tuple[Dict[str, float], bool]:
     """
     Visit an Oddschecker market page and extract { driver_name: american_odds }.
@@ -408,9 +458,11 @@ def _scrape_market_page(
         status = resp.status if resp is not None else 0
         if status in (403, 429) or _looks_like_challenge(page):
             print(f"    SCRAPER_BLOCKED status={status} url={url}")
+            if attempt == 1:
+                print(f"    block-detail: {_block_details(resp, page)}")
             _dump_debug(page, debug_dir, f"blocked_{status}_{_slug_tail(url)}")
             if attempt < max_attempts:
-                backoff = 5.0 * attempt + random.uniform(0.0, 3.0)
+                backoff = 3.0 * attempt + random.uniform(0.0, 2.0)
                 print(f"    blocked — backing off {backoff:.1f}s "
                       f"(attempt {attempt}/{max_attempts})")
                 time.sleep(backoff)
@@ -702,17 +754,28 @@ class _ScraperBrowser:
             shutil.rmtree(d, ignore_errors=True)
 
 
-def _warm_up(page, hub_url: str) -> None:
+def _warm_up(page, hub_url: str) -> bool:
     """Visit the event hub first so Cloudflare grants clearance cookies in a
-    low-suspicion context before we request deep market URLs."""
+    low-suspicion context before we request deep market URLs.
+
+    Doubles as a reachability probe: returns True if the hub itself is blocked.
+    When the hub is blocked there's no point hammering every market/slug for
+    that event, so the caller short-circuits.
+    """
     print(f"  warm-up: {hub_url}")
     try:
-        page.goto(hub_url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+        resp = page.goto(hub_url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
     except Exception as e:
         print(f"    warm-up nav failed: {e}")
-        return
+        return False  # unknown; let the markets try
+    status = resp.status if resp is not None else 0
+    if status in (403, 429) or _looks_like_challenge(page):
+        print(f"    SCRAPER_BLOCKED status={status} url={hub_url} (warm-up)")
+        print(f"    block-detail: {_block_details(resp, page)}")
+        return True
     _dismiss_overlays(page)
     time.sleep(random.uniform(WARMUP_DWELL_MIN_S, WARMUP_DWELL_MAX_S))
+    return False
 
 
 def _scrape_event_markets(
@@ -741,8 +804,25 @@ def _scrape_event_markets(
     context = browser.new_context()
     page = context.new_page()
     page.set_default_timeout(PAGE_TIMEOUT_MS)
-    _warm_up(page, base_url)
     rotated = False
+
+    # Warm-up doubles as a reachability probe. If the hub is blocked, rotate the
+    # context once and re-probe; if it's still blocked, the whole egress IP is
+    # being refused — skip this event's markets rather than burning minutes on
+    # ~10 URLs that will all 403.
+    if _warm_up(page, base_url):
+        print("  hub blocked at warm-up — rotating context once...")
+        browser.close_context(context)
+        context = browser.new_context()
+        page = context.new_page()
+        page.set_default_timeout(PAGE_TIMEOUT_MS)
+        time.sleep(random.uniform(PACE_MIN_S, PACE_MAX_S))
+        rotated = True  # the one rotation is spent
+        if _warm_up(page, base_url):
+            print(f"  {event_label}: hub still blocked after rotation — "
+                  f"skipping all markets (egress IP appears blocked)")
+            return out
+
     first_nav = True
 
     for market_key, slugs in MARKET_URL_CANDIDATES.items():
