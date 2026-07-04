@@ -29,6 +29,12 @@ jobs:
       - name: Run scraper dry run
         env:
           SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
+          # Remote CDP unblocker (Bright Data Scraping Browser / Browserless /
+          # ZenRows, etc.). When set, the scraper connects to this browser
+          # instead of launching locally, and the service solves Cloudflare +
+          # egresses from a clean IP. This is the CI path — raw residential
+          # proxies are hard-blocked by Oddschecker's Cloudflare.
+          SCRAPER_BROWSER_CDP_URL: ${{ secrets.SCRAPER_BROWSER_CDP_URL }}
           SCRAPER_PROXY_SERVER: ${{ secrets.SCRAPER_PROXY_SERVER }}
           SCRAPER_PROXY_USERNAME: ${{ secrets.SCRAPER_PROXY_USERNAME }}
           SCRAPER_PROXY_PASSWORD: ${{ secrets.SCRAPER_PROXY_PASSWORD }}

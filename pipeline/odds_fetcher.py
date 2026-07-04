@@ -33,6 +33,16 @@ Anti-bot (Cloudflare):
   referer. It prefers real Chrome via patchright (a stealth playwright drop-in).
   If a market is hard-blocked (403/challenge) it rotates to a fresh context once
   and retries. See _scrape_event_markets / _ScraperBrowser.
+
+  Egress IP is the real lever, not fingerprint. Oddschecker HARD_BLOCKs both
+  GitHub's datacenter IPs and raw residential-proxy pools (verified: DataImpulse
+  US + EU exits all returned kind=HARD_BLOCK before any page loaded). A
+  HARD_BLOCK precedes rendering, so no browser-side technique fixes it. For CI,
+  set SCRAPER_BROWSER_CDP_URL to a managed unblocker's CDP endpoint (Bright Data
+  Scraping Browser / Browserless / ZenRows, etc.): the scraper connects to that
+  remote browser, which solves Cloudflare and egresses from a clean IP, and all
+  the logic above runs unchanged over CDP. The legacy SCRAPER_PROXY_* path is
+  kept for local/self-hosted runs and ignored when CDP is set.
 """
 
 import json
@@ -97,6 +107,9 @@ MARKET_HEADING_TEXT: Dict[str, str] = {
 # Default page nav timeout (ms). Oddschecker is heavy; give it room.
 PAGE_TIMEOUT_MS = 45000
 NAV_WAIT_MS = 15000
+# Timeout for connecting to a remote CDP scraping browser (ms). Provisioning a
+# fresh remote browser + solving Cloudflare can take a while, so be generous.
+CDP_CONNECT_TIMEOUT_MS = 120000
 
 # Human-like pacing between market navigations (seconds). Oddschecker sits
 # behind Cloudflare bot management; back-to-back requests from a datacenter IP
@@ -715,13 +728,28 @@ def _proxy_from_env() -> Optional[dict]:
 class _ScraperBrowser:
     """Owns the Playwright browser/context lifecycle for one scrape run.
 
-    Prefers a persistent real-Chrome context (most human-like, best against
-    Cloudflare bot management), degrading to a persistent bundled-Chromium
-    context, then to a plainly-launched browser — so it still runs where Chrome
-    isn't installed. The first strategy that launches is pinned for the rest of
-    the run. `new_context()` hands out a fresh context (used both for the normal
-    per-event context and the one-time rotate-after-block recovery); `close()`
-    tears everything down, including temp profile dirs.
+    Two transports, chosen by env:
+
+    - **Remote CDP scraping browser** (SCRAPER_BROWSER_CDP_URL set): connect over
+      CDP to a managed unblocker's browser (Bright Data Scraping Browser,
+      Browserless, ZenRows, etc.). That service egresses from a clean residential
+      IP and transparently solves Cloudflare, so all the navigation, warm-up and
+      selector logic downstream runs unchanged. This is the CI path — Oddschecker
+      hard-blocks both GitHub's datacenter IPs and raw residential-proxy pools
+      (confirmed HARD_BLOCK across US + EU DataImpulse exits), which no
+      browser-side technique can fix; the unblocker's IP reputation is the lever.
+      When CDP is set the local proxy env is ignored (the remote browser owns
+      egress).
+
+    - **Local browser** (no CDP URL): prefer a persistent real-Chrome context
+      (most human-like), degrading to persistent bundled-Chromium, then a plain
+      launch — so it still runs where Chrome isn't installed. Routes through
+      SCRAPER_PROXY_* if configured. Fine for local runs; blocked from CI.
+
+    The first strategy that works is pinned for the rest of the run.
+    `new_context()` hands out a fresh context (used both for the normal per-event
+    context and the one-time rotate-after-block recovery); `close()` tears
+    everything down, including temp profile dirs.
 
     Per patchright's guidance we do NOT set a custom user-agent, custom headers,
     or a fixed viewport — letting real Chrome present its native, coherent
@@ -735,8 +763,15 @@ class _ScraperBrowser:
         self._contexts = []
         self._browser = None
         self._profile_dirs = []
-        self._proxy = _proxy_from_env()
-        if self._proxy:
+        self._cdp_url = os.environ.get("SCRAPER_BROWSER_CDP_URL", "").strip() or None
+        # CDP and a local proxy are mutually exclusive: the remote scraping
+        # browser owns its own (clean) egress, so a local proxy would be ignored
+        # at best and conflicting at worst.
+        self._proxy = None if self._cdp_url else _proxy_from_env()
+        if self._cdp_url:
+            print("  browser transport: remote CDP scraping browser "
+                  "(unblocker handles Cloudflare + egress)")
+        elif self._proxy:
             print(f"  proxy: routing through {self._proxy['server']}"
                   f"{' (authenticated)' if 'username' in self._proxy else ''}")
 
@@ -769,7 +804,30 @@ class _ScraperBrowser:
             self._browser = self._p.chromium.launch(**launch_kwargs)
         return self._browser.new_context(locale="en-US")
 
+    def _cdp_connect(self):
+        """Connect to a remote unblocker's browser over CDP and hand out a context.
+
+        The remote service handles Cloudflare and egresses from a clean IP, so
+        the rest of the pipeline is transport-agnostic. We try new_context()
+        (isolated context, needed for the rotate-after-block recovery); some
+        scraping browsers expose only a single default context, so we fall back
+        to that.
+        """
+        if self._browser is None:
+            self._browser = self._p.chromium.connect_over_cdp(
+                self._cdp_url, timeout=CDP_CONNECT_TIMEOUT_MS
+            )
+        try:
+            return self._browser.new_context(locale="en-US")
+        except Exception:
+            contexts = self._browser.contexts
+            if contexts:
+                return contexts[0]
+            raise
+
     def _strategies(self):
+        if self._cdp_url:
+            return [self._cdp_connect]
         return [self._persistent_chrome, self._persistent_chromium, self._plain_launch]
 
     def _register(self, ctx):

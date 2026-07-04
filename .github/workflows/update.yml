@@ -167,11 +167,16 @@ jobs:
           # Set repo variable SCRAPER_HEADFUL=1 to run a headful browser under
           # xvfb (stronger anti-bot posture) without a code change.
           SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
-          # Oddschecker firewall-blocks GitHub's datacenter IPs, so the scrape
-          # must egress through a residential/mobile proxy. Configure these as
-          # repository secrets (Settings → Secrets and variables → Actions).
-          # If SCRAPER_PROXY_SERVER is unset the scraper runs direct (and will
-          # be blocked from CI) — that's fine for local/self-hosted runs.
+          # Oddschecker hard-blocks GitHub's datacenter IPs AND raw
+          # residential-proxy pools via Cloudflare, so the scrape egresses
+          # through a managed CDP unblocker (Bright Data Scraping Browser /
+          # Browserless / ZenRows, etc.). Set SCRAPER_BROWSER_CDP_URL to its
+          # CDP websocket endpoint. Configure as a repository secret
+          # (Settings → Secrets and variables → Actions).
+          SCRAPER_BROWSER_CDP_URL: ${{ secrets.SCRAPER_BROWSER_CDP_URL }}
+          # Legacy raw-proxy path (kept for local/self-hosted runs). Ignored
+          # when SCRAPER_BROWSER_CDP_URL is set. If both are unset the scraper
+          # runs direct (blocked from CI).
           SCRAPER_PROXY_SERVER: ${{ secrets.SCRAPER_PROXY_SERVER }}
           SCRAPER_PROXY_USERNAME: ${{ secrets.SCRAPER_PROXY_USERNAME }}
           SCRAPER_PROXY_PASSWORD: ${{ secrets.SCRAPER_PROXY_PASSWORD }}
