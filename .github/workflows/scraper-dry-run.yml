@@ -53,3 +53,81 @@ jobs:
           path: scraper-debug/
           if-no-files-found: ignore
           retention-days: 7
+
+  # Throwaway probe: can Firecrawl fetch one Oddschecker market page past
+  # Cloudflare (and without a gambling-domain policy block)? If this succeeds,
+  # we wire Firecrawl in as a fetch backend. Remove this job once decided.
+  firecrawl-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe Oddschecker via Firecrawl
+        env:
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+        run: |
+          python3 - <<'PYEOF'
+          import os, json, sys, urllib.request, urllib.error
+
+          key = os.environ.get("FIRECRAWL_API_KEY", "").strip()
+          if not key:
+              print("NO_KEY: the FIRECRAWL_API_KEY secret is empty — check the secret name")
+              sys.exit(1)
+          print(f"key present (len={len(key)}, prefix={key[:3]}…)")
+
+          URL = "https://www.oddschecker.com/us/motorsport/formula-one/british-grand-prix/winner"
+          DRIVERS = ["Verstappen", "Norris", "Piastri", "Leclerc",
+                     "Hamilton", "Russell", "Alonso", "Sainz"]
+          BLOCK_MARKERS = ["you have been blocked", "attention required",
+                           "just a moment", "enable javascript and cookies"]
+
+          def scrape(endpoint, proxy):
+              body = json.dumps({
+                  "url": URL,
+                  "formats": ["markdown", "html"],
+                  "proxy": proxy,
+                  "onlyMainContent": False,
+              }).encode()
+              req = urllib.request.Request(
+                  endpoint, data=body, method="POST",
+                  headers={"Authorization": f"Bearer {key}",
+                           "Content-Type": "application/json"})
+              try:
+                  with urllib.request.urlopen(req, timeout=200) as r:
+                      return r.status, r.read().decode("utf-8", "replace")
+              except urllib.error.HTTPError as e:
+                  return e.code, e.read().decode("utf-8", "replace")
+              except Exception as e:
+                  return None, repr(e)
+
+          ok = False
+          for endpoint in ("https://api.firecrawl.dev/v2/scrape",
+                           "https://api.firecrawl.dev/v1/scrape"):
+              for proxy in ("stealth", "auto"):
+                  print(f"\n=== POST {endpoint}  proxy={proxy} ===")
+                  status, text = scrape(endpoint, proxy)
+                  print("HTTP", status)
+                  if status is None:
+                      print("  transport error:", text[:300]); continue
+                  try:
+                      data = json.loads(text)
+                  except Exception:
+                      print("  non-JSON response:", text[:300]); continue
+                  if status >= 400:
+                      print("  API error:", json.dumps(data)[:500]); continue
+                  d = data.get("data", data)
+                  content = (d.get("markdown") or "") + "\n" + (d.get("html") or "")
+                  hits = [n for n in DRIVERS if n.lower() in content.lower()]
+                  blocked = any(m in content.lower() for m in BLOCK_MARKERS)
+                  print(f"  content length: {len(content)}")
+                  print(f"  driver names found ({len(hits)}): {hits}")
+                  print(f"  looks Cloudflare-blocked: {blocked}")
+                  print("  snippet:", " ".join(content[:400].split()))
+                  if len(hits) >= 5 and not blocked:
+                      print("  >>> odds content present")
+                      ok = True
+
+          print("\n============================================================")
+          print("RESULT:", "SUCCESS — Firecrawl retrieved the odds table"
+                if ok else "FAILED — no usable market content retrieved")
+          print("============================================================")
+          sys.exit(0 if ok else 2)
+          PYEOF
