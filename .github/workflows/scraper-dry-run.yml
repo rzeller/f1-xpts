@@ -74,20 +74,23 @@ jobs:
           print(f"key present (len={len(key)}, prefix={key[:3]}…)")
 
           URL = "https://www.oddschecker.com/us/motorsport/formula-one/british-grand-prix/winner"
-          DRIVERS = ["Verstappen", "Norris", "Piastri", "Leclerc",
-                     "Hamilton", "Russell", "Alonso", "Sainz"]
+          # Full 2026 grid surnames — counting how many appear tells us whether
+          # the winner grid came back expanded (all 22) or collapsed (~6 favs).
+          DRIVERS = ["Russell", "Antonelli", "Leclerc", "Hamilton", "Verstappen",
+                     "Lawson", "Norris", "Piastri", "Alonso", "Stroll", "Gasly",
+                     "Colapinto", "Albon", "Sainz", "Tsunoda", "Hadjar", "Bearman",
+                     "Ocon", "Hulkenberg", "Bortoleto", "Perez", "Bottas"]
           BLOCK_MARKERS = ["you have been blocked", "attention required",
                            "just a moment", "enable javascript and cookies"]
+          ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
 
-          def scrape(endpoint, proxy):
-              body = json.dumps({
-                  "url": URL,
-                  "formats": ["markdown", "html"],
-                  "proxy": proxy,
-                  "onlyMainContent": False,
-              }).encode()
+          def scrape(actions=None):
+              payload = {"url": URL, "formats": ["html"],
+                         "proxy": "auto", "onlyMainContent": False}
+              if actions:
+                  payload["actions"] = actions
               req = urllib.request.Request(
-                  endpoint, data=body, method="POST",
+                  ENDPOINT, data=json.dumps(payload).encode(), method="POST",
                   headers={"Authorization": f"Bearer {key}",
                            "Content-Type": "application/json"})
               try:
@@ -98,36 +101,45 @@ jobs:
               except Exception as e:
                   return None, repr(e)
 
-          ok = False
-          for endpoint in ("https://api.firecrawl.dev/v2/scrape",
-                           "https://api.firecrawl.dev/v1/scrape"):
-              for proxy in ("stealth", "auto"):
-                  print(f"\n=== POST {endpoint}  proxy={proxy} ===")
-                  status, text = scrape(endpoint, proxy)
-                  print("HTTP", status)
-                  if status is None:
-                      print("  transport error:", text[:300]); continue
-                  try:
-                      data = json.loads(text)
-                  except Exception:
-                      print("  non-JSON response:", text[:300]); continue
-                  if status >= 400:
-                      print("  API error:", json.dumps(data)[:500]); continue
-                  d = data.get("data", data)
-                  content = (d.get("markdown") or "") + "\n" + (d.get("html") or "")
-                  hits = [n for n in DRIVERS if n.lower() in content.lower()]
-                  blocked = any(m in content.lower() for m in BLOCK_MARKERS)
-                  print(f"  content length: {len(content)}")
-                  print(f"  driver names found ({len(hits)}): {hits}")
-                  print(f"  looks Cloudflare-blocked: {blocked}")
-                  print("  snippet:", " ".join(content[:400].split()))
-                  if len(hits) >= 5 and not blocked:
-                      print("  >>> odds content present")
-                      ok = True
+          def analyze(label, status, text):
+              print(f"\n=== {label} ===")
+              print("HTTP", status)
+              if status is None:
+                  print("  transport error:", text[:300]); return 0
+              try:
+                  data = json.loads(text)
+              except Exception:
+                  print("  non-JSON:", text[:300]); return 0
+              if status >= 400:
+                  print("  API error:", json.dumps(data)[:600]); return 0
+              d = data.get("data", data)
+              html = d.get("html") or ""
+              low = html.lower()
+              found = [n for n in DRIVERS if n.lower() in low]
+              print(f"  html length: {len(html)}")
+              print(f"  market-bet rows in html: {low.count('data-testid=\"market-bet\"')}")
+              print(f"  show-more buttons in html: {low.count('show-more-less')}")
+              print(f"  distinct grid drivers found ({len(found)}/22): {found}")
+              print(f"  looks blocked: {any(m in low for m in BLOCK_MARKERS)}")
+              return len(found)
+
+          # 1) Plain fetch (static snapshot — likely collapsed to ~6 rows).
+          plain = analyze("PLAIN fetch", *scrape())
+
+          # 2) Fetch with a pre-capture action: click every "show more" to expand
+          #    the lazy-loaded rows, then wait for them to render.
+          actions = [
+              {"type": "click", "selector": "[data-testid=\"show-more-less\"]", "all": True},
+              {"type": "wait", "milliseconds": 2500},
+          ]
+          expanded = analyze("EXPANDED fetch (click show-more, all)", *scrape(actions))
 
           print("\n============================================================")
-          print("RESULT:", "SUCCESS — Firecrawl retrieved the odds table"
-                if ok else "FAILED — no usable market content retrieved")
+          print(f"plain={plain}/22 drivers   expanded={expanded}/22 drivers")
+          # Success = the expanded fetch recovers most/all of the 22-driver grid.
+          ok = expanded >= 18
+          print("RESULT:", "SUCCESS — Firecrawl actions expand the full grid"
+                if ok else "NEEDS WORK — expansion did not yield the full grid")
           print("============================================================")
           sys.exit(0 if ok else 2)
           PYEOF
