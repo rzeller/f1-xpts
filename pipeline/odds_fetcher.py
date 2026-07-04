@@ -661,6 +661,30 @@ def _resolve_headless(headed: bool) -> bool:
     return True
 
 
+def _proxy_from_env() -> Optional[dict]:
+    """Build a Playwright proxy config from env vars, or None if unset.
+
+    Oddschecker firewall-blocks datacenter IP ranges (GitHub Actions), so to
+    scrape from CI we route the browser through a residential/mobile proxy.
+    Configure via repository secrets:
+      SCRAPER_PROXY_SERVER   e.g. "http://gate.example.com:7000" or "socks5://host:port"
+      SCRAPER_PROXY_USERNAME (optional; residential providers often encode the
+                              session/country/sticky-IP here)
+      SCRAPER_PROXY_PASSWORD (optional)
+    Only SCRAPER_PROXY_SERVER is required to enable the proxy.
+    """
+    server = os.environ.get("SCRAPER_PROXY_SERVER", "").strip()
+    if not server:
+        return None
+    proxy = {"server": server}
+    user = os.environ.get("SCRAPER_PROXY_USERNAME", "").strip()
+    pwd = os.environ.get("SCRAPER_PROXY_PASSWORD", "")
+    if user:
+        proxy["username"] = user
+        proxy["password"] = pwd
+    return proxy
+
+
 class _ScraperBrowser:
     """Owns the Playwright browser/context lifecycle for one scrape run.
 
@@ -684,6 +708,10 @@ class _ScraperBrowser:
         self._contexts = []
         self._browser = None
         self._profile_dirs = []
+        self._proxy = _proxy_from_env()
+        if self._proxy:
+            print(f"  proxy: routing through {self._proxy['server']}"
+                  f"{' (authenticated)' if 'username' in self._proxy else ''}")
 
     def _persistent(self, channel):
         profile = tempfile.mkdtemp(prefix="oc-profile-")
@@ -696,6 +724,8 @@ class _ScraperBrowser:
         )
         if channel:
             kwargs["channel"] = channel
+        if self._proxy:
+            kwargs["proxy"] = self._proxy
         return self._p.chromium.launch_persistent_context(**kwargs)
 
     def _persistent_chrome(self):
@@ -706,7 +736,10 @@ class _ScraperBrowser:
 
     def _plain_launch(self):
         if self._browser is None:
-            self._browser = self._p.chromium.launch(headless=self._headless)
+            launch_kwargs = {"headless": self._headless}
+            if self._proxy:
+                launch_kwargs["proxy"] = self._proxy
+            self._browser = self._p.chromium.launch(**launch_kwargs)
         return self._browser.new_context(locale="en-US")
 
     def _strategies(self):

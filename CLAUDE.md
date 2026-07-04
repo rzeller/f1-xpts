@@ -319,6 +319,19 @@ git push -u origin main
 - **Odds parsing**: handles fractional (`5/2`), decimal (`3.50`), and `EVS`/`EVENS`/`1/1`. Internally everything is converted to American odds before devigging.
 - **If a market is missing**: supplement or override with manual JSON from `public/data/odds_input/`. The pipeline merges both sources (manual overrides scraped per-market).
 
+### Anti-bot / Cloudflare (required for CI)
+
+Oddschecker sits behind Cloudflare bot management and **firewall-blocks datacenter IP ranges** — including GitHub Actions runners (a direct scrape from CI returns Cloudflare's "Sorry, you have been blocked" WAF page on every request, `kind=HARD_BLOCK`). Browser stealth alone cannot fix an IP-reputation block, so the scrape must egress through a **residential/mobile proxy**.
+
+- **Proxy config (env vars, wired to repository secrets in both workflows):**
+  - `SCRAPER_PROXY_SERVER` — e.g. `http://gate.provider.com:7000` or `socks5://host:port` (required to enable the proxy).
+  - `SCRAPER_PROXY_USERNAME` / `SCRAPER_PROXY_PASSWORD` — optional; residential providers often encode session/country/sticky-IP in the username.
+  - Set these under **Settings → Secrets and variables → Actions**. If `SCRAPER_PROXY_SERVER` is unset the scraper connects directly (fine for local or a self-hosted residential runner; blocked from GitHub-hosted runners).
+- **Engine**: `patchright` (a stealth Playwright drop-in) driving real Chrome via a persistent context; falls back to bundled Chromium, then plain Playwright. Install with `python -m patchright install --with-deps chromium` (Chrome itself is preinstalled on `ubuntu-latest`).
+- **Session handling**: one browser context is warmed on the event hub page and reused across all of that event's markets (keeps Cloudflare clearance cookies), with randomized 3–8s pacing and a referer. `win` is scraped first. On a block the context rotates once; if the hub itself is blocked the event's markets are skipped fast.
+- **Diagnostics**: blocks log a `SCRAPER_BLOCKED` line plus a `block-detail:` line classifying `CHALLENGE` (solvable) vs `HARD_BLOCK` (IP reputation) with `cf-ray`/`server`/title/body. HTML+screenshot dumps go to `SCRAPER_DEBUG_DIR` and are uploaded as the `scraper-debug` CI artifact. `SCRAPER_HEADFUL=1` (repo variable) runs headful under xvfb.
+- **Fallback**: if the scrape yields nothing, the manual JSON in `public/data/odds_input/` is still used.
+
 ## Key Technical Notes
 
 - **The PL optimizer uses Monte Carlo simulation inside the objective function.** This means each optimizer evaluation runs ~20K race simulations. It's stochastic, so we use different random seeds per eval to smooth the loss surface. Total fitting takes ~100-200 evaluations × 20K sims = 2-4M simulated races.
