@@ -73,19 +73,18 @@ jobs:
               sys.exit(1)
           print(f"key present (len={len(key)}, prefix={key[:3]}…)")
 
+          import re
           URL = "https://www.oddschecker.com/us/motorsport/formula-one/british-grand-prix/winner"
           # Full 2026 grid surnames — counting how many appear tells us whether
-          # the winner grid came back expanded (all 22) or collapsed (~6 favs).
+          # we recovered the whole winner grid (all 22) or just the ~6 favs.
           DRIVERS = ["Russell", "Antonelli", "Leclerc", "Hamilton", "Verstappen",
                      "Lawson", "Norris", "Piastri", "Alonso", "Stroll", "Gasly",
                      "Colapinto", "Albon", "Sainz", "Tsunoda", "Hadjar", "Bearman",
                      "Ocon", "Hulkenberg", "Bortoleto", "Perez", "Bottas"]
-          BLOCK_MARKERS = ["you have been blocked", "attention required",
-                           "just a moment", "enable javascript and cookies"]
           ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
 
-          def scrape(actions=None):
-              payload = {"url": URL, "formats": ["html"],
+          def scrape(formats, actions=None):
+              payload = {"url": URL, "formats": formats,
                          "proxy": "auto", "onlyMainContent": False}
               if actions:
                   payload["actions"] = actions
@@ -94,52 +93,69 @@ jobs:
                   headers={"Authorization": f"Bearer {key}",
                            "Content-Type": "application/json"})
               try:
-                  with urllib.request.urlopen(req, timeout=200) as r:
+                  with urllib.request.urlopen(req, timeout=220) as r:
                       return r.status, r.read().decode("utf-8", "replace")
               except urllib.error.HTTPError as e:
                   return e.code, e.read().decode("utf-8", "replace")
               except Exception as e:
                   return None, repr(e)
 
-          def analyze(label, status, text):
-              print(f"\n=== {label} ===")
-              print("HTTP", status)
+          def body(status, text):
               if status is None:
-                  print("  transport error:", text[:300]); return 0
+                  print("  transport error:", text[:300]); return {}
               try:
                   data = json.loads(text)
               except Exception:
-                  print("  non-JSON:", text[:300]); return 0
+                  print("  non-JSON:", text[:300]); return {}
               if status >= 400:
-                  print("  API error:", json.dumps(data)[:600]); return 0
-              d = data.get("data", data)
-              html = d.get("html") or ""
+                  print("  API error:", json.dumps(data)[:600]); return {}
+              return data.get("data", data)
+
+          def rows_and_drivers(tag, html):
               low = html.lower()
               found = [n for n in DRIVERS if n.lower() in low]
-              print(f"  html length: {len(html)}")
-              print(f"  market-bet rows in html: {low.count('data-testid=\"market-bet\"')}")
-              print(f"  show-more buttons in html: {low.count('show-more-less')}")
-              print(f"  distinct grid drivers found ({len(found)}/22): {found}")
-              print(f"  looks blocked: {any(m in low for m in BLOCK_MARKERS)}")
+              print(f"  [{tag}] len={len(html)} "
+                    f"market-bet={low.count('data-testid=\"market-bet\"')} "
+                    f"show-more={low.count('show-more-less')} "
+                    f"drivers={len(found)}/22")
               return len(found)
 
-          # 1) Plain fetch (static snapshot — likely collapsed to ~6 rows).
-          plain = analyze("PLAIN fetch", *scrape())
+          # --- Route A: embedded JSON in rawHtml (best case — all markets at once)
+          print("=== Route A: embedded JSON (rawHtml) ===")
+          d = body(*scrape(["rawHtml"]))
+          raw = d.get("rawHtml") or ""
+          print(f"  rawHtml length: {len(raw)}")
+          scripts = re.findall(r"<script[^>]*>(.*?)</script>", raw, re.S)
+          print(f"  <script> blocks: {len(scripts)}")
+          cand = sorted(scripts, key=len, reverse=True)[:6]
+          json_win = 0
+          for i, s in enumerate(cand):
+              sl = s.lower()
+              dc = sum(1 for n in DRIVERS if n.lower() in sl)
+              has_next = "__next_data__" in sl or "\"odds\"" in sl or "fractional" in sl or "decimal" in sl
+              print(f"  script#{i}: len={len(s)} drivers={dc}/22 odds_markers={has_next}")
+              json_win = max(json_win, dc)
+          nd = re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', raw, re.S)
+          print(f"  __NEXT_DATA__ present: {bool(nd)}"
+                + (f" (len={len(nd.group(1))})" if nd else ""))
 
-          # 2) Fetch with a pre-capture action: click every "show more" to expand
-          #    the lazy-loaded rows, then wait for them to render.
+          # --- Route B: force expansion via executeJavascript + scroll, read html
+          print("\n=== Route B: executeJavascript expand ===")
           actions = [
-              {"type": "click", "selector": "[data-testid=\"show-more-less\"]", "all": True},
-              {"type": "wait", "milliseconds": 2500},
+              {"type": "scroll", "direction": "down"},
+              {"type": "executeJavascript",
+               "script": "document.querySelectorAll('[data-testid=\"show-more-less\"]').forEach(b=>b.click());"},
+              {"type": "wait", "milliseconds": 3500},
           ]
-          expanded = analyze("EXPANDED fetch (click show-more, all)", *scrape(actions))
+          d2 = body(*scrape(["html"], actions))
+          js_win = rows_and_drivers("exec-js", d2.get("html") or "")
 
           print("\n============================================================")
-          print(f"plain={plain}/22 drivers   expanded={expanded}/22 drivers")
-          # Success = the expanded fetch recovers most/all of the 22-driver grid.
-          ok = expanded >= 18
-          print("RESULT:", "SUCCESS — Firecrawl actions expand the full grid"
-                if ok else "NEEDS WORK — expansion did not yield the full grid")
+          print(f"Route A embedded-JSON best: {json_win}/22 drivers in one script")
+          print(f"Route B exec-js expand:     {js_win}/22 drivers in html")
+          ok = json_win >= 18 or js_win >= 18
+          print("RESULT:", "SUCCESS — a full-grid route works"
+                if ok else "NEEDS WORK — neither route recovered the full grid")
           print("============================================================")
           sys.exit(0 if ok else 2)
           PYEOF
