@@ -36,13 +36,22 @@ Anti-bot (Cloudflare):
 
   Egress IP is the real lever, not fingerprint. Oddschecker HARD_BLOCKs both
   GitHub's datacenter IPs and raw residential-proxy pools (verified: DataImpulse
-  US + EU exits all returned kind=HARD_BLOCK before any page loaded). A
-  HARD_BLOCK precedes rendering, so no browser-side technique fixes it. For CI,
-  set SCRAPER_BROWSER_CDP_URL to a managed unblocker's CDP endpoint (Bright Data
-  Scraping Browser / Browserless / ZenRows, etc.): the scraper connects to that
-  remote browser, which solves Cloudflare and egresses from a clean IP, and all
-  the logic above runs unchanged over CDP. The legacy SCRAPER_PROXY_* path is
-  kept for local/self-hosted runs and ignored when CDP is set.
+  US + EU exits all returned kind=HARD_BLOCK before any page loaded), and the
+  compliance-heavy unblockers (Bright Data) policy-block gambling domains. A
+  HARD_BLOCK precedes rendering, so no browser-side technique fixes it.
+
+  Fetch backends, in precedence order:
+    1. Firecrawl (FIRECRAWL_API_KEY) — PRIMARY CI PATH. A managed scrape API
+       whose stealth/auto proxy clears Cloudflare and doesn't block gambling
+       domains. We fetch each market page via Firecrawl (expanding the lazy
+       "show more" rows with an executeJavascript action), load the returned
+       HTML into a local page with set_content, and run the shared extractor.
+       See _firecrawl_fetch_html / _scrape_event_markets_firecrawl.
+    2. CDP unblocker (SCRAPER_BROWSER_CDP_URL) — connect over CDP to a managed
+       browser that solves Cloudflare and egresses from a clean IP. Works
+       technically but Bright Data (etc.) refuse gambling domains, so this is a
+       fallback for a permissive provider.
+    3. Raw proxy (SCRAPER_PROXY_*) / direct — local/self-hosted only.
 """
 
 import json
@@ -52,6 +61,8 @@ import re
 import shutil
 import tempfile
 import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from typing import Dict, List, Optional, Tuple
 
@@ -110,6 +121,27 @@ NAV_WAIT_MS = 15000
 # Timeout for connecting to a remote CDP scraping browser (ms). Provisioning a
 # fresh remote browser + solving Cloudflare can take a while, so be generous.
 CDP_CONNECT_TIMEOUT_MS = 120000
+
+# Firecrawl managed-scrape backend. Oddschecker hard-blocks datacenter IPs and
+# raw residential proxies (Cloudflare), and the big compliance-heavy unblockers
+# (Bright Data) policy-block gambling domains. Firecrawl's stealth/auto proxy
+# clears both. When FIRECRAWL_API_KEY is set the scraper fetches each market
+# page through Firecrawl instead of driving a browser at Oddschecker directly.
+FIRECRAWL_ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
+FIRECRAWL_TIMEOUT_S = 220
+FIRECRAWL_MAX_ATTEMPTS = 2
+# Oddschecker collapses each market to ~6 rows behind a "show more" toggle and
+# lazy-loads the rest on click. A plain Firecrawl fetch (or a plain click
+# action) leaves it collapsed; running the click via executeJavascript after a
+# scroll expands every market on the page (verified: 36 → 112 bet rows). We then
+# parse the returned, already-expanded HTML with the shared extractor.
+FIRECRAWL_EXPAND_ACTIONS = [
+    {"type": "scroll", "direction": "down"},
+    {"type": "executeJavascript",
+     "script": "document.querySelectorAll('[data-testid=\"show-more-less\"]')"
+               ".forEach(b => b.click());"},
+    {"type": "wait", "milliseconds": 3500},
+]
 
 # Human-like pacing between market navigations (seconds). Oddschecker sits
 # behind Cloudflare bot management; back-to-back requests from a datacenter IP
@@ -498,8 +530,31 @@ def _scrape_market_page(
         _dump_debug(page, debug_dir, f"redirect_{_slug_tail(url)}")
         return {}, False
 
-    _dismiss_overlays(page)
-    _wait_for_market_bets(page)
+    odds = _extract_market_odds(
+        page, expected_heading, url, debug_dir=debug_dir, interactive=True
+    )
+    return odds, False
+
+
+def _extract_market_odds(
+    page,
+    expected_heading: str,
+    url: str,
+    debug_dir: Optional[str] = None,
+    interactive: bool = True,
+) -> Dict[str, float]:
+    """Extract { driver_name: american_odds } for one market from a loaded page.
+
+    Shared by both fetch backends:
+      - interactive=True (live browser): dismiss overlays, wait for hydration,
+        and click "show more" to expand the lazy-loaded rows.
+      - interactive=False (Firecrawl): the page was filled via set_content from
+        HTML that Firecrawl already expanded with a click-all-show-more action,
+        so we skip all interaction and just read the static DOM.
+    """
+    if interactive:
+        _dismiss_overlays(page)
+        _wait_for_market_bets(page)
 
     # Find the MarketWrapper article whose heading text exactly matches the
     # market we want. Each article wraps one market's heading + AccordionWrapper.
@@ -519,25 +574,26 @@ def _scrape_market_page(
     )
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
-        return {}, False
+        return {}
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
     market_scope = market_article.locator('[class*="AccordionWrapper"]').first
 
-    # Wait for the show-more button to appear inside the right accordion.
-    # When the target article is below the fold, the AccordionWrapper exists
-    # but its show-more button may still be hydrating, and clicking it before
-    # then is a no-op — leading to a stuck 6-row collapsed view.
-    try:
-        market_scope.locator('[data-testid="show-more-less"]').first.wait_for(
-            state="attached", timeout=NAV_WAIT_MS
-        )
-    except Exception:
-        pass
+    if interactive:
+        # Wait for the show-more button to appear inside the right accordion.
+        # When the target article is below the fold, the AccordionWrapper exists
+        # but its show-more button may still be hydrating, and clicking it before
+        # then is a no-op — leading to a stuck 6-row collapsed view.
+        try:
+            market_scope.locator('[data-testid="show-more-less"]').first.wait_for(
+                state="attached", timeout=NAV_WAIT_MS
+            )
+        except Exception:
+            pass
 
-    _expand_show_more(page, market_scope)
-    # The webpush overlay can reappear after async loads.
-    _dismiss_overlays(page)
+        _expand_show_more(page, market_scope)
+        # The webpush overlay can reappear after async loads.
+        _dismiss_overlays(page)
 
     odds: Dict[str, float] = {}
 
@@ -549,7 +605,7 @@ def _scrape_market_page(
     if not rows:
         print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
         _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}")
-        return {}, False
+        return {}
 
     print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
 
@@ -571,7 +627,7 @@ def _scrape_market_page(
     print(f"    extracted {len(odds)} drivers")
     if not odds:
         _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}")
-    return odds, False
+    return odds
 
 
 def _oddschecker_slug(repo_slug: str) -> str:
@@ -725,6 +781,26 @@ def _proxy_from_env() -> Optional[dict]:
     return proxy
 
 
+def _firecrawl_api_key() -> Optional[str]:
+    """Firecrawl API key from env, or None. When set, the Firecrawl fetch
+    backend is used and takes precedence over the CDP/proxy browser paths."""
+    return os.environ.get("FIRECRAWL_API_KEY", "").strip() or None
+
+
+def _block_all_resources(route) -> None:
+    """Abort every network request. Used for the local browser that only parses
+    Firecrawl-returned HTML via set_content: the document is injected directly
+    (not fetched), so we don't want it loading scripts/styles/images that could
+    mutate the static DOM or hang the page."""
+    try:
+        route.abort()
+    except Exception:
+        try:
+            route.continue_()
+        except Exception:
+            pass
+
+
 class _ScraperBrowser:
     """Owns the Playwright browser/context lifecycle for one scrape run.
 
@@ -756,19 +832,26 @@ class _ScraperBrowser:
     fingerprint (the old hardcoded Linux Chrome/124 UA was itself a tell).
     """
 
-    def __init__(self, p, headless: bool):
+    def __init__(self, p, headless: bool, local_only: bool = False):
         self._p = p
         self._headless = headless
         self._strategy = None            # pinned once one works
         self._contexts = []
         self._browser = None
         self._profile_dirs = []
-        self._cdp_url = os.environ.get("SCRAPER_BROWSER_CDP_URL", "").strip() or None
+        # local_only: a plain local browser used ONLY to parse Firecrawl HTML
+        # via set_content. It never touches Oddschecker, so no CDP/proxy egress
+        # and we abort all subresource loads (see _register).
+        self._local_only = local_only
+        self._cdp_url = None if local_only else (
+            os.environ.get("SCRAPER_BROWSER_CDP_URL", "").strip() or None)
         # CDP and a local proxy are mutually exclusive: the remote scraping
         # browser owns its own (clean) egress, so a local proxy would be ignored
         # at best and conflicting at worst.
-        self._proxy = None if self._cdp_url else _proxy_from_env()
-        if self._cdp_url:
+        self._proxy = None if (self._cdp_url or local_only) else _proxy_from_env()
+        if local_only:
+            print("  browser transport: local (parsing Firecrawl-returned HTML)")
+        elif self._cdp_url:
             print("  browser transport: remote CDP scraping browser "
                   "(unblocker handles Cloudflare + egress)")
         elif self._proxy:
@@ -832,7 +915,14 @@ class _ScraperBrowser:
 
     def _register(self, ctx):
         """Track the context for cleanup and apply resource blocking."""
-        if _should_block_resources():
+        if self._local_only:
+            # Parsing static Firecrawl HTML — block every request so injected
+            # scripts/styles/images can't load and mutate the captured DOM.
+            try:
+                ctx.route("**/*", _block_all_resources)
+            except Exception as e:
+                print(f"  resource blocking unavailable: {e}")
+        elif _should_block_resources():
             try:
                 ctx.route("**/*", _block_heavy_resources)
             except Exception as e:
@@ -984,6 +1074,106 @@ def _scrape_event_markets(
     return out
 
 
+def _firecrawl_fetch_html(
+    url: str,
+    api_key: str,
+    debug_dir: Optional[str] = None,
+) -> Optional[str]:
+    """Fetch one Oddschecker market page through Firecrawl, expanded.
+
+    Returns the page HTML (with every market's rows expanded via the
+    click-all-show-more action) or None on error/block. Uses proxy=auto so
+    Firecrawl only escalates to the pricier stealth proxy if the cheap attempt
+    is blocked.
+    """
+    payload = json.dumps({
+        "url": url,
+        "formats": ["html"],
+        "proxy": "auto",
+        "onlyMainContent": False,
+        "actions": FIRECRAWL_EXPAND_ACTIONS,
+    }).encode()
+
+    for attempt in range(1, FIRECRAWL_MAX_ATTEMPTS + 1):
+        req = urllib.request.Request(
+            FIRECRAWL_ENDPOINT, data=payload, method="POST",
+            headers={"Authorization": f"Bearer {api_key}",
+                     "Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(req, timeout=FIRECRAWL_TIMEOUT_S) as resp:
+                body = resp.read().decode("utf-8", "replace")
+            data = json.loads(body)
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", "replace")[:300] if e.fp else ""
+            print(f"    FIRECRAWL_ERROR status={e.code} url={url} {detail}")
+            data = None
+        except Exception as e:
+            print(f"    FIRECRAWL_ERROR url={url} {e!r}")
+            data = None
+
+        if data is not None:
+            html = (data.get("data", data) or {}).get("html") or ""
+            if html:
+                return html
+            print(f"    Firecrawl returned no html for {url}")
+
+        if attempt < FIRECRAWL_MAX_ATTEMPTS:
+            backoff = 3.0 * attempt + random.uniform(0.0, 2.0)
+            print(f"    Firecrawl retry in {backoff:.1f}s "
+                  f"(attempt {attempt}/{FIRECRAWL_MAX_ATTEMPTS})")
+            time.sleep(backoff)
+
+    return None
+
+
+def _scrape_event_markets_firecrawl(
+    browser: "_ScraperBrowser",
+    event_label: str,
+    base_url: str,
+    api_key: str,
+    debug_dir: Optional[str] = None,
+) -> Dict[str, Dict[str, float]]:
+    """Firecrawl variant of _scrape_event_markets.
+
+    For each market/slug, fetch the (expanded) page HTML via Firecrawl, load it
+    into a local page with set_content, and run the shared extractor. No
+    warm-up/pacing/rotation — Firecrawl owns the egress and Cloudflare handling,
+    and an invalid slug simply yields a page with no matching market heading
+    (extractor returns {}), so we fall through to the next candidate.
+    """
+    out: Dict[str, Dict[str, float]] = {}
+    context = browser.new_context()
+    page = context.new_page()
+    page.set_default_timeout(PAGE_TIMEOUT_MS)
+
+    for market_key, slugs in MARKET_URL_CANDIDATES.items():
+        print(f"\nScraping {event_label}/{market_key}...")
+        heading = MARKET_HEADING_TEXT[market_key]
+        for slug in slugs:
+            url = f"{base_url}/{slug}"
+            print(f"  → {url} (via Firecrawl)")
+            html = _firecrawl_fetch_html(url, api_key, debug_dir=debug_dir)
+            if not html:
+                continue
+            try:
+                page.set_content(
+                    html, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS
+                )
+            except Exception as e:
+                print(f"    set_content failed: {e}")
+                continue
+            odds = _extract_market_odds(
+                page, heading, url, debug_dir=debug_dir, interactive=False
+            )
+            if odds:
+                out[market_key] = odds
+                break
+        if market_key not in out:
+            print(f"  {event_label}/{market_key}: no odds found across "
+                  f"{len(slugs)} URL candidate(s)")
+    return out
+
+
 def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, Dict[str, float]]], dict]:
     """
     Scrape all available F1 markets for the next race from Oddschecker.
@@ -1016,22 +1206,31 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
     if sprint_url:
         print(f"  sprint event: {sprint_url}")
 
+    api_key = _firecrawl_api_key()
     headless = _resolve_headless(headed)
     raw_odds: Dict[str, Dict[str, Dict[str, float]]] = {}
 
+    if api_key:
+        print("  fetch backend: Firecrawl (auto proxy; expands markets via actions)")
+
     with sync_playwright() as p:
-        browser = _ScraperBrowser(p, headless=headless)
+        browser = _ScraperBrowser(p, headless=headless, local_only=bool(api_key))
         try:
-            race_markets = _scrape_event_markets(
-                browser, "race", race_url, debug_dir=debug_dir,
-            )
+            if api_key:
+                scrape_event = lambda label, base: _scrape_event_markets_firecrawl(
+                    browser, label, base, api_key, debug_dir=debug_dir,
+                )
+            else:
+                scrape_event = lambda label, base: _scrape_event_markets(
+                    browser, label, base, debug_dir=debug_dir,
+                )
+
+            race_markets = scrape_event("race", race_url)
             if race_markets:
                 raw_odds["race"] = race_markets
 
             if sprint_url:
-                sprint_markets = _scrape_event_markets(
-                    browser, "sprint", sprint_url, debug_dir=debug_dir,
-                )
+                sprint_markets = scrape_event("sprint", sprint_url)
                 if sprint_markets:
                     raw_odds["sprint"] = sprint_markets
         finally:

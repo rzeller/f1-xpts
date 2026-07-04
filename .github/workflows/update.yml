@@ -167,16 +167,17 @@ jobs:
           # Set repo variable SCRAPER_HEADFUL=1 to run a headful browser under
           # xvfb (stronger anti-bot posture) without a code change.
           SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
-          # Oddschecker hard-blocks GitHub's datacenter IPs AND raw
-          # residential-proxy pools via Cloudflare, so the scrape egresses
-          # through a managed CDP unblocker (Bright Data Scraping Browser /
-          # Browserless / ZenRows, etc.). Set SCRAPER_BROWSER_CDP_URL to its
-          # CDP websocket endpoint. Configure as a repository secret
-          # (Settings → Secrets and variables → Actions).
+          # Primary CI backend. Oddschecker hard-blocks GitHub's datacenter IPs
+          # AND raw residential-proxy pools via Cloudflare, and compliance-heavy
+          # unblockers (Bright Data) policy-block gambling domains. Firecrawl's
+          # stealth/auto proxy clears both, so the scrape fetches each market
+          # page through Firecrawl. Set FIRECRAWL_API_KEY as a repository secret
+          # (Settings → Secrets and variables → Actions). Takes precedence over
+          # the browser egress options below.
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          # Legacy browser egress options (ignored when FIRECRAWL_API_KEY set;
+          # kept for local/self-hosted runs). CDP unblocker, then raw proxy.
           SCRAPER_BROWSER_CDP_URL: ${{ secrets.SCRAPER_BROWSER_CDP_URL }}
-          # Legacy raw-proxy path (kept for local/self-hosted runs). Ignored
-          # when SCRAPER_BROWSER_CDP_URL is set. If both are unset the scraper
-          # runs direct (blocked from CI).
           SCRAPER_PROXY_SERVER: ${{ secrets.SCRAPER_PROXY_SERVER }}
           SCRAPER_PROXY_USERNAME: ${{ secrets.SCRAPER_PROXY_USERNAME }}
           SCRAPER_PROXY_PASSWORD: ${{ secrets.SCRAPER_PROXY_PASSWORD }}

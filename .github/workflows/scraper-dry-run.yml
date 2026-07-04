@@ -29,11 +29,13 @@ jobs:
       - name: Run scraper dry run
         env:
           SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
-          # Remote CDP unblocker (Bright Data Scraping Browser / Browserless /
-          # ZenRows, etc.). When set, the scraper connects to this browser
-          # instead of launching locally, and the service solves Cloudflare +
-          # egresses from a clean IP. This is the CI path — raw residential
-          # proxies are hard-blocked by Oddschecker's Cloudflare.
+          # Primary CI backend: Firecrawl fetches each market page past
+          # Cloudflare (raw residential proxies are hard-blocked) and without a
+          # gambling-domain policy block. When set it takes precedence over the
+          # CDP/proxy browser paths; a local browser is used only to parse the
+          # returned HTML.
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          # Legacy browser egress options (ignored when FIRECRAWL_API_KEY set).
           SCRAPER_BROWSER_CDP_URL: ${{ secrets.SCRAPER_BROWSER_CDP_URL }}
           SCRAPER_PROXY_SERVER: ${{ secrets.SCRAPER_PROXY_SERVER }}
           SCRAPER_PROXY_USERNAME: ${{ secrets.SCRAPER_PROXY_USERNAME }}
@@ -53,109 +55,3 @@ jobs:
           path: scraper-debug/
           if-no-files-found: ignore
           retention-days: 7
-
-  # Throwaway probe: can Firecrawl fetch one Oddschecker market page past
-  # Cloudflare (and without a gambling-domain policy block)? If this succeeds,
-  # we wire Firecrawl in as a fetch backend. Remove this job once decided.
-  firecrawl-smoke:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Probe Oddschecker via Firecrawl
-        env:
-          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
-        run: |
-          python3 - <<'PYEOF'
-          import os, json, sys, urllib.request, urllib.error
-
-          key = os.environ.get("FIRECRAWL_API_KEY", "").strip()
-          if not key:
-              print("NO_KEY: the FIRECRAWL_API_KEY secret is empty — check the secret name")
-              sys.exit(1)
-          print(f"key present (len={len(key)}, prefix={key[:3]}…)")
-
-          import re
-          URL = "https://www.oddschecker.com/us/motorsport/formula-one/british-grand-prix/winner"
-          # Full 2026 grid surnames — counting how many appear tells us whether
-          # we recovered the whole winner grid (all 22) or just the ~6 favs.
-          DRIVERS = ["Russell", "Antonelli", "Leclerc", "Hamilton", "Verstappen",
-                     "Lawson", "Norris", "Piastri", "Alonso", "Stroll", "Gasly",
-                     "Colapinto", "Albon", "Sainz", "Tsunoda", "Hadjar", "Bearman",
-                     "Ocon", "Hulkenberg", "Bortoleto", "Perez", "Bottas"]
-          ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
-
-          def scrape(formats, actions=None):
-              payload = {"url": URL, "formats": formats,
-                         "proxy": "auto", "onlyMainContent": False}
-              if actions:
-                  payload["actions"] = actions
-              req = urllib.request.Request(
-                  ENDPOINT, data=json.dumps(payload).encode(), method="POST",
-                  headers={"Authorization": f"Bearer {key}",
-                           "Content-Type": "application/json"})
-              try:
-                  with urllib.request.urlopen(req, timeout=220) as r:
-                      return r.status, r.read().decode("utf-8", "replace")
-              except urllib.error.HTTPError as e:
-                  return e.code, e.read().decode("utf-8", "replace")
-              except Exception as e:
-                  return None, repr(e)
-
-          def body(status, text):
-              if status is None:
-                  print("  transport error:", text[:300]); return {}
-              try:
-                  data = json.loads(text)
-              except Exception:
-                  print("  non-JSON:", text[:300]); return {}
-              if status >= 400:
-                  print("  API error:", json.dumps(data)[:600]); return {}
-              return data.get("data", data)
-
-          def rows_and_drivers(tag, html):
-              low = html.lower()
-              found = [n for n in DRIVERS if n.lower() in low]
-              print(f"  [{tag}] len={len(html)} "
-                    f"market-bet={low.count('data-testid=\"market-bet\"')} "
-                    f"show-more={low.count('show-more-less')} "
-                    f"drivers={len(found)}/22")
-              return len(found)
-
-          # --- Route A: embedded JSON in rawHtml (best case — all markets at once)
-          print("=== Route A: embedded JSON (rawHtml) ===")
-          d = body(*scrape(["rawHtml"]))
-          raw = d.get("rawHtml") or ""
-          print(f"  rawHtml length: {len(raw)}")
-          scripts = re.findall(r"<script[^>]*>(.*?)</script>", raw, re.S)
-          print(f"  <script> blocks: {len(scripts)}")
-          cand = sorted(scripts, key=len, reverse=True)[:6]
-          json_win = 0
-          for i, s in enumerate(cand):
-              sl = s.lower()
-              dc = sum(1 for n in DRIVERS if n.lower() in sl)
-              has_next = "__next_data__" in sl or "\"odds\"" in sl or "fractional" in sl or "decimal" in sl
-              print(f"  script#{i}: len={len(s)} drivers={dc}/22 odds_markers={has_next}")
-              json_win = max(json_win, dc)
-          nd = re.search(r'id="__NEXT_DATA__"[^>]*>(.*?)</script>', raw, re.S)
-          print(f"  __NEXT_DATA__ present: {bool(nd)}"
-                + (f" (len={len(nd.group(1))})" if nd else ""))
-
-          # --- Route B: force expansion via executeJavascript + scroll, read html
-          print("\n=== Route B: executeJavascript expand ===")
-          actions = [
-              {"type": "scroll", "direction": "down"},
-              {"type": "executeJavascript",
-               "script": "document.querySelectorAll('[data-testid=\"show-more-less\"]').forEach(b=>b.click());"},
-              {"type": "wait", "milliseconds": 3500},
-          ]
-          d2 = body(*scrape(["html"], actions))
-          js_win = rows_and_drivers("exec-js", d2.get("html") or "")
-
-          print("\n============================================================")
-          print(f"Route A embedded-JSON best: {json_win}/22 drivers in one script")
-          print(f"Route B exec-js expand:     {js_win}/22 drivers in html")
-          ok = json_win >= 18 or js_win >= 18
-          print("RESULT:", "SUCCESS — a full-grid route works"
-                if ok else "NEEDS WORK — neither route recovered the full grid")
-          print("============================================================")
-          sys.exit(0 if ok else 2)
-          PYEOF
