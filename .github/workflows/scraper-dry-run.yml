@@ -23,11 +23,29 @@ jobs:
       - name: Install dependencies
         run: pip install -r pipeline/requirements.txt
 
-      - name: Install Playwright Chromium
-        run: python -m playwright install --with-deps chromium
+      - name: Install browser
+        run: python -m patchright install --with-deps chromium
 
       - name: Run scraper dry run
-        run: python pipeline/update.py --dry-run --debug-dir scraper-debug
+        env:
+          SCRAPER_HEADFUL: ${{ vars.SCRAPER_HEADFUL }}
+          # Primary CI backend: Firecrawl fetches each market page past
+          # Cloudflare (raw residential proxies are hard-blocked) and without a
+          # gambling-domain policy block. When set it takes precedence over the
+          # CDP/proxy browser paths; a local browser is used only to parse the
+          # returned HTML.
+          FIRECRAWL_API_KEY: ${{ secrets.FIRECRAWL_API_KEY }}
+          # Legacy browser egress options (ignored when FIRECRAWL_API_KEY set).
+          SCRAPER_BROWSER_CDP_URL: ${{ secrets.SCRAPER_BROWSER_CDP_URL }}
+          SCRAPER_PROXY_SERVER: ${{ secrets.SCRAPER_PROXY_SERVER }}
+          SCRAPER_PROXY_USERNAME: ${{ secrets.SCRAPER_PROXY_USERNAME }}
+          SCRAPER_PROXY_PASSWORD: ${{ secrets.SCRAPER_PROXY_PASSWORD }}
+        run: |
+          if [ -n "$SCRAPER_HEADFUL" ]; then
+            xvfb-run -a python pipeline/update.py --dry-run --debug-dir scraper-debug
+          else
+            python pipeline/update.py --dry-run --debug-dir scraper-debug
+          fi
 
       - name: Upload debug artifacts
         if: always()
