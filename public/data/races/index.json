@@ -41,7 +41,14 @@
       "date": "2026-07-05",
       "is_sprint": true,
       "generated_at": "2026-07-04T21:23:30.382153+00:00"
+    },
+    {
+      "slug": "belgian-gp",
+      "name": "Belgian Grand Prix",
+      "date": "2026-07-19",
+      "is_sprint": false,
+      "generated_at": "2026-07-11T06:22:21.842682+00:00"
     }
   ],
-  "latest": "british-gp"
+  "latest": "belgian-gp"
 }
