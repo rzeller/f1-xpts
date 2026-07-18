@@ -5,8 +5,11 @@ on:
   schedule:
     # Fire every hour. The check-schedule step is the source of truth for
     # whether to actually run; almost all firings are no-op gate checks
-    # (~5 seconds each). Hourly coverage means every 1-hour window in the
-    # gate logic is hit by exactly one firing, regardless of session timing.
+    # (~5 seconds each). GitHub's schedule events are best-effort — firings
+    # can be delayed by tens of minutes or dropped outright — so the gate
+    # uses catch-up semantics: any firing inside a window runs the pipeline
+    # if that window's update hasn't happened yet, rather than relying on
+    # exactly one firing landing in each window.
     - cron: '0 * * * *'
 
 permissions:
@@ -39,13 +42,14 @@ jobs:
                   f.write("run_type=manual\n")
               raise SystemExit(0)
 
-          # Each window is 1 hour wide so the hourly cron grid hits each one
-          # exactly once. Windows that need to land at a specific point in
-          # time are anchored at start; clamping to next-session gives a
-          # natural cap.
+          # Windows run from the moment an update becomes wanted (anchored at
+          # start) until the moment it stops being useful (the hard deadline).
+          # A window is "satisfied" once the pipeline has produced output at
+          # or after its start; unsatisfied open windows are caught up by
+          # whichever cron firing arrives next, so a delayed or dropped
+          # firing no longer loses the update.
           PRACTICE_DURATION = timedelta(hours=1)
           POST_SESSION_DELAY = timedelta(minutes=15)
-          POST_SESSION_WINDOW = timedelta(hours=1)
           PRE_NEXT_GAP = timedelta(minutes=15)
 
           def parse(iso):
@@ -56,8 +60,8 @@ jobs:
 
               Three categories:
                 1. lead_up_daily — once a day, race−7 through the day before FP1,
-                   in the 06:00-07:00 UTC slot. The 06:00 cron fires inside it.
-                2. pre_weekend   — 3h to 30min before FP1.
+                   from 06:00 UTC until the next day's window opens.
+                2. pre_weekend   — 2h before FP1 until FP1 starts.
                 3. post_<sess>   — 15min after each practice ends, until the
                    next session starts (minus a small gap). The last practice's
                    post-window ends 15min before the first qualifying — picks
@@ -67,22 +71,23 @@ jobs:
               s = race["sessions"]
               fp1 = parse(s["fp1"])
 
-              # Lead-up daily windows: 06:00-07:00 UTC each day from race−7
-              # through the day before FP1. Each cron in that hour can match.
+              # Lead-up daily windows: each opens at 06:00 UTC and stays open
+              # until the next day's window (or the pre-weekend window) takes
+              # over, so a missed 06:00 firing is caught up later that day.
               fp1_day = fp1.replace(hour=0, minute=0, second=0, microsecond=0)
               for delta_days in range(7, 0, -1):
                   day = fp1_day - timedelta(days=delta_days)
                   yield (
                       day + timedelta(hours=6),
-                      day + timedelta(hours=7),
+                      min(day + timedelta(days=1, hours=6), fp1 - timedelta(hours=2)),
                       "lead_up_daily",
                       f"D-{delta_days} for {race['name']}",
                   )
 
-              # Pre-FP1: 1h window ending 1h before FP1.
+              # Pre-FP1: opens 2h before FP1, useful until FP1 starts.
               yield (
                   fp1 - timedelta(hours=2),
-                  fp1 - timedelta(hours=1),
+                  fp1,
                   "pre_weekend",
                   f"Before FP1 for {race['name']}",
               )
@@ -105,31 +110,41 @@ jobs:
               for i, (key, start) in enumerate(practices):
                   end = start + PRACTICE_DURATION
                   next_start = practices[i + 1][1] if i + 1 < len(practices) else last_boundary
-                  win_start = end + POST_SESSION_DELAY
-                  win_end = min(next_start - PRE_NEXT_GAP, win_start + POST_SESSION_WINDOW)
                   yield (
-                      win_start,
-                      win_end,
+                      end + POST_SESSION_DELAY,
+                      next_start - PRE_NEXT_GAP,
                       f"post_{key}",
                       f"After {key.upper()} for {race['name']}",
                   )
 
-          should_run = False
-          run_type = ""
-          reason = ""
+          # When the pipeline last produced output. Each run's PR is
+          # auto-merged immediately, so the checked-out master copy of
+          # latest.json reflects the most recent completed run; a window
+          # whose start predates it has already been served.
+          last_run = datetime.min.replace(tzinfo=timezone.utc)
+          try:
+              with open("public/data/latest.json") as f:
+                  last_run = parse(json.load(f)["meta"]["generated_at"])
+          except (OSError, ValueError, KeyError):
+              pass
 
+          candidates = []
           for race in schedule["races"]:
               # Cheap pre-filter: race already finished -> skip.
               if parse(race["sessions"]["race"]) + timedelta(hours=6) < now:
                   continue
               for start, end, rt, label in windows_for_race(race):
-                  if start <= now < end:
-                      should_run = True
-                      run_type = rt
-                      reason = f"{label} (window {start.isoformat()} → {end.isoformat()})"
-                      break
-              if should_run:
-                  break
+                  if start <= now < end and last_run < start:
+                      candidates.append((start, end, rt, label))
+
+          should_run = bool(candidates)
+          run_type = ""
+          if candidates:
+              # Overlapping unsatisfied windows (e.g. a missed lead-up day
+              # running into the next window): the latest-opening one is the
+              # most current, and its run satisfies the earlier ones too.
+              start, end, run_type, label = max(candidates, key=lambda c: c[0])
+              reason = f"{label} (window {start.isoformat()} → {end.isoformat()})"
 
           with open(os.environ["GITHUB_OUTPUT"], "a") as f:
               f.write(f"should_run={'true' if should_run else 'false'}\n")
@@ -138,7 +153,10 @@ jobs:
           if should_run:
               print(f"Pipeline triggered ({run_type}): {reason}")
           else:
-              print(f"Outside all run windows — skipping (now={now.isoformat()})")
+              print(
+                  f"No unsatisfied run window — skipping "
+                  f"(now={now.isoformat()}, last_run={last_run.isoformat()})"
+              )
           PYEOF
 
       - uses: actions/setup-python@v5
