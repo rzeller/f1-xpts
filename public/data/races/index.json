@@ -48,7 +48,14 @@
       "date": "2026-07-19",
       "is_sprint": false,
       "generated_at": "2026-07-19T07:33:00.166922+00:00"
+    },
+    {
+      "slug": "hungarian-gp",
+      "name": "Hungarian Grand Prix",
+      "date": "2026-07-26",
+      "is_sprint": false,
+      "generated_at": "2026-07-20T08:13:57.499097+00:00"
     }
   ],
-  "latest": "belgian-gp"
+  "latest": "hungarian-gp"
 }
