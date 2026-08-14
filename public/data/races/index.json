@@ -55,7 +55,14 @@
       "date": "2026-07-26",
       "is_sprint": false,
       "generated_at": "2026-07-25T11:58:07.424271+00:00"
+    },
+    {
+      "slug": "dutch-gp",
+      "name": "Dutch Grand Prix",
+      "date": "2026-08-23",
+      "is_sprint": true,
+      "generated_at": "2026-08-14T06:55:15.314516+00:00"
     }
   ],
-  "latest": "hungarian-gp"
+  "latest": "dutch-gp"
 }
