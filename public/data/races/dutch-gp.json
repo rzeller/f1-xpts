@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-08-15T07:24:19.790176+00:00",
+    "generated_at": "2026-08-16T07:25:58.048465+00:00",
     "race": "Dutch Grand Prix",
     "date": "2026-08-23",
     "is_sprint": true,
@@ -3358,7 +3358,7 @@
     "final_loss": 0.06242398127129596,
     "n_evals": 2691,
     "n_steps": 8,
-    "elapsed_seconds": 75.0,
+    "elapsed_seconds": 72.9,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.005,
@@ -6208,49 +6208,49 @@
         "step": 1,
         "eval": 214,
         "best_loss": 0.076155,
-        "elapsed": 6.1
+        "elapsed": 5.8
       },
       {
         "step": 2,
         "eval": 487,
         "best_loss": 0.074735,
-        "elapsed": 13.9
+        "elapsed": 13.2
       },
       {
         "step": 3,
         "eval": 767,
         "best_loss": 0.074094,
-        "elapsed": 21.8
+        "elapsed": 20.8
       },
       {
         "step": 4,
         "eval": 1065,
         "best_loss": 0.073489,
-        "elapsed": 30.2
+        "elapsed": 28.8
       },
       {
         "step": 5,
         "eval": 1423,
         "best_loss": 0.072991,
-        "elapsed": 40.4
+        "elapsed": 38.5
       },
       {
         "step": 6,
         "eval": 1878,
         "best_loss": 0.072504,
-        "elapsed": 53.1
+        "elapsed": 50.8
       },
       {
         "step": 7,
         "eval": 2353,
         "best_loss": 0.07205,
-        "elapsed": 65.8
+        "elapsed": 63.6
       },
       {
         "step": 8,
         "eval": 2691,
         "best_loss": 0.062424,
-        "elapsed": 74.9
+        "elapsed": 72.8
       }
     ],
     "residuals": [
