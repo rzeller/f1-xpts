@@ -34,8 +34,12 @@ jobs:
     # GitHub's default job timeout is 6 hours, and — now that overlapping
     # runs queue instead of racing (see the concurrency block above) — a
     # single stuck run would hold up every hourly firing behind it for that
-    # whole window instead of just failing.
-    timeout-minutes: 20
+    # whole window instead of just failing. 20 was too tight in practice —
+    # observed runs cluster around 15-16 min but Firecrawl API latency can
+    # push a normal run past that (one legitimate run was killed here, not
+    # hung, per its own job log); 35 keeps real hangs bounded with headroom
+    # for that variance.
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
 
