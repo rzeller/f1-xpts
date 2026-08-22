@@ -574,6 +574,7 @@ def _extract_market_odds(
     )
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
+        _dump_debug(page, debug_dir, f"noarticle_{_slug_tail(url)}")
         return {}
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
