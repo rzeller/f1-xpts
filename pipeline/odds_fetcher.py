@@ -353,28 +353,68 @@ def _row_best_odds(row) -> Optional[float]:
     return None
 
 
-def _dump_debug(page, debug_dir: Optional[str], label: str) -> None:
-    """Write the rendered HTML + a screenshot for post-mortem inspection."""
+def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = True) -> None:
+    """Write the rendered HTML (+ optionally a screenshot) for post-mortem inspection.
+
+    Screenshotting a `set_content`-filled page (the Firecrawl parse path) can
+    hit a broken/GPU-less headless Chrome hard enough to crash-loop the whole
+    browser process rather than just fail the one call (observed in CI: a
+    "GPU process isn't usable. Goodbye." spiral that hung the job for the
+    better part of an hour). Bound it with an explicit short timeout so a
+    stuck compositor fails fast instead, and let callers skip it entirely
+    where the HTML alone is enough.
+    """
     if not debug_dir:
         return
     try:
         os.makedirs(debug_dir, exist_ok=True)
         safe = re.sub(r"[^a-z0-9_\-]+", "_", label.lower()).strip("_") or "page"
         html_path = os.path.join(debug_dir, f"{safe}.html")
-        png_path = os.path.join(debug_dir, f"{safe}.png")
         try:
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(page.content())
             print(f"    [debug] wrote {html_path}")
         except Exception as e:
             print(f"    [debug] HTML dump failed: {e}")
-        try:
-            page.screenshot(path=png_path, full_page=True)
-            print(f"    [debug] wrote {png_path}")
-        except Exception as e:
-            print(f"    [debug] screenshot failed: {e}")
+        if screenshot:
+            png_path = os.path.join(debug_dir, f"{safe}.png")
+            try:
+                page.screenshot(path=png_path, full_page=True, timeout=5000)
+                print(f"    [debug] wrote {png_path}")
+            except Exception as e:
+                print(f"    [debug] screenshot failed: {e}")
     except Exception as e:
         print(f"    [debug] dump failed: {e}")
+
+
+def _log_page_probe(page) -> None:
+    """Print a quick in-band summary of what actually loaded, without needing
+    to download the scraper-debug artifact: page title, how many market
+    articles (of any heading) are on the page, and the heading text of each.
+    Best-effort — this must never itself raise or hang the run.
+    """
+    try:
+        info = page.evaluate(
+            """() => {
+                const articles = Array.from(
+                    document.querySelectorAll('article[class*="MarketWrapper"]')
+                );
+                const headings = articles.map(a => {
+                    const h = a.querySelector('h1,h2,h3,h4');
+                    return h ? (h.textContent || '').trim() : null;
+                });
+                return {
+                    title: document.title,
+                    articleCount: articles.length,
+                    headings: headings.slice(0, 10),
+                    bodyLen: (document.body && document.body.innerHTML || '').length,
+                };
+            }"""
+        )
+        print(f"    [probe] title={info['title']!r} bodyLen={info['bodyLen']} "
+              f"articles={info['articleCount']} headings={info['headings']}")
+    except Exception as e:
+        print(f"    [probe] failed: {e}")
 
 
 # Cloudflare interstitial / "are you human" markers. Kept specific so a normal
@@ -574,7 +614,8 @@ def _extract_market_odds(
     )
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
-        _dump_debug(page, debug_dir, f"noarticle_{_slug_tail(url)}")
+        _log_page_probe(page)
+        _dump_debug(page, debug_dir, f"noarticle_{_slug_tail(url)}", screenshot=False)
         return {}
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)

@@ -30,6 +30,12 @@ permissions:
 jobs:
   update:
     runs-on: ubuntu-latest
+    # A normal run (scrape + fit + sim) finishes in minutes. Without this,
+    # GitHub's default job timeout is 6 hours, and — now that overlapping
+    # runs queue instead of racing (see the concurrency block above) — a
+    # single stuck run would hold up every hourly firing behind it for that
+    # whole window instead of just failing.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
