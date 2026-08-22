@@ -145,20 +145,20 @@ FIRECRAWL_MAX_ATTEMPTS = 2
 # reads like an expand control, independent of assumed naming — see
 # _log_market_probe.
 SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="ShowMoreText"]'
-# A bare class-name substring match run document-wide (not scoped to a
-# market article) is exactly what hung two consecutive CI runs for ~20-35
-# min each with zero output: Oddschecker's real page has other content
-# outside the market article (related articles, FAQs, nav, etc.) that can
-# carry a similarly-named "show more" of its own, and clicking those
-# triggers unrelated lazy-loads/network activity that stalls the render.
-# Scope the click to inside MarketWrapper articles only.
+# 2026-08-22, later the same day: clicking this button reliably hung the CI
+# job for 20-35 min with zero output — three times in a row, including after
+# scoping the click to inside MarketWrapper articles only (ruling out the
+# "clicked something unrelated elsewhere on the page" theory). Whatever
+# Oddschecker's "Show More" actually triggers (a slow API call, added bot
+# friction, etc.), it stalls Firecrawl's render past any reasonable timeout.
+# Rather than keep guessing at the click, skip it: the extractor still
+# recovers the ~2 favorites Oddschecker renders by default per market
+# (real odds, just a shorter field) instead of the pipeline failing
+# outright. Supplement with the manual odds JSON for full-field coverage
+# on a given race (see public/data/odds_input/).
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
-    {"type": "executeJavascript",
-     "script": "document.querySelectorAll('article[class*=\"MarketWrapper\"]')"
-               f".forEach(a => a.querySelectorAll('{SHOW_MORE_SELECTOR}')"
-               ".forEach(b => b.click()));"},
-    {"type": "wait", "milliseconds": 3500},
+    {"type": "wait", "milliseconds": 1500},
 ]
 
 # Human-like pacing between market navigations (seconds). Oddschecker sits
