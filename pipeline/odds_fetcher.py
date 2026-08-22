@@ -666,7 +666,17 @@ def _extract_market_odds(
         return {}
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
-    market_scope = market_article.locator('[class*="AccordionWrapper"]').first
+    accordion = market_article.locator('[class*="AccordionWrapper"]').first
+    # Oddschecker replaced the accordion layout with a grid one on some pages
+    # (seen 2026-08-22: no AccordionWrapper anywhere in the article, but
+    # [data-testid="market-bet"] rows still exist directly inside it). Only
+    # narrow to the accordion when one is actually present; otherwise search
+    # the whole article.
+    try:
+        has_accordion = accordion.count() > 0
+    except Exception:
+        has_accordion = False
+    market_scope = accordion if has_accordion else market_article
 
     if interactive:
         # Wait for the show-more button to appear inside the right accordion.
