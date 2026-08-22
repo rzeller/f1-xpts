@@ -387,6 +387,42 @@ def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = T
         print(f"    [debug] dump failed: {e}")
 
 
+def _log_market_probe(market_article) -> None:
+    """Print a quick in-band summary of one market article's inner structure
+    when no [data-testid="market-bet"] rows are found inside it — the
+    distinct data-testid values present, a few likely row-container class
+    names, and a text snippet — so a stale row selector can be diagnosed
+    from the job's stdout log alone. Best-effort — must never raise/hang.
+    """
+    try:
+        info = market_article.evaluate(
+            """(el) => {
+                const testids = new Set();
+                el.querySelectorAll('[data-testid]').forEach(n => {
+                    testids.add(n.getAttribute('data-testid'));
+                });
+                const classNames = new Set();
+                el.querySelectorAll('[class]').forEach(n => {
+                    (n.className || '').toString().split(/\\s+/).forEach(c => {
+                        if (/row|outcome|selection|runner|bet|price|odds/i.test(c)) {
+                            classNames.add(c);
+                        }
+                    });
+                });
+                return {
+                    testids: Array.from(testids).slice(0, 30),
+                    classNames: Array.from(classNames).slice(0, 20),
+                    textSnippet: (el.textContent || '').trim().slice(0, 300),
+                };
+            }"""
+        )
+        print(f"    [market-probe] data-testids={info['testids']}")
+        print(f"    [market-probe] candidate classNames={info['classNames']}")
+        print(f"    [market-probe] text={info['textSnippet']!r}")
+    except Exception as e:
+        print(f"    [market-probe] failed: {e}")
+
+
 def _log_page_probe(page) -> None:
     """Print a quick in-band summary of what actually loaded, without needing
     to download the scraper-debug artifact: page title, how many market
@@ -657,7 +693,8 @@ def _extract_market_odds(
 
     if not rows:
         print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
-        _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}")
+        _log_market_probe(market_article)
+        _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}", screenshot=False)
         return {}
 
     print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
@@ -679,7 +716,7 @@ def _extract_market_odds(
 
     print(f"    extracted {len(odds)} drivers")
     if not odds:
-        _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}")
+        _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}", screenshot=False)
     return odds
 
 
