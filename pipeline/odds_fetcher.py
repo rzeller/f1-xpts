@@ -135,10 +135,18 @@ FIRECRAWL_MAX_ATTEMPTS = 2
 # action) leaves it collapsed; running the click via executeJavascript after a
 # scroll expands every market on the page (verified: 36 → 112 bet rows). We then
 # parse the returned, already-expanded HTML with the shared extractor.
+#
+# 2026-08-22: Oddschecker's redesigned grid layout renamed this toggle to a
+# "See All Odds" link (class name prefixed "SeeAllOdds") and dropped the old
+# data-testid entirely — without it, only the ~2 initially-rendered rows are
+# in the DOM at all (confirmed via CI: the fix that made the row selector
+# itself work only recovered 2 drivers per market until this was added).
+# Match both so either the old or new markup expands.
+SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="SeeAllOdds"]'
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
     {"type": "executeJavascript",
-     "script": "document.querySelectorAll('[data-testid=\"show-more-less\"]')"
+     "script": f"document.querySelectorAll('{SHOW_MORE_SELECTOR}')"
                ".forEach(b => b.click());"},
     {"type": "wait", "milliseconds": 3500},
 ]
@@ -287,7 +295,7 @@ def _expand_show_more(page, scope) -> None:
     # Defensive cap: each click may reveal another "Show More" (rare).
     for _ in range(5):
         try:
-            buttons = scope.locator('[data-testid="show-more-less"]').all()
+            buttons = scope.locator(SHOW_MORE_SELECTOR).all()
         except Exception:
             buttons = []
         clicked = 0
@@ -296,7 +304,7 @@ def _expand_show_more(page, scope) -> None:
                 txt = (btn.text_content() or "").strip().lower()
             except Exception:
                 txt = ""
-            if "more" not in txt:
+            if "more" not in txt and "see all" not in txt:
                 continue
             try:
                 # JS-dispatched .click() does not fire React's synthetic event
@@ -684,7 +692,7 @@ def _extract_market_odds(
         # but its show-more button may still be hydrating, and clicking it before
         # then is a no-op — leading to a stuck 6-row collapsed view.
         try:
-            market_scope.locator('[data-testid="show-more-less"]').first.wait_for(
+            market_scope.locator(SHOW_MORE_SELECTOR).first.wait_for(
                 state="attached", timeout=NAV_WAIT_MS
             )
         except Exception:
