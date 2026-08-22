@@ -601,17 +601,28 @@ def _extract_market_odds(
     # We do the matching in JS because Playwright's `:has(:text-is())` chain is
     # finicky with quoting and the Locator filter API needs a sub-locator on a
     # base set we'd have to enumerate first anyway.
-    article_index = page.evaluate(
+    probe = page.evaluate(
         """(heading) => {
             const articles = document.querySelectorAll('article[class*="MarketWrapper"]');
             for (let i = 0; i < articles.length; i++) {
                 const h = articles[i].querySelector('h1,h2,h3,h4');
-                if (h && (h.textContent || '').trim() === heading) return i;
+                if (h && (h.textContent || '').trim() === heading) return {index: i, count: articles.length};
             }
-            return -1;
+            return {index: -1, count: articles.length};
         }""",
         expected_heading,
     )
+    article_index = probe["index"]
+    if article_index < 0 and probe["count"] == 1:
+        # Oddschecker no longer always puts the market's heading in an h1-h4
+        # inside the article (seen 2026-08-22: the heading text moved out of
+        # any h1-h4, so no article ever matches by heading). But the URL we
+        # fetched already picked the market, so when exactly one
+        # MarketWrapper article is on the page, trust it's the one we asked
+        # for rather than failing outright.
+        print(f"    no article matched heading {expected_heading!r} by tag, "
+              f"but exactly one article on page — using it")
+        article_index = 0
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
         _log_page_probe(page)
