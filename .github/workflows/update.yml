@@ -12,6 +12,17 @@ on:
     # exactly one firing landing in each window.
     - cron: '0 * * * *'
 
+# A full run (scrape + PL fit + 50K sims) can take well over an hour, but
+# firings happen every hour. Without this, overlapping runs each build a PR
+# off a stale base and race to auto-merge it, and the loser's merge fails
+# with "Pull request has merge conflicts" (seen repeatedly in practice).
+# Queue instead of running concurrently — don't cancel an in-progress run,
+# since killing it mid-scrape/mid-fit wastes real work and can throw away a
+# run that was about to succeed.
+concurrency:
+  group: update-pipeline
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
