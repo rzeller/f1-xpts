@@ -136,13 +136,17 @@ FIRECRAWL_MAX_ATTEMPTS = 2
 # scroll expands every market on the page (verified: 36 → 112 bet rows). We then
 # parse the returned, already-expanded HTML with the shared extractor.
 #
-# 2026-08-22: Oddschecker's redesigned grid layout renamed this toggle to a
-# "See All Odds" link (class name prefixed "SeeAllOdds") and dropped the old
-# data-testid entirely — without it, only the ~2 initially-rendered rows are
-# in the DOM at all (confirmed via CI: the fix that made the row selector
-# itself work only recovered 2 drivers per market until this was added).
-# Match both so either the old or new markup expands.
-SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="SeeAllOdds"]'
+# 2026-08-22: Oddschecker's redesigned grid layout replaced this toggle with
+# a plain <button class*="ShowMoreText"> reading "Show More" and dropped the
+# old data-testid entirely. (An earlier guess at "SeeAllOdds" was a red
+# herring — that class exists on a per-bookmaker link, not the driver-list
+# expander, and clicking it left the field stuck at ~2 rows.) Confirmed via
+# an in-band probe that hunts for any element whose own text reads like an
+# expand control, independent of assumed naming — see _log_market_probe.
+# Match all three so old or new markup expands.
+SHOW_MORE_SELECTOR = (
+    '[data-testid="show-more-less"], [class*="SeeAllOdds"], [class*="ShowMoreText"]'
+)
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
     {"type": "executeJavascript",
