@@ -397,10 +397,11 @@ def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = T
 
 def _log_market_probe(market_article) -> None:
     """Print a quick in-band summary of one market article's inner structure
-    when no [data-testid="market-bet"] rows are found inside it — the
-    distinct data-testid values present, a few likely row-container class
-    names, and a text snippet — so a stale row selector can be diagnosed
-    from the job's stdout log alone. Best-effort — must never raise/hang.
+    — used both when no [data-testid="market-bet"] rows are found at all,
+    and when suspiciously few are found (e.g. the field looks collapsed to
+    a couple of favorites) — so a stale row or expand-control selector can
+    be diagnosed from the job's stdout log alone, without downloading the
+    scraper-debug artifact. Best-effort — must never raise/hang.
     """
     try:
         info = market_article.evaluate(
@@ -417,15 +418,38 @@ def _log_market_probe(market_article) -> None:
                         }
                     });
                 });
+                // Any element whose own (non-descendant) text looks like an
+                // expand/reveal-more control, regardless of class/testid
+                // naming — tag + attributes + text tells us whether it's
+                // even clickable (button/link) or just a label.
+                const expandCandidates = [];
+                el.querySelectorAll('button, a, [role="button"], [class], [data-testid]')
+                    .forEach(n => {
+                        const own = Array.from(n.childNodes)
+                            .filter(c => c.nodeType === 3)
+                            .map(c => c.textContent).join('').trim();
+                        const text = own || (n.children.length === 0 ? (n.textContent || '').trim() : '');
+                        if (text && /more|see all|show|expand|view all|\\d+\\s*more/i.test(text) && text.length < 40) {
+                            expandCandidates.push({
+                                tag: n.tagName,
+                                testid: n.getAttribute('data-testid'),
+                                cls: (n.className || '').toString().slice(0, 80),
+                                href: n.getAttribute('href'),
+                                text: text.slice(0, 40),
+                            });
+                        }
+                    });
                 return {
                     testids: Array.from(testids).slice(0, 30),
                     classNames: Array.from(classNames).slice(0, 20),
                     textSnippet: (el.textContent || '').trim().slice(0, 300),
+                    expandCandidates: expandCandidates.slice(0, 15),
                 };
             }"""
         )
         print(f"    [market-probe] data-testids={info['testids']}")
         print(f"    [market-probe] candidate classNames={info['classNames']}")
+        print(f"    [market-probe] expand-control candidates={info['expandCandidates']}")
         print(f"    [market-probe] text={info['textSnippet']!r}")
     except Exception as e:
         print(f"    [market-probe] failed: {e}")
@@ -716,6 +740,16 @@ def _extract_market_odds(
         return {}
 
     print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
+    if len(rows) < 8:
+        # Oddschecker's grid layout appears to render only a couple of
+        # favorites by default. If the show-more/"See All Odds" click isn't
+        # actually the right control for revealing the rest of the field,
+        # this stays suspiciously low regardless of row-selector fixes —
+        # probe for any expand-looking control so the real one can be found.
+        print(f"    NOTE: only {len(rows)} rows — suspiciously few for a "
+              f"22-driver field, probing for an expand control")
+        _log_market_probe(market_article)
+        _dump_debug(page, debug_dir, f"market_fewrows_{_slug_tail(url)}", screenshot=False)
 
     for row in rows:
         try:
