@@ -140,18 +140,24 @@ FIRECRAWL_MAX_ATTEMPTS = 2
 # a plain <button class*="ShowMoreText"> reading "Show More" and dropped the
 # old data-testid entirely. (An earlier guess at "SeeAllOdds" was a red
 # herring — that class exists on a per-bookmaker link, not the driver-list
-# expander, and clicking it left the field stuck at ~2 rows.) Confirmed via
-# an in-band probe that hunts for any element whose own text reads like an
-# expand control, independent of assumed naming — see _log_market_probe.
-# Match all three so old or new markup expands.
-SHOW_MORE_SELECTOR = (
-    '[data-testid="show-more-less"], [class*="SeeAllOdds"], [class*="ShowMoreText"]'
-)
+# expander, and clicking it left the field stuck at ~2 rows — dropped here.)
+# Confirmed via an in-band probe that hunts for any element whose own text
+# reads like an expand control, independent of assumed naming — see
+# _log_market_probe.
+SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="ShowMoreText"]'
+# A bare class-name substring match run document-wide (not scoped to a
+# market article) is exactly what hung two consecutive CI runs for ~20-35
+# min each with zero output: Oddschecker's real page has other content
+# outside the market article (related articles, FAQs, nav, etc.) that can
+# carry a similarly-named "show more" of its own, and clicking those
+# triggers unrelated lazy-loads/network activity that stalls the render.
+# Scope the click to inside MarketWrapper articles only.
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
     {"type": "executeJavascript",
-     "script": f"document.querySelectorAll('{SHOW_MORE_SELECTOR}')"
-               ".forEach(b => b.click());"},
+     "script": "document.querySelectorAll('article[class*=\"MarketWrapper\"]')"
+               f".forEach(a => a.querySelectorAll('{SHOW_MORE_SELECTOR}')"
+               ".forEach(b => b.click()));"},
     {"type": "wait", "milliseconds": 3500},
 ]
 
