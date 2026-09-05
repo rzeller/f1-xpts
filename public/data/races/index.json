@@ -61,8 +61,15 @@
       "name": "Dutch Grand Prix",
       "date": "2026-08-23",
       "is_sprint": true,
-      "generated_at": "2026-08-20T09:12:49.763824+00:00"
+      "generated_at": "2026-08-22T18:45:07.305681+00:00"
+    },
+    {
+      "slug": "italian-gp",
+      "name": "Italian Grand Prix",
+      "date": "2026-09-06",
+      "is_sprint": false,
+      "generated_at": "2026-09-05T14:06:33.314135+00:00"
     }
   ],
-  "latest": "dutch-gp"
+  "latest": "italian-gp"
 }

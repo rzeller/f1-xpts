@@ -135,12 +135,30 @@ FIRECRAWL_MAX_ATTEMPTS = 2
 # action) leaves it collapsed; running the click via executeJavascript after a
 # scroll expands every market on the page (verified: 36 → 112 bet rows). We then
 # parse the returned, already-expanded HTML with the shared extractor.
+#
+# 2026-08-22: Oddschecker's redesigned grid layout replaced this toggle with
+# a plain <button class*="ShowMoreText"> reading "Show More" and dropped the
+# old data-testid entirely. (An earlier guess at "SeeAllOdds" was a red
+# herring — that class exists on a per-bookmaker link, not the driver-list
+# expander, and clicking it left the field stuck at ~2 rows — dropped here.)
+# Confirmed via an in-band probe that hunts for any element whose own text
+# reads like an expand control, independent of assumed naming — see
+# _log_market_probe.
+SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="ShowMoreText"]'
+# 2026-08-22, later the same day: clicking this button reliably hung the CI
+# job for 20-35 min with zero output — three times in a row, including after
+# scoping the click to inside MarketWrapper articles only (ruling out the
+# "clicked something unrelated elsewhere on the page" theory). Whatever
+# Oddschecker's "Show More" actually triggers (a slow API call, added bot
+# friction, etc.), it stalls Firecrawl's render past any reasonable timeout.
+# Rather than keep guessing at the click, skip it: the extractor still
+# recovers the ~2 favorites Oddschecker renders by default per market
+# (real odds, just a shorter field) instead of the pipeline failing
+# outright. Supplement with the manual odds JSON for full-field coverage
+# on a given race (see public/data/odds_input/).
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
-    {"type": "executeJavascript",
-     "script": "document.querySelectorAll('[data-testid=\"show-more-less\"]')"
-               ".forEach(b => b.click());"},
-    {"type": "wait", "milliseconds": 3500},
+    {"type": "wait", "milliseconds": 1500},
 ]
 
 # Human-like pacing between market navigations (seconds). Oddschecker sits
@@ -287,7 +305,7 @@ def _expand_show_more(page, scope) -> None:
     # Defensive cap: each click may reveal another "Show More" (rare).
     for _ in range(5):
         try:
-            buttons = scope.locator('[data-testid="show-more-less"]').all()
+            buttons = scope.locator(SHOW_MORE_SELECTOR).all()
         except Exception:
             buttons = []
         clicked = 0
@@ -296,7 +314,7 @@ def _expand_show_more(page, scope) -> None:
                 txt = (btn.text_content() or "").strip().lower()
             except Exception:
                 txt = ""
-            if "more" not in txt:
+            if "more" not in txt and "see all" not in txt:
                 continue
             try:
                 # JS-dispatched .click() does not fire React's synthetic event
@@ -353,28 +371,128 @@ def _row_best_odds(row) -> Optional[float]:
     return None
 
 
-def _dump_debug(page, debug_dir: Optional[str], label: str) -> None:
-    """Write the rendered HTML + a screenshot for post-mortem inspection."""
+def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = True) -> None:
+    """Write the rendered HTML (+ optionally a screenshot) for post-mortem inspection.
+
+    Screenshotting a `set_content`-filled page (the Firecrawl parse path) can
+    hit a broken/GPU-less headless Chrome hard enough to crash-loop the whole
+    browser process rather than just fail the one call (observed in CI: a
+    "GPU process isn't usable. Goodbye." spiral that hung the job for the
+    better part of an hour). Bound it with an explicit short timeout so a
+    stuck compositor fails fast instead, and let callers skip it entirely
+    where the HTML alone is enough.
+    """
     if not debug_dir:
         return
     try:
         os.makedirs(debug_dir, exist_ok=True)
         safe = re.sub(r"[^a-z0-9_\-]+", "_", label.lower()).strip("_") or "page"
         html_path = os.path.join(debug_dir, f"{safe}.html")
-        png_path = os.path.join(debug_dir, f"{safe}.png")
         try:
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write(page.content())
             print(f"    [debug] wrote {html_path}")
         except Exception as e:
             print(f"    [debug] HTML dump failed: {e}")
-        try:
-            page.screenshot(path=png_path, full_page=True)
-            print(f"    [debug] wrote {png_path}")
-        except Exception as e:
-            print(f"    [debug] screenshot failed: {e}")
+        if screenshot:
+            png_path = os.path.join(debug_dir, f"{safe}.png")
+            try:
+                page.screenshot(path=png_path, full_page=True, timeout=5000)
+                print(f"    [debug] wrote {png_path}")
+            except Exception as e:
+                print(f"    [debug] screenshot failed: {e}")
     except Exception as e:
         print(f"    [debug] dump failed: {e}")
+
+
+def _log_market_probe(market_article) -> None:
+    """Print a quick in-band summary of one market article's inner structure
+    — used both when no [data-testid="market-bet"] rows are found at all,
+    and when suspiciously few are found (e.g. the field looks collapsed to
+    a couple of favorites) — so a stale row or expand-control selector can
+    be diagnosed from the job's stdout log alone, without downloading the
+    scraper-debug artifact. Best-effort — must never raise/hang.
+    """
+    try:
+        info = market_article.evaluate(
+            """(el) => {
+                const testids = new Set();
+                el.querySelectorAll('[data-testid]').forEach(n => {
+                    testids.add(n.getAttribute('data-testid'));
+                });
+                const classNames = new Set();
+                el.querySelectorAll('[class]').forEach(n => {
+                    (n.className || '').toString().split(/\\s+/).forEach(c => {
+                        if (/row|outcome|selection|runner|bet|price|odds/i.test(c)) {
+                            classNames.add(c);
+                        }
+                    });
+                });
+                // Any element whose own (non-descendant) text looks like an
+                // expand/reveal-more control, regardless of class/testid
+                // naming — tag + attributes + text tells us whether it's
+                // even clickable (button/link) or just a label.
+                const expandCandidates = [];
+                el.querySelectorAll('button, a, [role="button"], [class], [data-testid]')
+                    .forEach(n => {
+                        const own = Array.from(n.childNodes)
+                            .filter(c => c.nodeType === 3)
+                            .map(c => c.textContent).join('').trim();
+                        const text = own || (n.children.length === 0 ? (n.textContent || '').trim() : '');
+                        if (text && /more|see all|show|expand|view all|\\d+\\s*more/i.test(text) && text.length < 40) {
+                            expandCandidates.push({
+                                tag: n.tagName,
+                                testid: n.getAttribute('data-testid'),
+                                cls: (n.className || '').toString().slice(0, 80),
+                                href: n.getAttribute('href'),
+                                text: text.slice(0, 40),
+                            });
+                        }
+                    });
+                return {
+                    testids: Array.from(testids).slice(0, 30),
+                    classNames: Array.from(classNames).slice(0, 20),
+                    textSnippet: (el.textContent || '').trim().slice(0, 300),
+                    expandCandidates: expandCandidates.slice(0, 15),
+                };
+            }"""
+        )
+        print(f"    [market-probe] data-testids={info['testids']}")
+        print(f"    [market-probe] candidate classNames={info['classNames']}")
+        print(f"    [market-probe] expand-control candidates={info['expandCandidates']}")
+        print(f"    [market-probe] text={info['textSnippet']!r}")
+    except Exception as e:
+        print(f"    [market-probe] failed: {e}")
+
+
+def _log_page_probe(page) -> None:
+    """Print a quick in-band summary of what actually loaded, without needing
+    to download the scraper-debug artifact: page title, how many market
+    articles (of any heading) are on the page, and the heading text of each.
+    Best-effort — this must never itself raise or hang the run.
+    """
+    try:
+        info = page.evaluate(
+            """() => {
+                const articles = Array.from(
+                    document.querySelectorAll('article[class*="MarketWrapper"]')
+                );
+                const headings = articles.map(a => {
+                    const h = a.querySelector('h1,h2,h3,h4');
+                    return h ? (h.textContent || '').trim() : null;
+                });
+                return {
+                    title: document.title,
+                    articleCount: articles.length,
+                    headings: headings.slice(0, 10),
+                    bodyLen: (document.body && document.body.innerHTML || '').length,
+                };
+            }"""
+        )
+        print(f"    [probe] title={info['title']!r} bodyLen={info['bodyLen']} "
+              f"articles={info['articleCount']} headings={info['headings']}")
+    except Exception as e:
+        print(f"    [probe] failed: {e}")
 
 
 # Cloudflare interstitial / "are you human" markers. Kept specific so a normal
@@ -561,23 +679,46 @@ def _extract_market_odds(
     # We do the matching in JS because Playwright's `:has(:text-is())` chain is
     # finicky with quoting and the Locator filter API needs a sub-locator on a
     # base set we'd have to enumerate first anyway.
-    article_index = page.evaluate(
+    probe = page.evaluate(
         """(heading) => {
             const articles = document.querySelectorAll('article[class*="MarketWrapper"]');
             for (let i = 0; i < articles.length; i++) {
                 const h = articles[i].querySelector('h1,h2,h3,h4');
-                if (h && (h.textContent || '').trim() === heading) return i;
+                if (h && (h.textContent || '').trim() === heading) return {index: i, count: articles.length};
             }
-            return -1;
+            return {index: -1, count: articles.length};
         }""",
         expected_heading,
     )
+    article_index = probe["index"]
+    if article_index < 0 and probe["count"] == 1:
+        # Oddschecker no longer always puts the market's heading in an h1-h4
+        # inside the article (seen 2026-08-22: the heading text moved out of
+        # any h1-h4, so no article ever matches by heading). But the URL we
+        # fetched already picked the market, so when exactly one
+        # MarketWrapper article is on the page, trust it's the one we asked
+        # for rather than failing outright.
+        print(f"    no article matched heading {expected_heading!r} by tag, "
+              f"but exactly one article on page — using it")
+        article_index = 0
     if article_index < 0:
         print(f"    WARNING: no article with heading {expected_heading!r} on page")
+        _log_page_probe(page)
+        _dump_debug(page, debug_dir, f"noarticle_{_slug_tail(url)}", screenshot=False)
         return {}
 
     market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
-    market_scope = market_article.locator('[class*="AccordionWrapper"]').first
+    accordion = market_article.locator('[class*="AccordionWrapper"]').first
+    # Oddschecker replaced the accordion layout with a grid one on some pages
+    # (seen 2026-08-22: no AccordionWrapper anywhere in the article, but
+    # [data-testid="market-bet"] rows still exist directly inside it). Only
+    # narrow to the accordion when one is actually present; otherwise search
+    # the whole article.
+    try:
+        has_accordion = accordion.count() > 0
+    except Exception:
+        has_accordion = False
+    market_scope = accordion if has_accordion else market_article
 
     if interactive:
         # Wait for the show-more button to appear inside the right accordion.
@@ -585,7 +726,7 @@ def _extract_market_odds(
         # but its show-more button may still be hydrating, and clicking it before
         # then is a no-op — leading to a stuck 6-row collapsed view.
         try:
-            market_scope.locator('[data-testid="show-more-less"]').first.wait_for(
+            market_scope.locator(SHOW_MORE_SELECTOR).first.wait_for(
                 state="attached", timeout=NAV_WAIT_MS
             )
         except Exception:
@@ -604,10 +745,21 @@ def _extract_market_odds(
 
     if not rows:
         print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
-        _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}")
+        _log_market_probe(market_article)
+        _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}", screenshot=False)
         return {}
 
     print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
+    if len(rows) < 8:
+        # Oddschecker's grid layout appears to render only a couple of
+        # favorites by default. If the show-more/"See All Odds" click isn't
+        # actually the right control for revealing the rest of the field,
+        # this stays suspiciously low regardless of row-selector fixes —
+        # probe for any expand-looking control so the real one can be found.
+        print(f"    NOTE: only {len(rows)} rows — suspiciously few for a "
+              f"22-driver field, probing for an expand control")
+        _log_market_probe(market_article)
+        _dump_debug(page, debug_dir, f"market_fewrows_{_slug_tail(url)}", screenshot=False)
 
     for row in rows:
         try:
@@ -626,7 +778,7 @@ def _extract_market_odds(
 
     print(f"    extracted {len(odds)} drivers")
     if not odds:
-        _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}")
+        _dump_debug(page, debug_dir, f"market_noresolved_{_slug_tail(url)}", screenshot=False)
     return odds
 
 
