@@ -8,7 +8,7 @@ market.
 Markets scraped (per event, when present):
   - win    → race winner (outright)
   - podium → podium finish (top 3)
-  - top5   → top-5 finish        (Oddschecker market: Top 5 Finish)
+  - top6   → top-6 finish        (Oddschecker market: Top 6 Finish)
   - top10  → points finish       (Oddschecker market: Points Finish)
   - dnf    → "Not To Be Classified" (binary per driver)
 
@@ -24,7 +24,12 @@ Return shape (event-keyed):
 
 Race discovery:
   We derive the next-race slug from public/data/schedule.json rather than
-  crawling the Oddschecker hub, to keep the browsing footprint minimal.
+  crawling the Oddschecker hub, to keep the browsing footprint minimal. The
+  <country>-gp -> <country>-grand-prix guess (_oddschecker_slug) is verified
+  once against the live site before scraping starts; on a mismatch (the
+  guess doesn't match the race name Oddschecker's own page shows) we fall
+  back to reading the real slug off the F1 hub page's links. See
+  _resolve_race_slug.
 
 Anti-bot (Cloudflare):
   Oddschecker sits behind Cloudflare bot management. The scraper warms up ONE
@@ -43,8 +48,7 @@ Anti-bot (Cloudflare):
   Fetch backends, in precedence order:
     1. Firecrawl (FIRECRAWL_API_KEY) — PRIMARY CI PATH. A managed scrape API
        whose stealth/auto proxy clears Cloudflare and doesn't block gambling
-       domains. We fetch each market page via Firecrawl (expanding the lazy
-       "show more" rows with an executeJavascript action), load the returned
+       domains. We fetch each market page via Firecrawl, load the returned
        HTML into a local page with set_content, and run the shared extractor.
        See _firecrawl_fetch_html / _scrape_event_markets_firecrawl.
     2. CDP unblocker (SCRAPER_BROWSER_CDP_URL) — connect over CDP to a managed
@@ -73,7 +77,13 @@ from roster import resolve_driver_index as _roster_resolve
 # Use the US regional path: `/us/motorsport/formula-one/`. The non-regional
 # path `/motorsport/formula-1/` exists but only exposes a subset of markets
 # (winner + podium-finish). The US path lists winner, podium-finish,
-# top-5-finish, points-finish, winning-team and fastest-lap.
+# top-6-finish, points-finish, winning-team and fastest-lap.
+#
+# As of Sept 2026, Oddschecker gives every market its own page
+# (`.../<race-slug>/<market-slug>`) rather than stacking several markets on
+# one page — the F1 hub/landing page only previews a couple of drivers per
+# market; the per-market page is what has the full driver grid. See
+# MARKET_URL_CANDIDATES / _extract_market_odds.
 ODDSCHECKER_BASE = "https://www.oddschecker.com/us/motorsport/formula-one"
 
 # Schedule lives at <repo>/public/data/schedule.json. odds_fetcher.py is at
@@ -94,7 +104,7 @@ ODDSCHECKER_SLUG_OVERRIDES: Dict[str, str] = {
 MARKET_URL_CANDIDATES: Dict[str, List[str]] = {
     "win": ["winner"],
     "podium": ["podium-finish"],
-    "top5": ["top-5-finish"],
+    "top6": ["top-6-finish"],
     "top10": ["points-finish"],
     # Oddschecker re-introduced the DNF market under "Not To Be Classified".
     # The slug also appears with hyphenation variants on some race pages.
@@ -102,15 +112,14 @@ MARKET_URL_CANDIDATES: Dict[str, List[str]] = {
             "driver-not-to-finish", "driver-to-retire", "to-retire"],
 }
 
-# Each market URL on Oddschecker actually renders several market accordions
-# stacked on the page (e.g. /podium-finish renders Points Finish, Fastest Lap,
-# AND Podium Finish, in that order). We can't assume the first accordion is the
-# one we asked for. Instead, match by the article's heading text — the heading
-# always exactly matches one of the strings below.
+# Each market page's <h1> reads "<race name> - <market heading>" (e.g.
+# "Italian Grand Prix - Top 6 Finish"). Since each URL now serves exactly one
+# market (see module docstring), we don't need this to disambiguate rows —
+# it's just a sanity check that we landed on the market we asked for.
 MARKET_HEADING_TEXT: Dict[str, str] = {
     "win": "Winner",
     "podium": "Podium Finish",
-    "top5": "Top 5 Finish",
+    "top6": "Top 6 Finish",
     "top10": "Points Finish",
     "dnf": "Not To Be Classified",
 }
@@ -130,35 +139,20 @@ CDP_CONNECT_TIMEOUT_MS = 120000
 FIRECRAWL_ENDPOINT = "https://api.firecrawl.dev/v2/scrape"
 FIRECRAWL_TIMEOUT_S = 220
 FIRECRAWL_MAX_ATTEMPTS = 2
-# Oddschecker collapses each market to ~6 rows behind a "show more" toggle and
-# lazy-loads the rest on click. A plain Firecrawl fetch (or a plain click
-# action) leaves it collapsed; running the click via executeJavascript after a
-# scroll expands every market on the page (verified: 36 → 112 bet rows). We then
-# parse the returned, already-expanded HTML with the shared extractor.
-#
-# 2026-08-22: Oddschecker's redesigned grid layout replaced this toggle with
-# a plain <button class*="ShowMoreText"> reading "Show More" and dropped the
-# old data-testid entirely. (An earlier guess at "SeeAllOdds" was a red
-# herring — that class exists on a per-bookmaker link, not the driver-list
-# expander, and clicking it left the field stuck at ~2 rows — dropped here.)
-# Confirmed via an in-band probe that hunts for any element whose own text
-# reads like an expand control, independent of assumed naming — see
-# _log_market_probe.
-SHOW_MORE_SELECTOR = '[data-testid="show-more-less"], [class*="ShowMoreText"]'
-# 2026-08-22, later the same day: clicking this button reliably hung the CI
-# job for 20-35 min with zero output — three times in a row, including after
-# scoping the click to inside MarketWrapper articles only (ruling out the
-# "clicked something unrelated elsewhere on the page" theory). Whatever
-# Oddschecker's "Show More" actually triggers (a slow API call, added bot
-# friction, etc.), it stalls Firecrawl's render past any reasonable timeout.
-# Rather than keep guessing at the click, skip it: the extractor still
-# recovers the ~2 favorites Oddschecker renders by default per market
-# (real odds, just a shorter field) instead of the pipeline failing
-# outright. Supplement with the manual odds JSON for full-field coverage
-# on a given race (see public/data/odds_input/).
+# Each market's odds grid (data-testid="odds-grid-desktop") renders all 22
+# drivers on load — confirmed directly against the live site: no "show more"
+# click is needed at all. That matters beyond convenience: earlier attempts
+# at a driver-list "Show More"/"See All Odds"/"ShowMoreText" click (chasing a
+# *different*, ~2-driver "featured odds" widget elsewhere on the page — not
+# this grid) reliably hung Firecrawl's render for 20-35 min in CI, three runs
+# in a row, even after scoping the click to inside a market's own wrapper. So
+# even if the grid did need expansion, that click isn't a viable path here —
+# it's the grid itself that made the click unnecessary in the first place.
+# We still scroll + wait a beat to give the grid time to hydrate before
+# Firecrawl captures the HTML.
 FIRECRAWL_EXPAND_ACTIONS = [
     {"type": "scroll", "direction": "down"},
-    {"type": "wait", "milliseconds": 1500},
+    {"type": "wait", "milliseconds": 2500},
 ]
 
 # Human-like pacing between market navigations (seconds). Oddschecker sits
@@ -282,11 +276,11 @@ def _dismiss_overlays(page) -> None:
             continue
 
 
-def _wait_for_market_bets(page) -> None:
-    """Wait for at least one bet row to render."""
+def _wait_for_grid(page) -> None:
+    """Wait for the odds grid to render at least one driver row."""
     try:
         page.wait_for_selector(
-            '[data-testid="market-bet"]', timeout=NAV_WAIT_MS, state="attached"
+            '[data-testid="grid-bet"]', timeout=NAV_WAIT_MS, state="attached"
         )
     except Exception:
         try:
@@ -295,46 +289,9 @@ def _wait_for_market_bets(page) -> None:
             pass
 
 
-def _expand_show_more(page, scope) -> None:
-    """
-    Click "Show More" within `scope` (a Locator) to reveal collapsed drivers.
-
-    `scope` is the per-market AccordionWrapper — clicking the show-more inside
-    it expands only that market, not other markets stacked on the same page.
-    """
-    # Defensive cap: each click may reveal another "Show More" (rare).
-    for _ in range(5):
-        try:
-            buttons = scope.locator(SHOW_MORE_SELECTOR).all()
-        except Exception:
-            buttons = []
-        clicked = 0
-        for btn in buttons:
-            try:
-                txt = (btn.text_content() or "").strip().lower()
-            except Exception:
-                txt = ""
-            if "more" not in txt and "see all" not in txt:
-                continue
-            try:
-                # JS-dispatched .click() does not fire React's synthetic event
-                # listeners on this site, so use a real Playwright click.
-                # scroll_into_view first because if the article is below the
-                # fold, the click can be intercepted by an overlay; force=True
-                # bypasses any residual overlay (e.g. webpush popup).
-                btn.scroll_into_view_if_needed(timeout=2000)
-                btn.click(force=True, timeout=3000)
-                clicked += 1
-            except Exception:
-                continue
-        if clicked == 0:
-            return
-        page.wait_for_timeout(400)
-
-
 def _row_driver_name(row) -> Optional[str]:
     """
-    Extract the raw bet-name text from a US-style market-bet row.
+    Extract the raw driver-name text from a grid row.
 
     The scraper does not try to resolve names against a known roster — it
     just returns whatever Oddschecker shows. Roster matching happens in
@@ -342,7 +299,7 @@ def _row_driver_name(row) -> Optional[str]:
     F1 API's current grid.
     """
     try:
-        el = row.locator('[data-testid="bet-name"]').first
+        el = row.locator('[data-testid="grid-bet"]').first
         txt = (el.text_content() or "").strip()
     except Exception:
         return None
@@ -350,25 +307,34 @@ def _row_driver_name(row) -> Optional[str]:
 
 
 def _row_best_odds(row) -> Optional[float]:
-    """Extract American odds from the row's bet-odds button."""
-    # The button contains the odds in its first child div; siblings hold
-    # tooltip/marketing content that we don't want to pull in.
-    for sel in [
-        '[data-testid="bet-odds"] .textWrapper_t1l74o75',
-        '[data-testid="bet-odds"] > div',
-        '[data-testid="bet-odds"]',
-    ]:
+    """
+    Extract the best American odds across all bookmaker cells in a row.
+
+    Each bookmaker's price renders as a separate `[data-testid="odds-cell"]`
+    button, and each of those renders twice more (desktop + mobile variants,
+    both present in the DOM regardless of viewport — CSS, not JS, decides
+    which is visible). Oddschecker flags its own pick with a
+    `bestOddsStyles_*` class, but rather than depend on that class name we
+    just parse every cell's text and keep the highest American value — that
+    naturally shrugs off the desktop/mobile duplication and matches how
+    "best odds" ranks regardless of favorite/underdog sign.
+    """
+    best = None
+    try:
+        cells = row.locator('[data-testid="odds-cell"]').all()
+    except Exception:
+        cells = []
+    for cell in cells:
         try:
-            el = row.locator(sel).first
-            txt = (el.text_content() or "").strip()
+            txt = (cell.text_content() or "").strip()
         except Exception:
             continue
-        # "+150\n$10 wins ..." — keep only the leading odds token.
-        first_token = txt.split()[0] if txt else ""
-        am = parse_odds_string(first_token)
-        if am is not None:
-            return am
-    return None
+        am = parse_odds_string(txt)
+        if am is None:
+            continue
+        if best is None or am > best:
+            best = am
+    return best
 
 
 def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = True) -> None:
@@ -405,94 +371,68 @@ def _dump_debug(page, debug_dir: Optional[str], label: str, screenshot: bool = T
         print(f"    [debug] dump failed: {e}")
 
 
-def _log_market_probe(market_article) -> None:
-    """Print a quick in-band summary of one market article's inner structure
-    — used both when no [data-testid="market-bet"] rows are found at all,
-    and when suspiciously few are found (e.g. the field looks collapsed to
-    a couple of favorites) — so a stale row or expand-control selector can
-    be diagnosed from the job's stdout log alone, without downloading the
-    scraper-debug artifact. Best-effort — must never raise/hang.
+def _log_grid_probe(page) -> None:
+    """Print a quick in-band summary of the page's odds-grid structure — used
+    when zero rows are found at all, and when suspiciously few are found
+    (e.g. the field looks collapsed to a couple of favorites) — so a stale
+    grid/row selector can be diagnosed from the job's stdout log alone,
+    without downloading the scraper-debug artifact. Best-effort — must never
+    raise/hang.
+
+    This replaced an earlier probe built around the pre-redesign
+    MarketWrapper/AccordionWrapper/market-bet markup (see git history for
+    2026-08-22) once that markup stopped existing at all; this version
+    targets the current odds-grid-desktop/BetRow grid instead, but keeps the
+    same "hunt for anything that looks like an expand control by its own
+    text, independent of assumed class/testid naming" trick — it's what
+    actually located the real expand button last time class-name guessing
+    kept missing it.
     """
     try:
-        info = market_article.evaluate(
-            """(el) => {
+        info = page.evaluate(
+            """() => {
+                const h1 = document.querySelector('h1');
+                const grid = document.querySelector('[data-testid="odds-grid-desktop"]');
+                const rows = grid ? grid.querySelectorAll('[class*="BetRow_"]') : [];
                 const testids = new Set();
-                el.querySelectorAll('[data-testid]').forEach(n => {
+                document.querySelectorAll('[data-testid]').forEach(n => {
                     testids.add(n.getAttribute('data-testid'));
-                });
-                const classNames = new Set();
-                el.querySelectorAll('[class]').forEach(n => {
-                    (n.className || '').toString().split(/\\s+/).forEach(c => {
-                        if (/row|outcome|selection|runner|bet|price|odds/i.test(c)) {
-                            classNames.add(c);
-                        }
-                    });
                 });
                 // Any element whose own (non-descendant) text looks like an
                 // expand/reveal-more control, regardless of class/testid
                 // naming — tag + attributes + text tells us whether it's
                 // even clickable (button/link) or just a label.
                 const expandCandidates = [];
-                el.querySelectorAll('button, a, [role="button"], [class], [data-testid]')
-                    .forEach(n => {
-                        const own = Array.from(n.childNodes)
-                            .filter(c => c.nodeType === 3)
-                            .map(c => c.textContent).join('').trim();
-                        const text = own || (n.children.length === 0 ? (n.textContent || '').trim() : '');
-                        if (text && /more|see all|show|expand|view all|\\d+\\s*more/i.test(text) && text.length < 40) {
-                            expandCandidates.push({
-                                tag: n.tagName,
-                                testid: n.getAttribute('data-testid'),
-                                cls: (n.className || '').toString().slice(0, 80),
-                                href: n.getAttribute('href'),
-                                text: text.slice(0, 40),
-                            });
-                        }
-                    });
-                return {
-                    testids: Array.from(testids).slice(0, 30),
-                    classNames: Array.from(classNames).slice(0, 20),
-                    textSnippet: (el.textContent || '').trim().slice(0, 300),
-                    expandCandidates: expandCandidates.slice(0, 15),
-                };
-            }"""
-        )
-        print(f"    [market-probe] data-testids={info['testids']}")
-        print(f"    [market-probe] candidate classNames={info['classNames']}")
-        print(f"    [market-probe] expand-control candidates={info['expandCandidates']}")
-        print(f"    [market-probe] text={info['textSnippet']!r}")
-    except Exception as e:
-        print(f"    [market-probe] failed: {e}")
-
-
-def _log_page_probe(page) -> None:
-    """Print a quick in-band summary of what actually loaded, without needing
-    to download the scraper-debug artifact: page title, how many market
-    articles (of any heading) are on the page, and the heading text of each.
-    Best-effort — this must never itself raise or hang the run.
-    """
-    try:
-        info = page.evaluate(
-            """() => {
-                const articles = Array.from(
-                    document.querySelectorAll('article[class*="MarketWrapper"]')
-                );
-                const headings = articles.map(a => {
-                    const h = a.querySelector('h1,h2,h3,h4');
-                    return h ? (h.textContent || '').trim() : null;
+                document.querySelectorAll('button, a, [role="button"]').forEach(n => {
+                    const own = Array.from(n.childNodes)
+                        .filter(c => c.nodeType === 3)
+                        .map(c => c.textContent).join('').trim();
+                    const text = own || (n.children.length === 0 ? (n.textContent || '').trim() : '');
+                    if (text && /more|see all|show|expand|view all|\\d+\\s*more/i.test(text) && text.length < 40) {
+                        expandCandidates.push({
+                            tag: n.tagName,
+                            testid: n.getAttribute('data-testid'),
+                            cls: (n.className || '').toString().slice(0, 80),
+                            text: text.slice(0, 40),
+                        });
+                    }
                 });
                 return {
                     title: document.title,
-                    articleCount: articles.length,
-                    headings: headings.slice(0, 10),
-                    bodyLen: (document.body && document.body.innerHTML || '').length,
+                    h1: h1 ? (h1.textContent || '').trim() : null,
+                    gridFound: !!grid,
+                    rowCount: rows.length,
+                    testids: Array.from(testids).slice(0, 30),
+                    expandCandidates: expandCandidates.slice(0, 10),
                 };
             }"""
         )
-        print(f"    [probe] title={info['title']!r} bodyLen={info['bodyLen']} "
-              f"articles={info['articleCount']} headings={info['headings']}")
+        print(f"    [grid-probe] title={info['title']!r} h1={info['h1']!r}")
+        print(f"    [grid-probe] gridFound={info['gridFound']} rowCount={info['rowCount']}")
+        print(f"    [grid-probe] data-testids={info['testids']}")
+        print(f"    [grid-probe] expand-control candidates={info['expandCandidates']}")
     except Exception as e:
-        print(f"    [probe] failed: {e}")
+        print(f"    [grid-probe] failed: {e}")
 
 
 # Cloudflare interstitial / "are you human" markers. Kept specific so a normal
@@ -663,104 +603,68 @@ def _extract_market_odds(
 ) -> Dict[str, float]:
     """Extract { driver_name: american_odds } for one market from a loaded page.
 
+    As of Sept 2026, Oddschecker gives each market its own page instead of
+    stacking several market accordions on one shared URL, so there's no
+    heading to disambiguate — one page has exactly one odds grid
+    (`data-testid="odds-grid-desktop"`), with one row per driver
+    (`[class*="BetRow_"]`) and every driver rendered on load (confirmed
+    directly against the live site: no "show more" click needed — the
+    driver-list-expansion apparatus this function used to have chased a
+    different, ~2-driver "featured odds" widget elsewhere on the page; see
+    FIRECRAWL_EXPAND_ACTIONS).
+
     Shared by both fetch backends:
-      - interactive=True (live browser): dismiss overlays, wait for hydration,
-        and click "show more" to expand the lazy-loaded rows.
-      - interactive=False (Firecrawl): the page was filled via set_content from
-        HTML that Firecrawl already expanded with a click-all-show-more action,
-        so we skip all interaction and just read the static DOM.
+      - interactive=True (live browser): dismiss overlays and wait for the
+        grid to hydrate.
+      - interactive=False (Firecrawl): the page was filled via set_content
+        from already-rendered HTML, so we skip interaction and just read the
+        static DOM.
     """
     if interactive:
         _dismiss_overlays(page)
-        _wait_for_market_bets(page)
+        _wait_for_grid(page)
 
-    # Find the MarketWrapper article whose heading text exactly matches the
-    # market we want. Each article wraps one market's heading + AccordionWrapper.
-    # We do the matching in JS because Playwright's `:has(:text-is())` chain is
-    # finicky with quoting and the Locator filter API needs a sub-locator on a
-    # base set we'd have to enumerate first anyway.
-    probe = page.evaluate(
-        """(heading) => {
-            const articles = document.querySelectorAll('article[class*="MarketWrapper"]');
-            for (let i = 0; i < articles.length; i++) {
-                const h = articles[i].querySelector('h1,h2,h3,h4');
-                if (h && (h.textContent || '').trim() === heading) return {index: i, count: articles.length};
-            }
-            return {index: -1, count: articles.length};
-        }""",
-        expected_heading,
-    )
-    article_index = probe["index"]
-    if article_index < 0 and probe["count"] == 1:
-        # Oddschecker no longer always puts the market's heading in an h1-h4
-        # inside the article (seen 2026-08-22: the heading text moved out of
-        # any h1-h4, so no article ever matches by heading). But the URL we
-        # fetched already picked the market, so when exactly one
-        # MarketWrapper article is on the page, trust it's the one we asked
-        # for rather than failing outright.
-        print(f"    no article matched heading {expected_heading!r} by tag, "
-              f"but exactly one article on page — using it")
-        article_index = 0
-    if article_index < 0:
-        print(f"    WARNING: no article with heading {expected_heading!r} on page")
-        _log_page_probe(page)
-        _dump_debug(page, debug_dir, f"noarticle_{_slug_tail(url)}", screenshot=False)
-        return {}
-
-    market_article = page.locator('article[class*="MarketWrapper"]').nth(article_index)
-    accordion = market_article.locator('[class*="AccordionWrapper"]').first
-    # Oddschecker replaced the accordion layout with a grid one on some pages
-    # (seen 2026-08-22: no AccordionWrapper anywhere in the article, but
-    # [data-testid="market-bet"] rows still exist directly inside it). Only
-    # narrow to the accordion when one is actually present; otherwise search
-    # the whole article.
+    grid = page.locator('[data-testid="odds-grid-desktop"]').first
     try:
-        has_accordion = accordion.count() > 0
+        scope = grid if grid.count() > 0 else page.locator("body")
     except Exception:
-        has_accordion = False
-    market_scope = accordion if has_accordion else market_article
-
-    if interactive:
-        # Wait for the show-more button to appear inside the right accordion.
-        # When the target article is below the fold, the AccordionWrapper exists
-        # but its show-more button may still be hydrating, and clicking it before
-        # then is a no-op — leading to a stuck 6-row collapsed view.
-        try:
-            market_scope.locator(SHOW_MORE_SELECTOR).first.wait_for(
-                state="attached", timeout=NAV_WAIT_MS
-            )
-        except Exception:
-            pass
-
-        _expand_show_more(page, market_scope)
-        # The webpush overlay can reappear after async loads.
-        _dismiss_overlays(page)
-
-    odds: Dict[str, float] = {}
+        scope = page.locator("body")
 
     try:
-        rows = market_scope.locator('[data-testid="market-bet"]').all()
+        rows = scope.locator('[class*="BetRow_"]').all()
     except Exception:
         rows = []
 
     if not rows:
-        print(f"    WARNING: no [data-testid=market-bet] rows in {expected_heading!r}")
-        _log_market_probe(market_article)
+        print(f"    WARNING: no bet rows found for {expected_heading!r} on page")
+        _log_grid_probe(page)
         _dump_debug(page, debug_dir, f"market_norows_{_slug_tail(url)}", screenshot=False)
         return {}
 
-    print(f"    matched {len(rows)} bet rows in {expected_heading!r}")
+    # Sanity check only — the real signal is `rows`. The <h1> reads
+    # "<race name> - <expected_heading>"; a mismatch would flag a future
+    # routing change without failing the scrape over it.
+    try:
+        h1 = (page.locator("h1").first.text_content() or "").strip()
+    except Exception:
+        h1 = ""
+    if h1 and expected_heading not in h1:
+        print(f"    NOTE: page heading {h1!r} doesn't mention {expected_heading!r}")
+
+    print(f"    matched {len(rows)} bet rows for {expected_heading!r}")
     if len(rows) < 8:
-        # Oddschecker's grid layout appears to render only a couple of
-        # favorites by default. If the show-more/"See All Odds" click isn't
-        # actually the right control for revealing the rest of the field,
-        # this stays suspiciously low regardless of row-selector fixes —
-        # probe for any expand-looking control so the real one can be found.
+        # The full field is 22 drivers; a run stuck at a couple of favorites
+        # is exactly the failure mode a prior version of this scraper shipped
+        # to production silently (see git history, Sept 2026) — never repeat
+        # that quietly. Probe for anything that looks like an unclicked
+        # expand control, in case the grid itself regresses to a collapsed
+        # view in the future.
         print(f"    NOTE: only {len(rows)} rows — suspiciously few for a "
-              f"22-driver field, probing for an expand control")
-        _log_market_probe(market_article)
+              f"22-driver field, probing the page")
+        _log_grid_probe(page)
         _dump_debug(page, debug_dir, f"market_fewrows_{_slug_tail(url)}", screenshot=False)
 
+    odds: Dict[str, float] = {}
     for row in rows:
         try:
             name = _row_driver_name(row)
@@ -843,6 +747,62 @@ def _next_race_from_schedule(
         "date": race_dt.date().isoformat(),
         "is_sprint": bool(r.get("is_sprint", False)),
     }
+
+
+# ---------------------------------------------------------------------------
+# Race slug verification (hub fallback)
+# ---------------------------------------------------------------------------
+#
+# _oddschecker_slug()'s <country>-gp -> <country>-grand-prix guess is usually
+# right, but can miss (that's what ODDSCHECKER_SLUG_OVERRIDES patches today,
+# e.g. US GP -> united-states-grand-prix). Rather than only discovering a bad
+# guess once every market for the race has come back empty, we verify the
+# guess against the live page once per run and, on a mismatch, recover the
+# real slug from the F1 hub page's links. See _resolve_race_slug.
+
+_HUB_RACE_LINK_RE = re.compile(r"/formula-one/([^/?]+)/")
+
+
+def _dominant_race_slug_from_links(hrefs: List[str]) -> Optional[str]:
+    """
+    Given hrefs pulled from the F1 hub page, return the most-linked
+    `*-grand-prix` slug.
+
+    The hub links to the upcoming race's own markets dozens of times (quick
+    links, featured markets), a later race gets at most a passing mention in
+    a schedule widget, and season-long futures markets
+    (drivers-championship, constructors-championship) don't end in
+    "-grand-prix" at all. Frequency reliably picks out "the current race"
+    even when Oddschecker markets it under a name our schedule doesn't
+    expect (which is exactly the case a slug guess gets wrong).
+    """
+    counts: Dict[str, int] = {}
+    for href in hrefs:
+        m = _HUB_RACE_LINK_RE.search(href or "")
+        if not m:
+            continue
+        slug = m.group(1)
+        if slug.endswith("-grand-prix"):
+            counts[slug] = counts.get(slug, 0) + 1
+    if not counts:
+        return None
+    return max(counts, key=counts.get)
+
+
+def _race_page_matches(page, expected_name: str) -> bool:
+    """
+    True if the loaded page's <h1> matches expected_name (the schedule's race
+    name), modulo case/punctuation. A race's base page (no market suffix)
+    has an <h1> that's just the race name, e.g. "Italian Grand Prix".
+    """
+    try:
+        h1 = (page.locator("h1").first.text_content() or "").strip()
+    except Exception:
+        h1 = ""
+    if not h1:
+        return False
+    norm = lambda s: re.sub(r"[^a-z0-9]+", " ", s.lower()).strip()
+    return norm(h1) == norm(expected_name)
 
 
 def _import_sync_playwright():
@@ -1145,6 +1105,28 @@ def _warm_up(page, hub_url: str) -> bool:
     return False
 
 
+def _load_url_live(page, url: str) -> str:
+    """
+    Fetch `url` with the live browser, for slug verification.
+
+    Returns "ok" (loaded, not blocked), "blocked" (Cloudflare), or "failed"
+    (navigation error) — the shape _resolve_race_slug needs from either
+    backend. This is a quick read of the page's <h1>/links, not a warm-up for
+    the markets that follow, so it doesn't dismiss overlays or dwell.
+    """
+    try:
+        resp = page.goto(url, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    except Exception as e:
+        print(f"    nav failed: {e}")
+        return "failed"
+    status = resp.status if resp is not None else 0
+    if status in (403, 429) or _looks_like_challenge(page):
+        print(f"    SCRAPER_BLOCKED status={status} url={url}")
+        print(f"    block-detail: {_block_details(resp, page)}")
+        return "blocked"
+    return "ok"
+
+
 def _scrape_event_markets(
     browser: "_ScraperBrowser",
     event_label: str,
@@ -1278,6 +1260,24 @@ def _firecrawl_fetch_html(
     return None
 
 
+def _load_url_firecrawl(page, url: str, api_key: str, debug_dir: Optional[str] = None) -> str:
+    """
+    Fetch `url` through Firecrawl and load it into `page` via set_content, for
+    slug verification. Returns "ok" or "failed" — Firecrawl already handles
+    Cloudflare itself, so there's no separate "blocked" outcome to report
+    here (mirrors _load_url_live's return shape for _resolve_race_slug).
+    """
+    html = _firecrawl_fetch_html(url, api_key, debug_dir=debug_dir)
+    if not html:
+        return "failed"
+    try:
+        page.set_content(html, wait_until="domcontentloaded", timeout=PAGE_TIMEOUT_MS)
+    except Exception as e:
+        print(f"    set_content failed: {e}")
+        return "failed"
+    return "ok"
+
+
 def _scrape_event_markets_firecrawl(
     browser: "_ScraperBrowser",
     event_label: str,
@@ -1326,6 +1326,66 @@ def _scrape_event_markets_firecrawl(
     return out
 
 
+def _resolve_race_slug(
+    page,
+    guessed_slug: str,
+    race_name: str,
+    load_url,
+    debug_dir: Optional[str] = None,
+) -> str:
+    """
+    Verify the schedule-derived slug resolves to the expected race on
+    Oddschecker; on a mismatch (and only then), recover the real slug from
+    the F1 hub's links.
+
+    `load_url(page, url) -> "ok"|"blocked"|"failed"` is supplied by the
+    caller so this single implementation works against either fetch backend
+    (see _load_url_live / _load_url_firecrawl). Costs exactly one extra
+    request beyond today's baseline when the guess is right (the common
+    case, and the check runs every time — there's no cross-run cache); the
+    hub lookup itself only runs on an actual mismatch.
+    """
+    base_url = f"{ODDSCHECKER_BASE}/{guessed_slug}"
+    result = load_url(page, base_url)
+    if result != "ok":
+        print(f"  slug verification {result} for '{guessed_slug}' — proceeding with it anyway")
+        return guessed_slug
+    if _race_page_matches(page, race_name):
+        return guessed_slug
+
+    print(f"  SLUG_MISMATCH: '{guessed_slug}' doesn't look like {race_name!r} on "
+          f"Oddschecker — checking the F1 hub for the real slug")
+    _dump_debug(page, debug_dir, f"slug_mismatch_{guessed_slug}", screenshot=False)
+
+    result = load_url(page, ODDSCHECKER_BASE)
+    if result != "ok":
+        print(f"  hub fetch {result} — proceeding with the guessed slug '{guessed_slug}'")
+        return guessed_slug
+
+    # Give the hub's client-side render a beat to attach its links before we
+    # read them (only matters on the live backend — Firecrawl's HTML is
+    # already fully rendered before it's injected via set_content).
+    try:
+        page.wait_for_selector('a[href*="/formula-one/"]', timeout=NAV_WAIT_MS, state="attached")
+    except Exception:
+        pass
+
+    try:
+        hrefs = page.eval_on_selector_all(
+            'a[href*="/formula-one/"]', "els => els.map(e => e.getAttribute('href'))"
+        )
+    except Exception:
+        hrefs = []
+    discovered = _dominant_race_slug_from_links(hrefs)
+    if discovered and discovered != guessed_slug:
+        print(f"  SLUG_MISMATCH resolved: hub says '{discovered}' — consider adding "
+              f"it to ODDSCHECKER_SLUG_OVERRIDES so future runs skip this hub lookup")
+        return discovered
+
+    print(f"  hub didn't yield a different slug — proceeding with the guessed slug '{guessed_slug}'")
+    return guessed_slug
+
+
 def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> Tuple[Dict[str, Dict[str, Dict[str, float]]], dict]:
     """
     Scrape all available F1 markets for the next race from Oddschecker.
@@ -1351,12 +1411,7 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
         "date": next_race["date"],
         "is_sprint": next_race["is_sprint"],
     }
-    race_url = f"{ODDSCHECKER_BASE}/{next_race['slug']}"
-    sprint_url = f"{race_url}-sprint" if next_race["is_sprint"] else None
-    print(f"  next race: {next_race['name']} ({race_url})")
     print(f"  scraper engine: {'patchright' if is_patchright else 'playwright'}")
-    if sprint_url:
-        print(f"  sprint event: {sprint_url}")
 
     api_key = _firecrawl_api_key()
     headless = _resolve_headless(headed)
@@ -1369,13 +1424,31 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
         browser = _ScraperBrowser(p, headless=headless, local_only=bool(api_key))
         try:
             if api_key:
+                load_url = lambda pg, url: _load_url_firecrawl(pg, url, api_key, debug_dir=debug_dir)
                 scrape_event = lambda label, base: _scrape_event_markets_firecrawl(
                     browser, label, base, api_key, debug_dir=debug_dir,
                 )
             else:
+                load_url = _load_url_live
                 scrape_event = lambda label, base: _scrape_event_markets(
                     browser, label, base, debug_dir=debug_dir,
                 )
+
+            print("  verifying race slug...")
+            verify_context = browser.new_context()
+            verify_page = verify_context.new_page()
+            verify_page.set_default_timeout(PAGE_TIMEOUT_MS)
+            resolved_slug = _resolve_race_slug(
+                verify_page, next_race["slug"], next_race["name"], load_url,
+                debug_dir=debug_dir,
+            )
+            browser.close_context(verify_context)
+
+            race_url = f"{ODDSCHECKER_BASE}/{resolved_slug}"
+            sprint_url = f"{race_url}-sprint" if next_race["is_sprint"] else None
+            print(f"  next race: {next_race['name']} ({race_url})")
+            if sprint_url:
+                print(f"  sprint event: {sprint_url}")
 
             race_markets = scrape_event("race", race_url)
             if race_markets:
