@@ -2,3 +2,7 @@ __pycache__/
 *.pyc
 node_modules/
 site/dist/
+
+# Scraper debug dumps (SCRAPER_DEBUG_DIR) — post-mortem HTML/screenshots
+# from a CI run, not source or generated data the pipeline depends on.
+scraper-debug/
