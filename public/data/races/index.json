@@ -69,7 +69,14 @@
       "date": "2026-09-06",
       "is_sprint": false,
       "generated_at": "2026-09-06T09:17:09.166314+00:00"
+    },
+    {
+      "slug": "spanish-gp",
+      "name": "Spanish Grand Prix",
+      "date": "2026-09-13",
+      "is_sprint": false,
+      "generated_at": "2026-09-07T10:05:38.094195+00:00"
     }
   ],
-  "latest": "italian-gp"
+  "latest": "spanish-gp"
 }
