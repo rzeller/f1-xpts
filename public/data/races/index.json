@@ -76,7 +76,14 @@
       "date": "2026-09-13",
       "is_sprint": false,
       "generated_at": "2026-09-12T13:55:58.325754+00:00"
+    },
+    {
+      "slug": "azerbaijan-gp",
+      "name": "Azerbaijan Grand Prix",
+      "date": "2026-09-26",
+      "is_sprint": false,
+      "generated_at": "2026-09-17T11:33:26.878871+00:00"
     }
   ],
-  "latest": "spanish-gp"
+  "latest": "azerbaijan-gp"
 }
