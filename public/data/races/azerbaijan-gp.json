@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-09-17T11:33:26.878871+00:00",
+    "generated_at": "2026-09-18T09:34:45.633981+00:00",
     "race": "Azerbaijan Grand Prix",
     "date": "2026-09-26",
     "is_sprint": false,
@@ -1606,7 +1606,7 @@
     "final_loss": 0.06376119079931944,
     "n_evals": 2748,
     "n_steps": 8,
-    "elapsed_seconds": 72.5,
+    "elapsed_seconds": 71.9,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.005,
@@ -4501,49 +4501,49 @@
         "step": 1,
         "eval": 191,
         "best_loss": 0.082562,
-        "elapsed": 5.1
+        "elapsed": 5.0
       },
       {
         "step": 2,
         "eval": 402,
         "best_loss": 0.075828,
-        "elapsed": 10.7
+        "elapsed": 10.5
       },
       {
         "step": 3,
         "eval": 670,
         "best_loss": 0.07507,
-        "elapsed": 17.8
+        "elapsed": 17.5
       },
       {
         "step": 4,
         "eval": 1014,
         "best_loss": 0.07443,
-        "elapsed": 26.8
+        "elapsed": 26.5
       },
       {
         "step": 5,
         "eval": 1468,
         "best_loss": 0.073929,
-        "elapsed": 38.8
+        "elapsed": 38.4
       },
       {
         "step": 6,
         "eval": 1812,
         "best_loss": 0.063812,
-        "elapsed": 47.8
+        "elapsed": 47.4
       },
       {
         "step": 7,
         "eval": 2299,
         "best_loss": 0.063782,
-        "elapsed": 60.6
+        "elapsed": 60.1
       },
       {
         "step": 8,
         "eval": 2748,
         "best_loss": 0.063761,
-        "elapsed": 72.4
+        "elapsed": 71.8
       }
     ],
     "residuals": [
