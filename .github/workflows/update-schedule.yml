@@ -1,0 +1,56 @@
+name: Update F1 Schedule
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Daily, ahead of update.yml's 06:00 UTC lead-up window so a calendar
+    # change (cancellation, relocation, session-time shift) lands before the
+    # projections run that depends on it.
+    - cron: '17 4 * * *'
+
+# Shares the projections pipeline's queue so a schedule PR and a projections
+# PR never race each other to auto-merge.
+concurrency:
+  group: update-pipeline
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  update-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Refresh schedule.json from Jolpica F1 API
+        run: python pipeline/update_schedule.py
+
+      - name: Create PR and merge (triggers Vercel redeploy)
+        uses: peter-evans/create-pull-request@v7
+        id: create-pr
+        with:
+          add-paths: public/data/schedule.json
+          commit-message: "Update: race schedule"
+          title: "Update: race schedule"
+          body: "Automated calendar refresh from the Jolpica F1 API (`pipeline/update_schedule.py`)."
+          branch: bot/update-schedule
+          delete-branch: true
+          committer: "F1 Bot <bot@f1xpts.dev>"
+
+      - name: Auto-merge PR
+        if: steps.create-pr.outputs.pull-request-number
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} \
+            --squash --delete-branch
