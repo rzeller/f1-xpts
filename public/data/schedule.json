@@ -276,11 +276,11 @@
     {
       "round": 16,
       "name": "Bahrain Grand Prix in Malaysia",
-      "slug": "bahrain-gp-in-malaysia",
-      "location": "Kuala Lumpur",
+      "slug": "bahrain-gp",
+      "location": "Sepang",
       "circuit": "Sepang International Circuit",
       "country": "Malaysia",
-      "timezone": "+08",
+      "timezone": "MYT",
       "utc_offset": 8,
       "is_sprint": false,
       "sessions": {
