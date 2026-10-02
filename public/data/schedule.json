@@ -275,12 +275,12 @@
     },
     {
       "round": 16,
-      "name": "Bahrain Grand Prix",
-      "slug": "bahrain-gp",
-      "location": "Sepang",
+      "name": "Bahrain Grand Prix in Malaysia",
+      "slug": "bahrain-gp-in-malaysia",
+      "location": "Kuala Lumpur",
       "circuit": "Sepang International Circuit",
       "country": "Malaysia",
-      "timezone": "MYT",
+      "timezone": "+08",
       "utc_offset": 8,
       "is_sprint": false,
       "sessions": {
@@ -302,8 +302,8 @@
       "utc_offset": 8,
       "is_sprint": true,
       "sessions": {
-        "fp1": "2026-10-09T09:30:00Z",
-        "sprint_qualifying": "2026-10-09T13:30:00Z",
+        "fp1": "2026-10-09T08:30:00Z",
+        "sprint_qualifying": "2026-10-09T12:30:00Z",
         "sprint": "2026-10-10T09:00:00Z",
         "qualifying": "2026-10-10T13:00:00Z",
         "race": "2026-10-11T12:00:00Z"
@@ -322,8 +322,8 @@
       "sessions": {
         "fp1": "2026-10-23T17:30:00Z",
         "fp2": "2026-10-23T21:00:00Z",
-        "fp3": "2026-10-24T18:30:00Z",
-        "qualifying": "2026-10-24T22:00:00Z",
+        "fp3": "2026-10-24T17:30:00Z",
+        "qualifying": "2026-10-24T21:00:00Z",
         "race": "2026-10-25T20:00:00Z"
       }
     },
@@ -347,7 +347,7 @@
     },
     {
       "round": 20,
-      "name": "São Paulo Grand Prix",
+      "name": "Brazilian Grand Prix",
       "slug": "sao-paulo-gp",
       "location": "São Paulo",
       "circuit": "Autódromo José Carlos Pace",
@@ -356,8 +356,8 @@
       "utc_offset": -3,
       "is_sprint": false,
       "sessions": {
-        "fp1": "2026-11-06T14:30:00Z",
-        "fp2": "2026-11-06T18:00:00Z",
+        "fp1": "2026-11-06T15:30:00Z",
+        "fp2": "2026-11-06T19:00:00Z",
         "fp3": "2026-11-07T14:30:00Z",
         "qualifying": "2026-11-07T18:00:00Z",
         "race": "2026-11-08T17:00:00Z"
@@ -368,17 +368,17 @@
       "name": "Las Vegas Grand Prix",
       "slug": "las-vegas-gp",
       "location": "Las Vegas",
-      "circuit": "Las Vegas Strip Circuit",
+      "circuit": "Las Vegas Strip Street Circuit",
       "country": "United States",
       "timezone": "PST",
       "utc_offset": -8,
       "is_sprint": false,
       "saturday_race": true,
       "sessions": {
-        "fp1": "2026-11-20T02:30:00Z",
-        "fp2": "2026-11-20T06:00:00Z",
-        "fp3": "2026-11-21T02:30:00Z",
-        "qualifying": "2026-11-21T06:00:00Z",
+        "fp1": "2026-11-20T00:30:00Z",
+        "fp2": "2026-11-20T04:00:00Z",
+        "fp3": "2026-11-21T00:30:00Z",
+        "qualifying": "2026-11-21T04:00:00Z",
         "race": "2026-11-22T04:00:00Z"
       }
     },
@@ -393,8 +393,8 @@
       "utc_offset": 3,
       "is_sprint": false,
       "sessions": {
-        "fp1": "2026-11-27T11:30:00Z",
-        "fp2": "2026-11-27T15:00:00Z",
+        "fp1": "2026-11-27T13:30:00Z",
+        "fp2": "2026-11-27T17:00:00Z",
         "fp3": "2026-11-28T14:30:00Z",
         "qualifying": "2026-11-28T18:00:00Z",
         "race": "2026-11-29T16:00:00Z"
