@@ -54,10 +54,12 @@ GitHub Actions (Python)          Vercel (Static Site)
 f1-expected-points/
 ├── CLAUDE.md                          # This file
 ├── .github/workflows/update.yml       # Cron + manual trigger
+├── .github/workflows/update-schedule.yml # Daily calendar refresh (Jolpica API)
 ├── vercel.json                        # Vercel build config
 ├── pipeline/                          # Python backend (runs in GitHub Actions)
 │   ├── requirements.txt               # numpy, scipy, requests, playwright
 │   ├── update.py                      # Main entry point
+│   ├── update_schedule.py             # Refreshes public/data/schedule.json from Jolpica
 │   ├── odds_fetcher.py                # Oddschecker scraper + manual JSON reader
 │   ├── devig.py                       # Shin's method for removing bookmaker vig
 │   ├── plackett_luce.py               # PL model: simulation, optimizer, expected points
@@ -312,7 +314,7 @@ git push -u origin main
 
 ## Odds Source: Oddschecker Scraper
 
-- **Race discovery**: the next race's name/date/slug comes from `public/data/schedule.json`, not from crawling Oddschecker's F1 hub — the hub/landing page (`.../us/motorsport/formula-one`) only ever previews a couple of drivers per market anyway; the full per-driver grid lives on each market's own page. The `<country>-gp` -> `<country>-grand-prix` slug guess is verified once per run against the live page; on a mismatch, the scraper reads the real slug off the hub page's links instead (see `_resolve_race_slug` in `odds_fetcher.py`).
+- **Race discovery**: the next race's name/date/slug comes from `public/data/schedule.json` (kept current daily by `update-schedule.yml`, which merges upcoming races from the Jolpica F1 API and leaves finished races untouched), not from crawling Oddschecker's F1 hub — the hub/landing page (`.../us/motorsport/formula-one`) only ever previews a couple of drivers per market anyway; the full per-driver grid lives on each market's own page. The `<country>-gp` -> `<country>-grand-prix` slug guess is verified once per run against the live page; on a mismatch, the scraper reads the real slug off the hub page's links instead (see `_resolve_race_slug` in `odds_fetcher.py`).
 - **Base URL**: `https://www.oddschecker.com/us/motorsport/formula-one/<race-slug>/<market-slug>`.
 - **Markets scraped** (per race): `winner`, `podium-finish`, `top-6-finish`, `points-finish`, and a DNF market under one of `not-to-be-classified`/`to-not-be-classified`/`driver-to-retire`/`to-retire`/`driver-not-to-finish`. The scraper tries each candidate slug per market and uses the first that returns rows.
 - **Page layout (redesigned Sept 2026)**: Oddschecker now gives every market its own page instead of stacking several markets on one URL — there's exactly one odds grid per page (`data-testid="odds-grid-desktop"`), one row per driver (`[class*="BetRow_"]`, name in `[data-testid="grid-bet"]`), and all 22 drivers render on load (no "show more" needed — that toggle only ever gated an unrelated, ~2-driver "featured odds" widget elsewhere on the page; chasing that widget's expand control instead of this grid is what caused a since-superseded scraper version to ship data with only 2 real driver odds per market). There's also no single aggregated "best odds" figure anymore: each row lists one `[data-testid="odds-cell"]` per sportsbook (~6 books), each rendered twice (desktop + mobile DOM variants). The scraper parses every cell's text and keeps the highest American value per driver, which naturally shrugs off the duplication and reproduces "best available odds" without depending on Oddschecker's own `bestOddsStyles_*` highlight class.
