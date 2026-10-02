@@ -85,6 +85,13 @@
       "generated_at": "2026-09-24T14:51:44.847999+00:00"
     },
     {
+      "slug": "bahrain-gp",
+      "name": "Bahrain Grand Prix",
+      "date": "2026-10-04",
+      "is_sprint": false,
+      "generated_at": "2026-10-02T18:54:03.415869+00:00"
+    },
+    {
       "slug": "singapore-gp",
       "name": "Singapore Grand Prix",
       "date": "2026-10-11",
@@ -92,5 +99,5 @@
       "generated_at": "2026-10-02T12:19:25.321958+00:00"
     }
   ],
-  "latest": "singapore-gp"
+  "latest": "bahrain-gp"
 }
