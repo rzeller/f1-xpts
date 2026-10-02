@@ -91,6 +91,6 @@ def test_renamed_race_matches_on_circuit():
     api = [_api_race("Bahrain Grand Prix in Malaysia", "Kuala Lumpur", "Malaysia", "2026-10-04", "07:00:00Z")]
     api[0]["Circuit"]["circuitName"] = "Sepang International Circuit"
     race = merge(existing, api, NOW)["races"][0]
-    assert race["name"] == "Bahrain Grand Prix in Malaysia"
+    assert race["name"] == "Bahrain Grand Prix"
     assert race["slug"] == "bahrain-gp" and race["location"] == "Sepang"
     assert race["timezone"] == "MYT"

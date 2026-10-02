@@ -275,7 +275,7 @@
     },
     {
       "round": 16,
-      "name": "Bahrain Grand Prix in Malaysia",
+      "name": "Bahrain Grand Prix",
       "slug": "bahrain-gp",
       "location": "Sepang",
       "circuit": "Sepang International Circuit",
@@ -347,7 +347,7 @@
     },
     {
       "round": 20,
-      "name": "Brazilian Grand Prix",
+      "name": "São Paulo Grand Prix",
       "slug": "sao-paulo-gp",
       "location": "São Paulo",
       "circuit": "Autódromo José Carlos Pace",
