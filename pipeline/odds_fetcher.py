@@ -744,6 +744,7 @@ def _next_race_from_schedule(
     return {
         "name": r["name"],
         "slug": _oddschecker_slug(r["slug"]),
+        "schedule_slug": r["slug"],
         "date": race_dt.date().isoformat(),
         "is_sprint": bool(r.get("is_sprint", False)),
     }
@@ -1408,6 +1409,7 @@ def fetch_all_f1_odds(headed: bool = False, debug_dir: Optional[str] = None) -> 
 
     race_info = {
         "race": next_race["name"],
+        "slug": next_race["schedule_slug"],
         "date": next_race["date"],
         "is_sprint": next_race["is_sprint"],
     }
@@ -1641,6 +1643,7 @@ def get_observed_probs(
         if race_info["race"] == "Unknown":
             race_info = {
                 "race": data.get("race", "Unknown"),
+                "slug": data.get("slug", ""),
                 "date": data.get("date", ""),
                 "is_sprint": data.get("is_sprint", False),
             }
