@@ -12,9 +12,9 @@ Merge policy:
   - Races that have already finished are kept exactly as they are in the
     existing file. History doesn't change, and the API may still list
     cancelled/relocated rounds at their original dates.
-  - Upcoming races come from the API. Fields the API doesn't provide
-    (slug, saturday_race, ...) are carried over from the matching existing
-    entry; new races get them derived.
+  - Upcoming races come from the API. The name, slug, location and fields
+    the API doesn't provide (saturday_race, ...) are carried over from the
+    matching existing entry; new races get them derived.
   - Rounds are renumbered by race date.
   - Sanity guard: if the API returns far fewer upcoming races than we already
     have, nothing is written (protects against a partial/broken response).
@@ -184,7 +184,9 @@ def convert(api_race: dict, prev: Optional[dict]) -> Optional[dict]:
 
     race = dict(prev)  # keep any extra fields (e.g. saturday_race)
     race.update({
-        "name": api_race["raceName"],
+        # Keep an existing race's name: update.py derives snapshot paths from
+        # it, so an API rename mid-weekend would split the race's history.
+        "name": prev.get("name") or api_race["raceName"],
         "slug": prev.get("slug") or slug_for(api_race["raceName"]),
         "location": prev.get("location") or loc.get("locality", ""),
         "circuit": api_race["Circuit"].get("circuitName", prev.get("circuit", "")),
