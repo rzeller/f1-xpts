@@ -146,6 +146,18 @@ def build_output_json(
     }
 
 
+def _race_slug(race_info: dict) -> str:
+    """Snapshot/sprint key for a race: the schedule.json slug when known.
+
+    Falls back to deriving it from the race name (manual-odds runs carry no
+    slug). Using the schedule slug lets a race's display name differ from its
+    slug, e.g. "Bahrain Grand Prix in Malaysia" -> bahrain-gp.
+    """
+    if race_info.get("slug"):
+        return race_info["slug"]
+    return race_info.get("race", "unknown").lower().replace(" ", "-").replace("grand-prix", "gp")
+
+
 def _write_race_index(races_dir: Path):
     """Scan race snapshot files and write an index.json manifest."""
     races = []
@@ -245,8 +257,7 @@ def run_pipeline(
         sys.exit(1)
 
     # Check if sprint weekend (schedule + observed odds both signal)
-    race_slug_for_sprint = race_info.get("race", "").lower().replace(" ", "-").replace("grand-prix", "gp")
-    if race_slug_for_sprint in SPRINT_WEEKENDS:
+    if _race_slug(race_info) in SPRINT_WEEKENDS:
         race_info["is_sprint"] = True
     has_sprint_odds = "sprint" in observed_probs and observed_probs["sprint"]
     if race_info.get("is_sprint") and has_sprint_odds:
@@ -398,7 +409,7 @@ def run_pipeline(
     print(f"  Wrote {latest_path}")
 
     # Write race-specific snapshot (latest for this race)
-    race_slug = race_info.get("race", "unknown").lower().replace(" ", "-").replace("grand-prix", "gp")
+    race_slug = _race_slug(race_info)
     race_path = output_dir / "races" / f"{race_slug}.json"
     with open(race_path, "w") as f:
         json.dump(output, f, indent=2)
