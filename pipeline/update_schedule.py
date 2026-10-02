@@ -94,6 +94,17 @@ COUNTRY_TZ = {
     "Germany": "Europe/Berlin",
     "France": "Europe/Paris",
 }
+# zoneinfo only has numeric names ("+08") for these zones.
+TZ_ABBR = {
+    "Asia/Kuala_Lumpur": "MYT",
+    "Asia/Singapore": "SGT",
+    "Asia/Baku": "AZT",
+    "Asia/Qatar": "AST",
+    "Asia/Bahrain": "AST",
+    "Asia/Riyadh": "AST",
+    "Asia/Dubai": "GST",
+    "America/Sao_Paulo": "BRT",
+}
 # API country names -> the spelling the existing file uses.
 COUNTRY_DISPLAY = {"UK": "United Kingdom", "USA": "United States", "UAE": "United Arab Emirates"}
 
@@ -127,10 +138,14 @@ def fetch_api_races(season: int) -> List[dict]:
 def _find_existing(api_race: dict, existing: List[dict]) -> Optional[dict]:
     name = _norm(api_race["raceName"])
     slug = slug_for(api_race["raceName"])
+    circuit = _norm(api_race["Circuit"].get("circuitName", ""))
     locality = _norm(api_race["Circuit"]["Location"].get("locality", ""))
     for key in (
         lambda r: _norm(r["name"]) == name,
         lambda r: r.get("slug") == slug,
+        # Renamed/relocated events (the API calls 2026's Sepang race "Bahrain
+        # Grand Prix in Malaysia") still match on the circuit.
+        lambda r: circuit and _norm(r.get("circuit", "")) == circuit,
         lambda r: locality and _norm(r.get("location", "")) == locality,
     ):
         hits = [r for r in existing if key(r)]
@@ -186,8 +201,9 @@ def convert(api_race: dict, prev: Optional[dict]) -> Optional[dict]:
         offset = local.utcoffset().total_seconds() / 3600
         race["utc_offset"] = int(offset) if offset == int(offset) else offset
         abbr = local.tzname()
-        # zoneinfo yields '+08' style names for some zones; keep a nicer prev one.
-        race["timezone"] = prev.get("timezone") if (abbr[0] in "+-" and prev.get("timezone")) else abbr
+        if abbr[0] in "+-":
+            abbr = TZ_ABBR.get(tz_name) or prev.get("timezone") or abbr
+        race["timezone"] = abbr
         if local.weekday() == 5:
             race["saturday_race"] = True
         else:

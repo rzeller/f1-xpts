@@ -81,3 +81,16 @@ def test_missing_time_keeps_existing(existing):
     del api[0]["time"]
     new = merge(existing, api, NOW)
     assert new["races"][1]["sessions"]["race"] == "2026-10-11T12:00:00Z"
+
+
+def test_renamed_race_matches_on_circuit():
+    existing = {"season": 2026, "races": [
+        _existing_race(1, "Bahrain Grand Prix", "bahrain-gp", "Sepang", "Malaysia", "2026-10-04T07:00:00Z"),
+    ]}
+    existing["races"][0]["circuit"] = "Sepang International Circuit"
+    api = [_api_race("Bahrain Grand Prix in Malaysia", "Kuala Lumpur", "Malaysia", "2026-10-04", "07:00:00Z")]
+    api[0]["Circuit"]["circuitName"] = "Sepang International Circuit"
+    race = merge(existing, api, NOW)["races"][0]
+    assert race["name"] == "Bahrain Grand Prix in Malaysia"
+    assert race["slug"] == "bahrain-gp" and race["location"] == "Sepang"
+    assert race["timezone"] == "MYT"
