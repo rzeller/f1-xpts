@@ -97,7 +97,14 @@
       "date": "2026-10-11",
       "is_sprint": true,
       "generated_at": "2026-10-09T12:05:25.592614+00:00"
+    },
+    {
+      "slug": "us-gp",
+      "name": "United States Grand Prix",
+      "date": "2026-10-25",
+      "is_sprint": false,
+      "generated_at": "2026-10-16T06:59:34.718971+00:00"
     }
   ],
-  "latest": "singapore-gp"
+  "latest": "us-gp"
 }
