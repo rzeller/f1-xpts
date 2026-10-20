@@ -1,0 +1,5834 @@
+{
+  "meta": {
+    "generated_at": "2026-10-20T16:43:45.471404+00:00",
+    "race": "United States Grand Prix",
+    "date": "2026-10-25",
+    "is_sprint": false,
+    "model": "plackett-luce",
+    "n_simulations": 50000,
+    "devig_method": "shin",
+    "fit_loss": 0.20825901282406128,
+    "fit_converged": true,
+    "fit_loss_sprint": null,
+    "fit_converged_sprint": null,
+    "run_type": "lead_up_daily",
+    "correlation": {
+      "sigma_team": 0.6634,
+      "sigma_drv_base": 0.7,
+      "sigma_global": 3.0,
+      "sigma_dnf": 0.3285,
+      "chaos_model": "lomax",
+      "chaos_alpha": 2.0,
+      "chaos_p_moderate": 0.3,
+      "chaos_p_severe": 0.05
+    },
+    "raw_odds": {
+      "race": {
+        "win": {
+          "Max Verstappen": 110.0,
+          "Kimi Antonelli": 250.0,
+          "Lando Norris": 1100.0,
+          "George Russell": 1100.0,
+          "Lewis Hamilton": 1200.0,
+          "Charles Leclerc": 1400.0,
+          "Isack Hadjar": 2500.0,
+          "Oscar Piastri": 2500.0,
+          "Liam Lawson": 50000.0,
+          "Arvid Lindblad": 50000.0,
+          "Pierre Gasly": 50000.0,
+          "Nico Hulkenberg": 75000.0,
+          "Gabriel Bortoleto": 75000.0,
+          "Esteban Ocon": 75000.0,
+          "Oliver Bearman": 75000.0,
+          "Franco Colapinto": 75000.0,
+          "Fernando Alonso": 100000.0,
+          "Alex Albon": 100000.0,
+          "Carlos Sainz": 100000.0,
+          "Valtteri Bottas": 200000.0,
+          "Lance Stroll": 200000.0,
+          "Sergio Perez": 300000.0
+        },
+        "podium": {
+          "Max Verstappen": -350.0,
+          "Kimi Antonelli": -225.0,
+          "George Russell": 138.0,
+          "Lando Norris": 175.0,
+          "Lewis Hamilton": 225.0,
+          "Charles Leclerc": 225.0,
+          "Oscar Piastri": 275.0,
+          "Isack Hadjar": 300.0,
+          "Arvid Lindblad": 10000.0,
+          "Pierre Gasly": 10000.0,
+          "Liam Lawson": 10000.0,
+          "Franco Colapinto": 15000.0,
+          "Nico Hulkenberg": 20000.0,
+          "Esteban Ocon": 25000.0,
+          "Oliver Bearman": 25000.0,
+          "Valtteri Bottas": 45000.0,
+          "Fernando Alonso": 45000.0,
+          "Lance Stroll": 45000.0,
+          "Alex Albon": 45000.0,
+          "Sergio Perez": 45000.0,
+          "Carlos Sainz": 45000.0,
+          "Gabriel Bortoleto": 45000.0
+        },
+        "top6": {
+          "Max Verstappen": -1200.0,
+          "Kimi Antonelli": -1000.0,
+          "George Russell": -800.0,
+          "Lando Norris": -700.0,
+          "Charles Leclerc": -500.0,
+          "Lewis Hamilton": -275.0,
+          "Isack Hadjar": 110.0,
+          "Oscar Piastri": 125.0,
+          "Liam Lawson": 450.0,
+          "Pierre Gasly": 550.0,
+          "Arvid Lindblad": 800.0,
+          "Franco Colapinto": 1300.0,
+          "Nico Hulkenberg": 2000.0,
+          "Gabriel Bortoleto": 2000.0,
+          "Oliver Bearman": 2500.0,
+          "Esteban Ocon": 2500.0,
+          "Fernando Alonso": 3300.0,
+          "Carlos Sainz": 5000.0,
+          "Lance Stroll": 5000.0,
+          "Alex Albon": 6600.0,
+          "Valtteri Bottas": 25000.0,
+          "Sergio Perez": 25000.0
+        },
+        "top10": {
+          "Max Verstappen": -1400.0,
+          "Kimi Antonelli": -1400.0,
+          "Lando Norris": -1200.0,
+          "George Russell": -1200.0,
+          "Charles Leclerc": -1000.0,
+          "Lewis Hamilton": -1000.0,
+          "Oscar Piastri": -800.0,
+          "Isack Hadjar": -600.0,
+          "Liam Lawson": -188.0,
+          "Pierre Gasly": -163.0,
+          "Arvid Lindblad": -138.0,
+          "Franco Colapinto": 120.0,
+          "Gabriel Bortoleto": 250.0,
+          "Nico Hulkenberg": 250.0,
+          "Oliver Bearman": 450.0,
+          "Esteban Ocon": 500.0,
+          "Fernando Alonso": 600.0,
+          "Carlos Sainz": 800.0,
+          "Alex Albon": 800.0,
+          "Lance Stroll": 800.0,
+          "Valtteri Bottas": 6600.0,
+          "Sergio Perez": 6600.0
+        },
+        "dnf": {
+          "Lance Stroll": -117.0,
+          "Valtteri Bottas": 175.0,
+          "Sergio Perez": 225.0,
+          "Fernando Alonso": 225.0,
+          "Alex Albon": 275.0,
+          "Carlos Sainz": 350.0,
+          "Oliver Bearman": 450.0,
+          "Nico Hulkenberg": 450.0,
+          "Pierre Gasly": 500.0,
+          "Gabriel Bortoleto": 500.0,
+          "Franco Colapinto": 500.0,
+          "Esteban Ocon": 650.0,
+          "Liam Lawson": 650.0,
+          "Arvid Lindblad": 650.0,
+          "Isack Hadjar": 700.0,
+          "Oscar Piastri": 700.0,
+          "Charles Leclerc": 700.0,
+          "George Russell": 700.0,
+          "Lando Norris": 700.0,
+          "Lewis Hamilton": 700.0,
+          "Max Verstappen": 750.0,
+          "Kimi Antonelli": 750.0
+        }
+      }
+    }
+  },
+  "teams": [
+    {
+      "id": "red_bull",
+      "name": "Red Bull",
+      "color": "#3671C6"
+    },
+    {
+      "id": "ferrari",
+      "name": "Ferrari",
+      "color": "#E8002D"
+    },
+    {
+      "id": "mercedes",
+      "name": "Mercedes",
+      "color": "#27F4D2"
+    },
+    {
+      "id": "mclaren",
+      "name": "McLaren",
+      "color": "#FF8000"
+    },
+    {
+      "id": "rb",
+      "name": "RB",
+      "color": "#6692FF"
+    },
+    {
+      "id": "audi",
+      "name": "Audi",
+      "color": "#52E252"
+    },
+    {
+      "id": "alpine",
+      "name": "Alpine",
+      "color": "#FF87BC"
+    },
+    {
+      "id": "haas",
+      "name": "Haas",
+      "color": "#B6BABD"
+    },
+    {
+      "id": "williams",
+      "name": "Williams",
+      "color": "#64C4FF"
+    },
+    {
+      "id": "aston_martin",
+      "name": "Aston Martin",
+      "color": "#229971"
+    },
+    {
+      "id": "cadillac",
+      "name": "Cadillac",
+      "color": "#C0C0C0"
+    }
+  ],
+  "scoring": {
+    "race": {
+      "1": 25,
+      "2": 18,
+      "3": 15,
+      "4": 12,
+      "5": 10,
+      "6": 8,
+      "7": 6,
+      "8": 4,
+      "9": 2,
+      "10": 1
+    },
+    "sprint": {
+      "1": 8,
+      "2": 7,
+      "3": 6,
+      "4": 5,
+      "5": 4,
+      "6": 3,
+      "7": 2,
+      "8": 1
+    },
+    "dnf_penalty": -10,
+    "exact_bonus": 10
+  },
+  "drivers": [
+    {
+      "name": "Max Verstappen",
+      "abbr": "VER",
+      "team_idx": 0,
+      "lambda": 6.239143303795373,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11176470588235293,
+      "ep_race": 15.03,
+      "ep_sprint": 0.0,
+      "ep_total": 15.03,
+      "std_dev": 11.79,
+      "p_win": 0.4316,
+      "p_podium": 0.6713,
+      "p_top6": 0.7823,
+      "p_top10": 0.8275,
+      "p_no_points": 0.0543,
+      "position_distribution": [
+        0.43164,
+        0.16268,
+        0.07694,
+        0.04772,
+        0.03542,
+        0.0279,
+        0.01904,
+        0.01256,
+        0.00742,
+        0.00616,
+        0.00494,
+        0.0047,
+        0.00478,
+        0.00458,
+        0.00572,
+        0.00602,
+        0.0069,
+        0.00636,
+        0.00496,
+        0.00356,
+        0.0013,
+        0.0005,
+        0.1182
+      ]
+    },
+    {
+      "name": "Andrea Kimi Antonelli",
+      "abbr": "ANT",
+      "team_idx": 2,
+      "lambda": 5.452423753848814,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11176470588235293,
+      "ep_race": 13.08,
+      "ep_sprint": 0.0,
+      "ep_total": 13.08,
+      "std_dev": 11.09,
+      "p_win": 0.2647,
+      "p_podium": 0.6006,
+      "p_top6": 0.7635,
+      "p_top10": 0.8224,
+      "p_no_points": 0.0596,
+      "position_distribution": [
+        0.26474,
+        0.21992,
+        0.11594,
+        0.07264,
+        0.053,
+        0.03726,
+        0.02554,
+        0.01548,
+        0.01032,
+        0.00756,
+        0.0056,
+        0.00562,
+        0.0049,
+        0.00492,
+        0.00616,
+        0.00734,
+        0.00766,
+        0.00698,
+        0.00542,
+        0.0035,
+        0.0013,
+        0.00022,
+        0.11798
+      ]
+    },
+    {
+      "name": "George Russell",
+      "abbr": "RUS",
+      "team_idx": 2,
+      "lambda": 4.117193441542987,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 9.21,
+      "ep_sprint": 0.0,
+      "ep_total": 9.21,
+      "std_dev": 9.64,
+      "p_win": 0.0748,
+      "p_podium": 0.3738,
+      "p_top6": 0.6875,
+      "p_top10": 0.7925,
+      "p_no_points": 0.0798,
+      "position_distribution": [
+        0.0748,
+        0.14258,
+        0.1564,
+        0.13388,
+        0.10402,
+        0.07586,
+        0.04954,
+        0.02734,
+        0.01692,
+        0.01116,
+        0.00906,
+        0.00764,
+        0.00756,
+        0.00874,
+        0.00832,
+        0.00866,
+        0.0082,
+        0.0084,
+        0.00694,
+        0.00386,
+        0.00188,
+        0.00052,
+        0.12772
+      ]
+    },
+    {
+      "name": "Lando Norris",
+      "abbr": "NOR",
+      "team_idx": 3,
+      "lambda": 3.9696004625899777,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 9.12,
+      "ep_sprint": 0.0,
+      "ep_total": 9.12,
+      "std_dev": 9.47,
+      "p_win": 0.0721,
+      "p_podium": 0.3547,
+      "p_top6": 0.6889,
+      "p_top10": 0.7995,
+      "p_no_points": 0.0764,
+      "position_distribution": [
+        0.07208,
+        0.13086,
+        0.15176,
+        0.13458,
+        0.11502,
+        0.08456,
+        0.053,
+        0.02962,
+        0.01654,
+        0.01146,
+        0.00856,
+        0.00836,
+        0.00708,
+        0.00822,
+        0.00752,
+        0.00788,
+        0.00892,
+        0.0077,
+        0.00614,
+        0.00364,
+        0.002,
+        0.00042,
+        0.12408
+      ]
+    },
+    {
+      "name": "Lewis Hamilton",
+      "abbr": "HAM",
+      "team_idx": 1,
+      "lambda": 3.7546621116825754,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 8.36,
+      "ep_sprint": 0.0,
+      "ep_total": 8.36,
+      "std_dev": 9.27,
+      "p_win": 0.0553,
+      "p_podium": 0.3058,
+      "p_top6": 0.6591,
+      "p_top10": 0.785,
+      "p_no_points": 0.0858,
+      "position_distribution": [
+        0.05532,
+        0.11008,
+        0.14044,
+        0.1397,
+        0.12182,
+        0.09178,
+        0.0615,
+        0.03334,
+        0.01832,
+        0.01268,
+        0.00962,
+        0.00858,
+        0.00742,
+        0.0085,
+        0.0092,
+        0.00928,
+        0.01024,
+        0.0087,
+        0.0073,
+        0.0048,
+        0.00178,
+        0.00038,
+        0.12922
+      ]
+    },
+    {
+      "name": "Charles Leclerc",
+      "abbr": "LEC",
+      "team_idx": 1,
+      "lambda": 3.702158183129388,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 8.33,
+      "ep_sprint": 0.0,
+      "ep_total": 8.33,
+      "std_dev": 9.13,
+      "p_win": 0.0525,
+      "p_podium": 0.2952,
+      "p_top6": 0.661,
+      "p_top10": 0.7885,
+      "p_no_points": 0.0861,
+      "position_distribution": [
+        0.05246,
+        0.10606,
+        0.13666,
+        0.14396,
+        0.1265,
+        0.09534,
+        0.06174,
+        0.03364,
+        0.0191,
+        0.01304,
+        0.0099,
+        0.00894,
+        0.0081,
+        0.0088,
+        0.00914,
+        0.00914,
+        0.00978,
+        0.00898,
+        0.0075,
+        0.00362,
+        0.00166,
+        0.00056,
+        0.12538
+      ]
+    },
+    {
+      "name": "Isack Hadjar",
+      "abbr": "HAD",
+      "team_idx": 0,
+      "lambda": 3.1352671797239964,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 7.06,
+      "ep_sprint": 0.0,
+      "ep_total": 7.06,
+      "std_dev": 8.46,
+      "p_win": 0.0257,
+      "p_podium": 0.2051,
+      "p_top6": 0.6048,
+      "p_top10": 0.7758,
+      "p_no_points": 0.098,
+      "position_distribution": [
+        0.0257,
+        0.06926,
+        0.11012,
+        0.13582,
+        0.14036,
+        0.12358,
+        0.08392,
+        0.04642,
+        0.0246,
+        0.01602,
+        0.01176,
+        0.01122,
+        0.0097,
+        0.00952,
+        0.01044,
+        0.01082,
+        0.01022,
+        0.00982,
+        0.00742,
+        0.00452,
+        0.00216,
+        0.0004,
+        0.1262
+      ]
+    },
+    {
+      "name": "Oscar Piastri",
+      "abbr": "PIA",
+      "team_idx": 3,
+      "lambda": 2.905594642581873,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.11875,
+      "ep_race": 6.62,
+      "ep_sprint": 0.0,
+      "ep_total": 6.62,
+      "std_dev": 8.19,
+      "p_win": 0.0219,
+      "p_podium": 0.1681,
+      "p_top6": 0.5812,
+      "p_top10": 0.771,
+      "p_no_points": 0.1045,
+      "position_distribution": [
+        0.02186,
+        0.05344,
+        0.0928,
+        0.13068,
+        0.1491,
+        0.13332,
+        0.09406,
+        0.05122,
+        0.02722,
+        0.01734,
+        0.01404,
+        0.01138,
+        0.01042,
+        0.01096,
+        0.01076,
+        0.01094,
+        0.01198,
+        0.00934,
+        0.00726,
+        0.00486,
+        0.00216,
+        0.0004,
+        0.12446
+      ]
+    },
+    {
+      "name": "Liam Lawson",
+      "abbr": "LAW",
+      "team_idx": 4,
+      "lambda": -0.12846593465025555,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.12666666666666665,
+      "ep_race": 1.63,
+      "ep_sprint": 0.0,
+      "ep_total": 1.63,
+      "std_dev": 5.69,
+      "p_win": 0.0006,
+      "p_podium": 0.0086,
+      "p_top6": 0.1515,
+      "p_top10": 0.5943,
+      "p_no_points": 0.2695,
+      "position_distribution": [
+        0.0006,
+        0.00162,
+        0.00638,
+        0.01778,
+        0.04184,
+        0.0833,
+        0.1197,
+        0.1319,
+        0.11218,
+        0.079,
+        0.05508,
+        0.03924,
+        0.03206,
+        0.02674,
+        0.0263,
+        0.02452,
+        0.02232,
+        0.01858,
+        0.01338,
+        0.00724,
+        0.00326,
+        0.0008,
+        0.13618
+      ]
+    },
+    {
+      "name": "Arvid Lindblad",
+      "abbr": "LIN",
+      "team_idx": 4,
+      "lambda": -0.5155571731155308,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.12666666666666665,
+      "ep_race": 1.12,
+      "ep_sprint": 0.0,
+      "ep_total": 1.12,
+      "std_dev": 5.37,
+      "p_win": 0.0002,
+      "p_podium": 0.0049,
+      "p_top6": 0.1132,
+      "p_top10": 0.5478,
+      "p_no_points": 0.316,
+      "position_distribution": [
+        0.00018,
+        0.00094,
+        0.00382,
+        0.01224,
+        0.03088,
+        0.06514,
+        0.10144,
+        0.12392,
+        0.11672,
+        0.09254,
+        0.068,
+        0.0469,
+        0.03936,
+        0.0317,
+        0.02974,
+        0.0278,
+        0.02452,
+        0.01972,
+        0.015,
+        0.0092,
+        0.00324,
+        0.00082,
+        0.13618
+      ]
+    },
+    {
+      "name": "Pierre Gasly",
+      "abbr": "GAS",
+      "team_idx": 6,
+      "lambda": -0.28186223448877823,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.15833333333333333,
+      "ep_race": 1.01,
+      "ep_sprint": 0.0,
+      "ep_total": 1.01,
+      "std_dev": 5.88,
+      "p_win": 0.0004,
+      "p_podium": 0.0068,
+      "p_top6": 0.1292,
+      "p_top10": 0.558,
+      "p_no_points": 0.273,
+      "position_distribution": [
+        0.00038,
+        0.00142,
+        0.00504,
+        0.01492,
+        0.037,
+        0.0704,
+        0.11186,
+        0.12456,
+        0.11076,
+        0.0817,
+        0.05696,
+        0.04034,
+        0.0323,
+        0.02822,
+        0.02598,
+        0.02358,
+        0.02178,
+        0.01868,
+        0.01354,
+        0.00762,
+        0.0034,
+        0.00064,
+        0.16892
+      ]
+    },
+    {
+      "name": "Franco Colapinto",
+      "abbr": "COL",
+      "team_idx": 6,
+      "lambda": -1.0291411969205764,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.15833333333333333,
+      "ep_race": 0.13,
+      "ep_sprint": 0.0,
+      "ep_total": 0.13,
+      "std_dev": 5.31,
+      "p_win": 0.0001,
+      "p_podium": 0.0029,
+      "p_top6": 0.0702,
+      "p_top10": 0.4603,
+      "p_no_points": 0.3695,
+      "position_distribution": [
+        0.00014,
+        0.00078,
+        0.00194,
+        0.00744,
+        0.01836,
+        0.04154,
+        0.0737,
+        0.10384,
+        0.11196,
+        0.10064,
+        0.08014,
+        0.05966,
+        0.04654,
+        0.03976,
+        0.03492,
+        0.02994,
+        0.02768,
+        0.02138,
+        0.01624,
+        0.00908,
+        0.00342,
+        0.00074,
+        0.17016
+      ]
+    },
+    {
+      "name": "Gabriel Bortoleto",
+      "abbr": "BOR",
+      "team_idx": 5,
+      "lambda": -2.1885713568857748,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.15833333333333333,
+      "ep_race": -0.81,
+      "ep_sprint": 0.0,
+      "ep_total": -0.81,
+      "std_dev": 4.52,
+      "p_win": 0.0,
+      "p_podium": 0.0006,
+      "p_top6": 0.024,
+      "p_top10": 0.2749,
+      "p_no_points": 0.5577,
+      "position_distribution": [
+        0.0,
+        8e-05,
+        0.00048,
+        0.00208,
+        0.006,
+        0.01534,
+        0.0309,
+        0.05432,
+        0.07546,
+        0.09022,
+        0.09484,
+        0.08904,
+        0.07916,
+        0.068,
+        0.06,
+        0.05126,
+        0.04128,
+        0.03178,
+        0.02294,
+        0.01324,
+        0.0049,
+        0.00126,
+        0.16742
+      ]
+    },
+    {
+      "name": "Esteban Ocon",
+      "abbr": "OCO",
+      "team_idx": 7,
+      "lambda": -2.9925569281813087,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.12666666666666665,
+      "ep_race": -0.86,
+      "ep_sprint": 0.0,
+      "ep_total": -0.86,
+      "std_dev": 3.84,
+      "p_win": 0.0,
+      "p_podium": 0.0001,
+      "p_top6": 0.0109,
+      "p_top10": 0.173,
+      "p_no_points": 0.6935,
+      "position_distribution": [
+        0.0,
+        2e-05,
+        0.0001,
+        0.00084,
+        0.00256,
+        0.00736,
+        0.01538,
+        0.02944,
+        0.05022,
+        0.06706,
+        0.08422,
+        0.0936,
+        0.09716,
+        0.0942,
+        0.08758,
+        0.0767,
+        0.0606,
+        0.04508,
+        0.03056,
+        0.01604,
+        0.00642,
+        0.00134,
+        0.13352
+      ]
+    },
+    {
+      "name": "Nico H\u00fclkenberg",
+      "abbr": "HUL",
+      "team_idx": 5,
+      "lambda": -2.157020506768186,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.17272727272727273,
+      "ep_race": -0.96,
+      "ep_sprint": 0.0,
+      "ep_total": -0.96,
+      "std_dev": 4.7,
+      "p_win": 0.0,
+      "p_podium": 0.0005,
+      "p_top6": 0.0259,
+      "p_top10": 0.276,
+      "p_no_points": 0.5396,
+      "position_distribution": [
+        0.0,
+        8e-05,
+        0.00038,
+        0.00214,
+        0.00672,
+        0.01654,
+        0.0324,
+        0.0542,
+        0.07406,
+        0.08948,
+        0.0918,
+        0.08712,
+        0.07682,
+        0.06772,
+        0.05386,
+        0.05056,
+        0.03912,
+        0.03276,
+        0.0219,
+        0.01206,
+        0.00474,
+        0.00112,
+        0.18442
+      ]
+    },
+    {
+      "name": "Oliver Bearman",
+      "abbr": "BEA",
+      "team_idx": 7,
+      "lambda": -2.8703606104540293,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.17272727272727273,
+      "ep_race": -1.3,
+      "ep_sprint": 0.0,
+      "ep_total": -1.3,
+      "std_dev": 4.32,
+      "p_win": 0.0,
+      "p_podium": 0.0002,
+      "p_top6": 0.0121,
+      "p_top10": 0.1778,
+      "p_no_points": 0.6423,
+      "position_distribution": [
+        2e-05,
+        2e-05,
+        0.00016,
+        0.00094,
+        0.00264,
+        0.00836,
+        0.0164,
+        0.03154,
+        0.0487,
+        0.069,
+        0.08048,
+        0.09292,
+        0.08914,
+        0.08622,
+        0.07768,
+        0.0662,
+        0.05726,
+        0.04212,
+        0.0282,
+        0.01476,
+        0.00618,
+        0.00118,
+        0.17988
+      ]
+    },
+    {
+      "name": "Carlos Sainz",
+      "abbr": "SAI",
+      "team_idx": 8,
+      "lambda": -3.276615956799224,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.21111111111111108,
+      "ep_race": -1.91,
+      "ep_sprint": 0.0,
+      "ep_total": -1.91,
+      "std_dev": 4.5,
+      "p_win": 0.0,
+      "p_podium": 0.0002,
+      "p_top6": 0.0069,
+      "p_top10": 0.1218,
+      "p_no_points": 0.6544,
+      "position_distribution": [
+        4e-05,
+        0.0,
+        0.00016,
+        0.00066,
+        0.00168,
+        0.00432,
+        0.01024,
+        0.02076,
+        0.03366,
+        0.05024,
+        0.0662,
+        0.0802,
+        0.08984,
+        0.08872,
+        0.08464,
+        0.07558,
+        0.06418,
+        0.0489,
+        0.03156,
+        0.01616,
+        0.0069,
+        0.0015,
+        0.22386
+      ]
+    },
+    {
+      "name": "Alexander Albon",
+      "abbr": "ALB",
+      "team_idx": 8,
+      "lambda": -3.2013164667246437,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.2533333333333333,
+      "ep_race": -2.31,
+      "ep_sprint": 0.0,
+      "ep_total": -2.31,
+      "std_dev": 4.73,
+      "p_win": 0.0,
+      "p_podium": 0.0002,
+      "p_top6": 0.007,
+      "p_top10": 0.119,
+      "p_no_points": 0.6182,
+      "position_distribution": [
+        4e-05,
+        0.0,
+        0.00016,
+        0.0005,
+        0.0019,
+        0.00444,
+        0.0101,
+        0.01968,
+        0.03322,
+        0.04894,
+        0.0664,
+        0.07682,
+        0.08246,
+        0.08384,
+        0.07988,
+        0.07112,
+        0.05984,
+        0.0453,
+        0.02848,
+        0.01626,
+        0.00646,
+        0.00138,
+        0.26278
+      ]
+    },
+    {
+      "name": "Fernando Alonso",
+      "abbr": "ALO",
+      "team_idx": 9,
+      "lambda": -2.8511460484006834,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.2923076923076923,
+      "ep_race": -2.62,
+      "ep_sprint": 0.0,
+      "ep_total": -2.62,
+      "std_dev": 5.06,
+      "p_win": 0.0,
+      "p_podium": 0.0002,
+      "p_top6": 0.0109,
+      "p_top10": 0.1478,
+      "p_no_points": 0.5482,
+      "position_distribution": [
+        0.0,
+        6e-05,
+        0.00018,
+        0.00076,
+        0.00274,
+        0.0072,
+        0.01416,
+        0.02602,
+        0.04118,
+        0.05548,
+        0.06742,
+        0.0744,
+        0.07564,
+        0.07236,
+        0.06736,
+        0.05726,
+        0.04852,
+        0.03796,
+        0.0261,
+        0.01474,
+        0.00528,
+        0.00116,
+        0.30402
+      ]
+    },
+    {
+      "name": "Sergio P\u00e9rez",
+      "abbr": "PER",
+      "team_idx": 10,
+      "lambda": -4.461396718484626,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.2923076923076923,
+      "ep_race": -2.96,
+      "ep_sprint": 0.0,
+      "ep_total": -2.96,
+      "std_dev": 4.69,
+      "p_win": 0.0,
+      "p_podium": 0.0,
+      "p_top6": 0.0013,
+      "p_top10": 0.0379,
+      "p_no_points": 0.6575,
+      "position_distribution": [
+        0.0,
+        0.0,
+        2e-05,
+        0.00016,
+        0.00028,
+        0.0008,
+        0.00244,
+        0.00524,
+        0.00964,
+        0.01928,
+        0.03018,
+        0.04734,
+        0.06476,
+        0.08198,
+        0.09368,
+        0.09666,
+        0.08758,
+        0.07018,
+        0.04704,
+        0.02558,
+        0.01046,
+        0.0021,
+        0.3046
+      ]
+    },
+    {
+      "name": "Valtteri Bottas",
+      "abbr": "BOT",
+      "team_idx": 10,
+      "lambda": -4.430042674301519,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.34545454545454546,
+      "ep_race": -3.46,
+      "ep_sprint": 0.0,
+      "ep_total": -3.46,
+      "std_dev": 4.87,
+      "p_win": 0.0,
+      "p_podium": 0.0,
+      "p_top6": 0.0013,
+      "p_top10": 0.0368,
+      "p_no_points": 0.6094,
+      "position_distribution": [
+        0.0,
+        0.0,
+        2e-05,
+        8e-05,
+        0.00038,
+        0.00078,
+        0.0018,
+        0.00544,
+        0.0099,
+        0.01842,
+        0.02966,
+        0.0433,
+        0.0588,
+        0.0747,
+        0.08488,
+        0.0885,
+        0.08032,
+        0.06728,
+        0.04448,
+        0.02634,
+        0.0094,
+        0.00176,
+        0.35376
+      ]
+    },
+    {
+      "name": "Lance Stroll",
+      "abbr": "STR",
+      "team_idx": 9,
+      "lambda": -2.8919892727198486,
+      "sigma_drv": 1.0,
+      "chaos_alpha": null,
+      "p_dnf": 0.5122119815668202,
+      "ep_race": -4.21,
+      "ep_sprint": 0.0,
+      "ep_total": -4.21,
+      "std_dev": 5.39,
+      "p_win": 0.0,
+      "p_podium": 0.0002,
+      "p_top6": 0.0073,
+      "p_top10": 0.1113,
+      "p_no_points": 0.4359,
+      "position_distribution": [
+        0.0,
+        0.0001,
+        0.0001,
+        0.00048,
+        0.00178,
+        0.00488,
+        0.01112,
+        0.01946,
+        0.03164,
+        0.04176,
+        0.0527,
+        0.05672,
+        0.06082,
+        0.05742,
+        0.05132,
+        0.04686,
+        0.0389,
+        0.03088,
+        0.02198,
+        0.0122,
+        0.00502,
+        0.00108,
+        0.45278
+      ]
+    }
+  ],
+  "top_lineups": [
+    {
+      "rank": 1,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.346
+        },
+        {
+          "slot": 5,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.33,
+          "slot_bonus_ev": 1.265
+        }
+      ],
+      "ep_base_total": 54.77,
+      "ep_bonus_total": 10.69,
+      "ep_grand_total": 65.46,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 2,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.346
+        },
+        {
+          "slot": 5,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 8.36,
+          "slot_bonus_ev": 1.218
+        }
+      ],
+      "ep_base_total": 54.8,
+      "ep_bonus_total": 10.644,
+      "ep_grand_total": 65.44,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 3,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 8.36,
+          "slot_bonus_ev": 1.397
+        },
+        {
+          "slot": 5,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.33,
+          "slot_bonus_ev": 1.265
+        }
+      ],
+      "ep_base_total": 54.01,
+      "ep_bonus_total": 10.742,
+      "ep_grand_total": 64.75,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 4,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.518
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 8.36,
+          "slot_bonus_ev": 1.397
+        },
+        {
+          "slot": 5,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.33,
+          "slot_bonus_ev": 1.265
+        }
+      ],
+      "ep_base_total": 53.92,
+      "ep_bonus_total": 10.695,
+      "ep_grand_total": 64.62,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 5,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.346
+        },
+        {
+          "slot": 5,
+          "name": "Isack Hadjar",
+          "abbr": "HAD",
+          "team_idx": 0,
+          "ep_base": 7.06,
+          "slot_bonus_ev": 1.404
+        }
+      ],
+      "ep_base_total": 53.5,
+      "ep_bonus_total": 10.829,
+      "ep_grand_total": 64.33,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 6,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.346
+        },
+        {
+          "slot": 5,
+          "name": "Oscar Piastri",
+          "abbr": "PIA",
+          "team_idx": 3,
+          "ep_base": 6.62,
+          "slot_bonus_ev": 1.491
+        }
+      ],
+      "ep_base_total": 53.06,
+      "ep_bonus_total": 10.916,
+      "ep_grand_total": 63.98,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 7,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.33,
+          "slot_bonus_ev": 1.44
+        },
+        {
+          "slot": 5,
+          "name": "Isack Hadjar",
+          "abbr": "HAD",
+          "team_idx": 0,
+          "ep_base": 7.06,
+          "slot_bonus_ev": 1.404
+        }
+      ],
+      "ep_base_total": 52.71,
+      "ep_bonus_total": 10.923,
+      "ep_grand_total": 63.63,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 8,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "George Russell",
+          "abbr": "RUS",
+          "team_idx": 2,
+          "ep_base": 9.21,
+          "slot_bonus_ev": 1.564
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 8.36,
+          "slot_bonus_ev": 1.397
+        },
+        {
+          "slot": 5,
+          "name": "Isack Hadjar",
+          "abbr": "HAD",
+          "team_idx": 0,
+          "ep_base": 7.06,
+          "slot_bonus_ev": 1.404
+        }
+      ],
+      "ep_base_total": 52.74,
+      "ep_bonus_total": 10.88,
+      "ep_grand_total": 63.62,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 9,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.518
+        },
+        {
+          "slot": 4,
+          "name": "Charles Leclerc",
+          "abbr": "LEC",
+          "team_idx": 1,
+          "ep_base": 8.33,
+          "slot_bonus_ev": 1.44
+        },
+        {
+          "slot": 5,
+          "name": "Isack Hadjar",
+          "abbr": "HAD",
+          "team_idx": 0,
+          "ep_base": 7.06,
+          "slot_bonus_ev": 1.404
+        }
+      ],
+      "ep_base_total": 52.62,
+      "ep_bonus_total": 10.876,
+      "ep_grand_total": 63.5,
+      "exact_pos_bonus": 10
+    },
+    {
+      "rank": 10,
+      "picks": [
+        {
+          "slot": 1,
+          "name": "Max Verstappen",
+          "abbr": "VER",
+          "team_idx": 0,
+          "ep_base": 15.03,
+          "slot_bonus_ev": 4.316
+        },
+        {
+          "slot": 2,
+          "name": "Andrea Kimi Antonelli",
+          "abbr": "ANT",
+          "team_idx": 2,
+          "ep_base": 13.08,
+          "slot_bonus_ev": 2.199
+        },
+        {
+          "slot": 3,
+          "name": "Lando Norris",
+          "abbr": "NOR",
+          "team_idx": 3,
+          "ep_base": 9.12,
+          "slot_bonus_ev": 1.518
+        },
+        {
+          "slot": 4,
+          "name": "Lewis Hamilton",
+          "abbr": "HAM",
+          "team_idx": 1,
+          "ep_base": 8.36,
+          "slot_bonus_ev": 1.397
+        },
+        {
+          "slot": 5,
+          "name": "Isack Hadjar",
+          "abbr": "HAD",
+          "team_idx": 0,
+          "ep_base": 7.06,
+          "slot_bonus_ev": 1.404
+        }
+      ],
+      "ep_base_total": 52.65,
+      "ep_bonus_total": 10.834,
+      "ep_grand_total": 63.48,
+      "exact_pos_bonus": 10
+    }
+  ],
+  "top_lineups_race": null,
+  "top_lineups_sprint": null,
+  "fit": {
+    "method": "Powell",
+    "converged": true,
+    "final_loss": 0.20825901282406128,
+    "n_evals": 3158,
+    "n_steps": 7,
+    "elapsed_seconds": 78.2,
+    "n_sims_per_eval": 10000,
+    "n_params": 22,
+    "team_reg": 0.005,
+    "smoothness_reg": 0.0001,
+    "sigma_drv_reg": null,
+    "chaos_alpha_drv_reg": null,
+    "fit_sigma_drv": false,
+    "fit_chaos_alpha_drv": false,
+    "market_weights": {
+      "win": 16.0,
+      "podium": 1.0,
+      "top5": 1.0,
+      "top6": 1.0,
+      "top10": 1.0
+    },
+    "message": "Optimization terminated successfully.",
+    "loss_history": [
+      {
+        "eval": 1,
+        "loss": 0.584459,
+        "data": 0.508913,
+        "team": 0.053032,
+        "shrink": 0.022513,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2,
+        "loss": 0.584459,
+        "data": 0.508913,
+        "team": 0.053032,
+        "shrink": 0.022513,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3,
+        "loss": 0.717574,
+        "data": 0.608008,
+        "team": 0.085779,
+        "shrink": 0.023787,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 4,
+        "loss": 2.084016,
+        "data": 2.041931,
+        "team": 0.021227,
+        "shrink": 0.020858,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 5,
+        "loss": 0.960358,
+        "data": 0.900742,
+        "team": 0.037794,
+        "shrink": 0.021822,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 6,
+        "loss": 0.538153,
+        "data": 0.450816,
+        "team": 0.06436,
+        "shrink": 0.022977,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 7,
+        "loss": 0.536043,
+        "data": 0.450866,
+        "team": 0.062283,
+        "shrink": 0.022894,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 8,
+        "loss": 0.536666,
+        "data": 0.450469,
+        "team": 0.063263,
+        "shrink": 0.022934,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 9,
+        "loss": 0.536643,
+        "data": 0.452475,
+        "team": 0.061313,
+        "shrink": 0.022856,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 10,
+        "loss": 0.536043,
+        "data": 0.450866,
+        "team": 0.062283,
+        "shrink": 0.022894,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 11,
+        "loss": 0.719277,
+        "data": 0.629899,
+        "team": 0.065635,
+        "shrink": 0.023744,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 12,
+        "loss": 0.671075,
+        "data": 0.571111,
+        "team": 0.078039,
+        "shrink": 0.021925,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 13,
+        "loss": 0.559244,
+        "data": 0.471567,
+        "team": 0.065211,
+        "shrink": 0.022465,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 14,
+        "loss": 0.56194,
+        "data": 0.476361,
+        "team": 0.062383,
+        "shrink": 0.023196,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 15,
+        "loss": 0.535535,
+        "data": 0.450153,
+        "team": 0.062584,
+        "shrink": 0.022798,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 16,
+        "loss": 0.535188,
+        "data": 0.449892,
+        "team": 0.062467,
+        "shrink": 0.022829,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 17,
+        "loss": 0.535284,
+        "data": 0.450004,
+        "team": 0.062445,
+        "shrink": 0.022835,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 18,
+        "loss": 0.535174,
+        "data": 0.449859,
+        "team": 0.062494,
+        "shrink": 0.022821,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 19,
+        "loss": 0.535438,
+        "data": 0.450098,
+        "team": 0.062527,
+        "shrink": 0.022812,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 20,
+        "loss": 0.535174,
+        "data": 0.449859,
+        "team": 0.062494,
+        "shrink": 0.022821,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 21,
+        "loss": 0.95453,
+        "data": 0.849799,
+        "team": 0.080744,
+        "shrink": 0.023987,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 22,
+        "loss": 1.256185,
+        "data": 1.180702,
+        "team": 0.054144,
+        "shrink": 0.021339,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 23,
+        "loss": 0.696223,
+        "data": 0.617812,
+        "team": 0.056214,
+        "shrink": 0.022196,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 24,
+        "loss": 0.578073,
+        "data": 0.486544,
+        "team": 0.068285,
+        "shrink": 0.023244,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 25,
+        "loss": 0.533965,
+        "data": 0.448063,
+        "team": 0.063037,
+        "shrink": 0.022865,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 26,
+        "loss": 0.533824,
+        "data": 0.447689,
+        "team": 0.063253,
+        "shrink": 0.022882,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 27,
+        "loss": 0.53361,
+        "data": 0.447391,
+        "team": 0.063331,
+        "shrink": 0.022888,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 28,
+        "loss": 0.539227,
+        "data": 0.451103,
+        "team": 0.065102,
+        "shrink": 0.023021,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 29,
+        "loss": 0.534204,
+        "data": 0.447276,
+        "team": 0.06399,
+        "shrink": 0.022938,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 30,
+        "loss": 0.533748,
+        "data": 0.447261,
+        "team": 0.06358,
+        "shrink": 0.022907,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 31,
+        "loss": 0.533485,
+        "data": 0.447174,
+        "team": 0.063417,
+        "shrink": 0.022894,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 32,
+        "loss": 0.533485,
+        "data": 0.447174,
+        "team": 0.063417,
+        "shrink": 0.022894,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 33,
+        "loss": 0.777442,
+        "data": 0.675996,
+        "team": 0.077651,
+        "shrink": 0.023795,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 34,
+        "loss": 0.682581,
+        "data": 0.599175,
+        "team": 0.061565,
+        "shrink": 0.021842,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 35,
+        "loss": 0.559897,
+        "data": 0.477844,
+        "team": 0.059619,
+        "shrink": 0.022433,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 36,
+        "loss": 0.566065,
+        "data": 0.475176,
+        "team": 0.067674,
+        "shrink": 0.023216,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 37,
+        "loss": 0.532723,
+        "data": 0.447736,
+        "team": 0.062205,
+        "shrink": 0.022782,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 38,
+        "loss": 0.532211,
+        "data": 0.446831,
+        "team": 0.062563,
+        "shrink": 0.022817,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 39,
+        "loss": 0.532202,
+        "data": 0.446722,
+        "team": 0.062655,
+        "shrink": 0.022825,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 40,
+        "loss": 0.532155,
+        "data": 0.446595,
+        "team": 0.062728,
+        "shrink": 0.022832,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 41,
+        "loss": 0.532508,
+        "data": 0.446668,
+        "team": 0.062984,
+        "shrink": 0.022856,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 42,
+        "loss": 0.532174,
+        "data": 0.446509,
+        "team": 0.062824,
+        "shrink": 0.022841,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 43,
+        "loss": 0.532155,
+        "data": 0.446595,
+        "team": 0.062728,
+        "shrink": 0.022832,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 44,
+        "loss": 0.632322,
+        "data": 0.549501,
+        "team": 0.059272,
+        "shrink": 0.023549,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 45,
+        "loss": 0.569165,
+        "data": 0.457589,
+        "team": 0.089499,
+        "shrink": 0.022077,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 46,
+        "loss": 0.534302,
+        "data": 0.441954,
+        "team": 0.069863,
+        "shrink": 0.022485,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 47,
+        "loss": 0.548215,
+        "data": 0.464904,
+        "team": 0.060227,
+        "shrink": 0.023083,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 48,
+        "loss": 0.530081,
+        "data": 0.442025,
+        "team": 0.065385,
+        "shrink": 0.022671,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 49,
+        "loss": 0.529914,
+        "data": 0.442142,
+        "team": 0.065086,
+        "shrink": 0.022686,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 50,
+        "loss": 0.5297,
+        "data": 0.44234,
+        "team": 0.06465,
+        "shrink": 0.02271,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 60,
+        "loss": 0.524093,
+        "data": 0.437268,
+        "team": 0.064304,
+        "shrink": 0.022521,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 70,
+        "loss": 0.465641,
+        "data": 0.370859,
+        "team": 0.072627,
+        "shrink": 0.022155,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 80,
+        "loss": 0.464631,
+        "data": 0.369763,
+        "team": 0.072805,
+        "shrink": 0.022063,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 90,
+        "loss": 0.53323,
+        "data": 0.464274,
+        "team": 0.046141,
+        "shrink": 0.022814,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 100,
+        "loss": 0.464259,
+        "data": 0.369456,
+        "team": 0.072708,
+        "shrink": 0.022094,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 110,
+        "loss": 0.412578,
+        "data": 0.303046,
+        "team": 0.0878,
+        "shrink": 0.021732,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 120,
+        "loss": 0.409711,
+        "data": 0.299656,
+        "team": 0.088174,
+        "shrink": 0.021882,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 130,
+        "loss": 0.404345,
+        "data": 0.279774,
+        "team": 0.10129,
+        "shrink": 0.02328,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 140,
+        "loss": 0.334836,
+        "data": 0.230744,
+        "team": 0.081924,
+        "shrink": 0.022168,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 150,
+        "loss": 0.331892,
+        "data": 0.227089,
+        "team": 0.082418,
+        "shrink": 0.022385,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 160,
+        "loss": 0.375546,
+        "data": 0.2539,
+        "team": 0.099041,
+        "shrink": 0.022605,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 170,
+        "loss": 0.276596,
+        "data": 0.170101,
+        "team": 0.08202,
+        "shrink": 0.024475,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 180,
+        "loss": 0.273178,
+        "data": 0.16734,
+        "team": 0.081154,
+        "shrink": 0.024684,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 190,
+        "loss": 0.225443,
+        "data": 0.135464,
+        "team": 0.06584,
+        "shrink": 0.024139,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 200,
+        "loss": 0.223787,
+        "data": 0.134078,
+        "team": 0.0657,
+        "shrink": 0.024009,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 210,
+        "loss": 0.223733,
+        "data": 0.13377,
+        "team": 0.065945,
+        "shrink": 0.024019,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 220,
+        "loss": 0.223735,
+        "data": 0.133733,
+        "team": 0.065979,
+        "shrink": 0.024023,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 230,
+        "loss": 0.224711,
+        "data": 0.135418,
+        "team": 0.065326,
+        "shrink": 0.023967,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 240,
+        "loss": 0.223698,
+        "data": 0.133718,
+        "team": 0.065961,
+        "shrink": 0.02402,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 250,
+        "loss": 0.22354,
+        "data": 0.133735,
+        "team": 0.065798,
+        "shrink": 0.024007,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 260,
+        "loss": 0.223613,
+        "data": 0.133915,
+        "team": 0.065684,
+        "shrink": 0.024014,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 270,
+        "loss": 0.236178,
+        "data": 0.145099,
+        "team": 0.066794,
+        "shrink": 0.024285,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 280,
+        "loss": 0.348617,
+        "data": 0.24457,
+        "team": 0.079542,
+        "shrink": 0.024505,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 290,
+        "loss": 0.217742,
+        "data": 0.127055,
+        "team": 0.066738,
+        "shrink": 0.023948,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 300,
+        "loss": 0.218001,
+        "data": 0.127434,
+        "team": 0.066611,
+        "shrink": 0.023956,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 310,
+        "loss": 0.217742,
+        "data": 0.127055,
+        "team": 0.066738,
+        "shrink": 0.023948,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 320,
+        "loss": 0.292866,
+        "data": 0.139423,
+        "team": 0.130241,
+        "shrink": 0.023203,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 330,
+        "loss": 0.217628,
+        "data": 0.127407,
+        "team": 0.066264,
+        "shrink": 0.023958,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 340,
+        "loss": 0.246242,
+        "data": 0.146609,
+        "team": 0.076172,
+        "shrink": 0.023461,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 350,
+        "loss": 0.222505,
+        "data": 0.127215,
+        "team": 0.07087,
+        "shrink": 0.02442,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 360,
+        "loss": 0.21506,
+        "data": 0.123062,
+        "team": 0.068013,
+        "shrink": 0.023985,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 370,
+        "loss": 0.308911,
+        "data": 0.19732,
+        "team": 0.087005,
+        "shrink": 0.024586,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 380,
+        "loss": 0.217774,
+        "data": 0.124492,
+        "team": 0.06879,
+        "shrink": 0.024491,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 390,
+        "loss": 0.212016,
+        "data": 0.118399,
+        "team": 0.068655,
+        "shrink": 0.024963,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 400,
+        "loss": 0.210596,
+        "data": 0.119047,
+        "team": 0.066923,
+        "shrink": 0.024627,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 410,
+        "loss": 0.21019,
+        "data": 0.118579,
+        "team": 0.066818,
+        "shrink": 0.024793,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 420,
+        "loss": 0.210153,
+        "data": 0.118579,
+        "team": 0.066804,
+        "shrink": 0.02477,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 430,
+        "loss": 0.209619,
+        "data": 0.119396,
+        "team": 0.065491,
+        "shrink": 0.024732,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 440,
+        "loss": 0.209726,
+        "data": 0.119481,
+        "team": 0.065501,
+        "shrink": 0.024744,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 450,
+        "loss": 0.209619,
+        "data": 0.119396,
+        "team": 0.065491,
+        "shrink": 0.024732,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 460,
+        "loss": 0.209729,
+        "data": 0.11925,
+        "team": 0.065738,
+        "shrink": 0.024741,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 470,
+        "loss": 0.356055,
+        "data": 0.260413,
+        "team": 0.070073,
+        "shrink": 0.025569,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 480,
+        "loss": 0.209637,
+        "data": 0.119328,
+        "team": 0.065573,
+        "shrink": 0.024735,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 490,
+        "loss": 0.209617,
+        "data": 0.119309,
+        "team": 0.065574,
+        "shrink": 0.024735,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 500,
+        "loss": 0.341206,
+        "data": 0.257875,
+        "team": 0.059231,
+        "shrink": 0.024099,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 510,
+        "loss": 0.209635,
+        "data": 0.119327,
+        "team": 0.065573,
+        "shrink": 0.024735,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 520,
+        "loss": 0.209606,
+        "data": 0.119298,
+        "team": 0.065573,
+        "shrink": 0.024735,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 530,
+        "loss": 0.233156,
+        "data": 0.137741,
+        "team": 0.070365,
+        "shrink": 0.025051,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 540,
+        "loss": 0.209562,
+        "data": 0.119235,
+        "team": 0.065591,
+        "shrink": 0.024736,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 550,
+        "loss": 0.2105,
+        "data": 0.12097,
+        "team": 0.064746,
+        "shrink": 0.024784,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 560,
+        "loss": 0.209571,
+        "data": 0.119254,
+        "team": 0.065581,
+        "shrink": 0.024736,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 570,
+        "loss": 0.209967,
+        "data": 0.119551,
+        "team": 0.065633,
+        "shrink": 0.024783,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 580,
+        "loss": 0.209535,
+        "data": 0.119218,
+        "team": 0.065581,
+        "shrink": 0.024735,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 590,
+        "loss": 0.237001,
+        "data": 0.141457,
+        "team": 0.071157,
+        "shrink": 0.024388,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 600,
+        "loss": 0.20943,
+        "data": 0.11877,
+        "team": 0.065931,
+        "shrink": 0.024729,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 610,
+        "loss": 0.210005,
+        "data": 0.119173,
+        "team": 0.066114,
+        "shrink": 0.024718,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 620,
+        "loss": 0.209459,
+        "data": 0.118799,
+        "team": 0.065931,
+        "shrink": 0.024729,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 630,
+        "loss": 0.20943,
+        "data": 0.11877,
+        "team": 0.065931,
+        "shrink": 0.024729,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 640,
+        "loss": 0.20972,
+        "data": 0.118732,
+        "team": 0.066265,
+        "shrink": 0.024723,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 650,
+        "loss": 0.209432,
+        "data": 0.11877,
+        "team": 0.065934,
+        "shrink": 0.024729,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 660,
+        "loss": 0.221637,
+        "data": 0.133219,
+        "team": 0.063605,
+        "shrink": 0.024813,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 670,
+        "loss": 0.212078,
+        "data": 0.119885,
+        "team": 0.067676,
+        "shrink": 0.024516,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 680,
+        "loss": 0.209224,
+        "data": 0.118,
+        "team": 0.066503,
+        "shrink": 0.02472,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 690,
+        "loss": 0.209223,
+        "data": 0.117992,
+        "team": 0.066509,
+        "shrink": 0.024722,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 700,
+        "loss": 0.231879,
+        "data": 0.125356,
+        "team": 0.080482,
+        "shrink": 0.026041,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 710,
+        "loss": 0.209211,
+        "data": 0.117998,
+        "team": 0.066499,
+        "shrink": 0.024714,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 720,
+        "loss": 0.209155,
+        "data": 0.118043,
+        "team": 0.066401,
+        "shrink": 0.024711,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 730,
+        "loss": 0.209124,
+        "data": 0.117999,
+        "team": 0.066416,
+        "shrink": 0.024709,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 740,
+        "loss": 0.209003,
+        "data": 0.117749,
+        "team": 0.066434,
+        "shrink": 0.02482,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 750,
+        "loss": 0.209251,
+        "data": 0.117886,
+        "team": 0.066651,
+        "shrink": 0.024714,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 760,
+        "loss": 0.208857,
+        "data": 0.117501,
+        "team": 0.066441,
+        "shrink": 0.024915,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 770,
+        "loss": 0.210399,
+        "data": 0.118565,
+        "team": 0.067109,
+        "shrink": 0.024726,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 780,
+        "loss": 0.208854,
+        "data": 0.117465,
+        "team": 0.066456,
+        "shrink": 0.024933,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 790,
+        "loss": 0.208821,
+        "data": 0.117478,
+        "team": 0.066411,
+        "shrink": 0.024932,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 800,
+        "loss": 0.210692,
+        "data": 0.118908,
+        "team": 0.066742,
+        "shrink": 0.025041,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 810,
+        "loss": 0.208828,
+        "data": 0.117489,
+        "team": 0.066407,
+        "shrink": 0.024932,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 820,
+        "loss": 0.208828,
+        "data": 0.117489,
+        "team": 0.066407,
+        "shrink": 0.024932,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 830,
+        "loss": 0.386925,
+        "data": 0.313596,
+        "team": 0.04913,
+        "shrink": 0.024199,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 840,
+        "loss": 0.20882,
+        "data": 0.117492,
+        "team": 0.066397,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 850,
+        "loss": 0.209084,
+        "data": 0.117763,
+        "team": 0.066417,
+        "shrink": 0.024904,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 860,
+        "loss": 0.208822,
+        "data": 0.117499,
+        "team": 0.066392,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 870,
+        "loss": 0.340387,
+        "data": 0.256042,
+        "team": 0.06005,
+        "shrink": 0.024296,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 880,
+        "loss": 0.208843,
+        "data": 0.117521,
+        "team": 0.06639,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 890,
+        "loss": 0.208815,
+        "data": 0.117492,
+        "team": 0.066392,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 900,
+        "loss": 0.208815,
+        "data": 0.117492,
+        "team": 0.066392,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 910,
+        "loss": 0.245435,
+        "data": 0.15923,
+        "team": 0.061725,
+        "shrink": 0.024479,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 920,
+        "loss": 0.208847,
+        "data": 0.117502,
+        "team": 0.066412,
+        "shrink": 0.024933,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 930,
+        "loss": 0.208816,
+        "data": 0.117492,
+        "team": 0.066392,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 940,
+        "loss": 0.270479,
+        "data": 0.184123,
+        "team": 0.060751,
+        "shrink": 0.025605,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 950,
+        "loss": 0.208877,
+        "data": 0.117559,
+        "team": 0.066386,
+        "shrink": 0.024932,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 960,
+        "loss": 0.208848,
+        "data": 0.117526,
+        "team": 0.066392,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 970,
+        "loss": 0.21149,
+        "data": 0.119878,
+        "team": 0.06657,
+        "shrink": 0.025042,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 980,
+        "loss": 0.230144,
+        "data": 0.130238,
+        "team": 0.074916,
+        "shrink": 0.02499,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 990,
+        "loss": 0.208668,
+        "data": 0.117202,
+        "team": 0.066536,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1000,
+        "loss": 0.208654,
+        "data": 0.117203,
+        "team": 0.066523,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1010,
+        "loss": 0.208654,
+        "data": 0.117202,
+        "team": 0.066522,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1020,
+        "loss": 0.20919,
+        "data": 0.117568,
+        "team": 0.066704,
+        "shrink": 0.024918,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1030,
+        "loss": 0.208654,
+        "data": 0.117202,
+        "team": 0.066522,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1040,
+        "loss": 0.208654,
+        "data": 0.117202,
+        "team": 0.066522,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1050,
+        "loss": 0.208654,
+        "data": 0.117202,
+        "team": 0.066522,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1060,
+        "loss": 0.215308,
+        "data": 0.134731,
+        "team": 0.055396,
+        "shrink": 0.025181,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1070,
+        "loss": 0.208746,
+        "data": 0.117298,
+        "team": 0.066519,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1080,
+        "loss": 0.208709,
+        "data": 0.117258,
+        "team": 0.066522,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1090,
+        "loss": 0.231958,
+        "data": 0.127902,
+        "team": 0.07909,
+        "shrink": 0.024965,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1100,
+        "loss": 0.208644,
+        "data": 0.117203,
+        "team": 0.066512,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1110,
+        "loss": 0.208644,
+        "data": 0.117211,
+        "team": 0.066501,
+        "shrink": 0.024933,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1120,
+        "loss": 0.20864,
+        "data": 0.117203,
+        "team": 0.066508,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1130,
+        "loss": 0.20864,
+        "data": 0.117203,
+        "team": 0.066508,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1140,
+        "loss": 0.208649,
+        "data": 0.117216,
+        "team": 0.066505,
+        "shrink": 0.024928,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1150,
+        "loss": 0.208652,
+        "data": 0.117215,
+        "team": 0.066508,
+        "shrink": 0.024929,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1160,
+        "loss": 0.208643,
+        "data": 0.117201,
+        "team": 0.066511,
+        "shrink": 0.024931,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1170,
+        "loss": 0.293577,
+        "data": 0.182357,
+        "team": 0.085872,
+        "shrink": 0.025348,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1180,
+        "loss": 0.20865,
+        "data": 0.117223,
+        "team": 0.066501,
+        "shrink": 0.024926,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1190,
+        "loss": 0.208966,
+        "data": 0.117421,
+        "team": 0.06655,
+        "shrink": 0.024995,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1200,
+        "loss": 0.208631,
+        "data": 0.117203,
+        "team": 0.066502,
+        "shrink": 0.024926,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1210,
+        "loss": 0.208532,
+        "data": 0.116974,
+        "team": 0.066498,
+        "shrink": 0.02506,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1220,
+        "loss": 0.20853,
+        "data": 0.116973,
+        "team": 0.066496,
+        "shrink": 0.025061,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1230,
+        "loss": 0.208509,
+        "data": 0.11692,
+        "team": 0.066468,
+        "shrink": 0.025121,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1240,
+        "loss": 0.208593,
+        "data": 0.116921,
+        "team": 0.066505,
+        "shrink": 0.025168,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1250,
+        "loss": 0.208499,
+        "data": 0.116904,
+        "team": 0.066468,
+        "shrink": 0.025127,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1260,
+        "loss": 0.208488,
+        "data": 0.117117,
+        "team": 0.066249,
+        "shrink": 0.025121,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1270,
+        "loss": 0.211932,
+        "data": 0.119913,
+        "team": 0.067048,
+        "shrink": 0.024971,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1280,
+        "loss": 0.208464,
+        "data": 0.116928,
+        "team": 0.066411,
+        "shrink": 0.025125,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1290,
+        "loss": 0.208453,
+        "data": 0.116917,
+        "team": 0.066411,
+        "shrink": 0.025125,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1300,
+        "loss": 0.208482,
+        "data": 0.116987,
+        "team": 0.066372,
+        "shrink": 0.025124,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1310,
+        "loss": 0.208453,
+        "data": 0.116917,
+        "team": 0.066411,
+        "shrink": 0.025125,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1320,
+        "loss": 0.240323,
+        "data": 0.147005,
+        "team": 0.068614,
+        "shrink": 0.024704,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1330,
+        "loss": 0.208449,
+        "data": 0.116915,
+        "team": 0.066414,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1340,
+        "loss": 0.208505,
+        "data": 0.116944,
+        "team": 0.066438,
+        "shrink": 0.025122,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1350,
+        "loss": 0.208449,
+        "data": 0.116915,
+        "team": 0.066414,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1360,
+        "loss": 0.208449,
+        "data": 0.116915,
+        "team": 0.066414,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1370,
+        "loss": 0.208449,
+        "data": 0.116915,
+        "team": 0.066414,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1380,
+        "loss": 0.208634,
+        "data": 0.117321,
+        "team": 0.066208,
+        "shrink": 0.025105,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1390,
+        "loss": 0.20844,
+        "data": 0.116898,
+        "team": 0.066421,
+        "shrink": 0.025121,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1400,
+        "loss": 0.208434,
+        "data": 0.116899,
+        "team": 0.066414,
+        "shrink": 0.025121,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1410,
+        "loss": 0.208836,
+        "data": 0.117179,
+        "team": 0.066544,
+        "shrink": 0.025114,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1420,
+        "loss": 0.208469,
+        "data": 0.116935,
+        "team": 0.066413,
+        "shrink": 0.025121,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1430,
+        "loss": 0.211027,
+        "data": 0.119197,
+        "team": 0.066598,
+        "shrink": 0.025232,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1440,
+        "loss": 0.208464,
+        "data": 0.116932,
+        "team": 0.066412,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1450,
+        "loss": 0.208579,
+        "data": 0.117116,
+        "team": 0.066343,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1460,
+        "loss": 0.208432,
+        "data": 0.116901,
+        "team": 0.066411,
+        "shrink": 0.02512,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1470,
+        "loss": 0.20842,
+        "data": 0.116889,
+        "team": 0.066413,
+        "shrink": 0.025118,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1480,
+        "loss": 0.209246,
+        "data": 0.117253,
+        "team": 0.066906,
+        "shrink": 0.025086,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1490,
+        "loss": 0.208483,
+        "data": 0.116954,
+        "team": 0.066413,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1500,
+        "loss": 0.208414,
+        "data": 0.116884,
+        "team": 0.066414,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1510,
+        "loss": 0.208414,
+        "data": 0.116884,
+        "team": 0.066414,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1520,
+        "loss": 0.208414,
+        "data": 0.116884,
+        "team": 0.066414,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1530,
+        "loss": 0.208498,
+        "data": 0.116905,
+        "team": 0.066478,
+        "shrink": 0.025115,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1540,
+        "loss": 0.208412,
+        "data": 0.116884,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1550,
+        "loss": 0.208472,
+        "data": 0.116894,
+        "team": 0.066462,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1560,
+        "loss": 0.208448,
+        "data": 0.11692,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1570,
+        "loss": 0.208448,
+        "data": 0.11692,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1580,
+        "loss": 0.208428,
+        "data": 0.116898,
+        "team": 0.066414,
+        "shrink": 0.025115,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1590,
+        "loss": 0.208413,
+        "data": 0.116885,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1600,
+        "loss": 0.208416,
+        "data": 0.116882,
+        "team": 0.066416,
+        "shrink": 0.025118,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1610,
+        "loss": 0.208424,
+        "data": 0.116895,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1620,
+        "loss": 0.208424,
+        "data": 0.116895,
+        "team": 0.066412,
+        "shrink": 0.025116,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1630,
+        "loss": 0.208423,
+        "data": 0.116883,
+        "team": 0.066419,
+        "shrink": 0.025122,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1640,
+        "loss": 0.220837,
+        "data": 0.124902,
+        "team": 0.070717,
+        "shrink": 0.025218,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1650,
+        "loss": 0.20846,
+        "data": 0.116921,
+        "team": 0.066422,
+        "shrink": 0.025117,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1660,
+        "loss": 0.208429,
+        "data": 0.116898,
+        "team": 0.066413,
+        "shrink": 0.025117,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1670,
+        "loss": 0.208398,
+        "data": 0.116874,
+        "team": 0.06642,
+        "shrink": 0.025105,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1680,
+        "loss": 0.22739,
+        "data": 0.130601,
+        "team": 0.072183,
+        "shrink": 0.024606,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1690,
+        "loss": 0.208377,
+        "data": 0.116791,
+        "team": 0.066433,
+        "shrink": 0.025152,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1700,
+        "loss": 0.208377,
+        "data": 0.116748,
+        "team": 0.066419,
+        "shrink": 0.025209,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1710,
+        "loss": 0.208376,
+        "data": 0.116788,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1720,
+        "loss": 0.208387,
+        "data": 0.116793,
+        "team": 0.066433,
+        "shrink": 0.025161,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1730,
+        "loss": 0.208386,
+        "data": 0.116798,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1740,
+        "loss": 0.208376,
+        "data": 0.116788,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1750,
+        "loss": 0.212475,
+        "data": 0.123078,
+        "team": 0.064306,
+        "shrink": 0.025092,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1760,
+        "loss": 0.208376,
+        "data": 0.116788,
+        "team": 0.066431,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1770,
+        "loss": 0.208376,
+        "data": 0.116788,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1780,
+        "loss": 0.208375,
+        "data": 0.116788,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1790,
+        "loss": 0.562898,
+        "data": 0.43393,
+        "team": 0.102469,
+        "shrink": 0.026499,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1800,
+        "loss": 0.208376,
+        "data": 0.116788,
+        "team": 0.066431,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1810,
+        "loss": 0.208415,
+        "data": 0.116829,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1820,
+        "loss": 0.208375,
+        "data": 0.116788,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1830,
+        "loss": 0.208376,
+        "data": 0.116787,
+        "team": 0.066425,
+        "shrink": 0.025165,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1840,
+        "loss": 0.699582,
+        "data": 0.588458,
+        "team": 0.084782,
+        "shrink": 0.026342,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1850,
+        "loss": 0.208376,
+        "data": 0.116783,
+        "team": 0.066436,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1860,
+        "loss": 0.208387,
+        "data": 0.1168,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1870,
+        "loss": 0.208387,
+        "data": 0.1168,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1880,
+        "loss": 0.208387,
+        "data": 0.1168,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1890,
+        "loss": 0.211976,
+        "data": 0.118612,
+        "team": 0.068089,
+        "shrink": 0.025275,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1900,
+        "loss": 0.20836,
+        "data": 0.116771,
+        "team": 0.066431,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1910,
+        "loss": 0.208358,
+        "data": 0.116771,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1920,
+        "loss": 0.208756,
+        "data": 0.117258,
+        "team": 0.066336,
+        "shrink": 0.025162,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1930,
+        "loss": 0.208358,
+        "data": 0.116771,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1940,
+        "loss": 0.208394,
+        "data": 0.116807,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1950,
+        "loss": 0.208701,
+        "data": 0.117177,
+        "team": 0.066417,
+        "shrink": 0.025107,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1960,
+        "loss": 0.208378,
+        "data": 0.116792,
+        "team": 0.06643,
+        "shrink": 0.025156,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1970,
+        "loss": 0.211669,
+        "data": 0.117871,
+        "team": 0.068638,
+        "shrink": 0.02516,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1980,
+        "loss": 0.208343,
+        "data": 0.116757,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 1990,
+        "loss": 0.208343,
+        "data": 0.116756,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2000,
+        "loss": 0.210248,
+        "data": 0.118352,
+        "team": 0.066632,
+        "shrink": 0.025264,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2010,
+        "loss": 0.208338,
+        "data": 0.116751,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2020,
+        "loss": 0.423952,
+        "data": 0.3398,
+        "team": 0.058078,
+        "shrink": 0.026075,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2030,
+        "loss": 0.208415,
+        "data": 0.116825,
+        "team": 0.066434,
+        "shrink": 0.025156,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2040,
+        "loss": 0.208359,
+        "data": 0.116772,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2050,
+        "loss": 0.208347,
+        "data": 0.116761,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2060,
+        "loss": 0.208337,
+        "data": 0.116751,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2070,
+        "loss": 0.224836,
+        "data": 0.112507,
+        "team": 0.087523,
+        "shrink": 0.024806,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2080,
+        "loss": 0.208339,
+        "data": 0.116751,
+        "team": 0.066431,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2090,
+        "loss": 0.208337,
+        "data": 0.116751,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2100,
+        "loss": 0.20842,
+        "data": 0.11686,
+        "team": 0.066403,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2110,
+        "loss": 0.208354,
+        "data": 0.116767,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2120,
+        "loss": 0.208337,
+        "data": 0.116751,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2130,
+        "loss": 0.208337,
+        "data": 0.116751,
+        "team": 0.06643,
+        "shrink": 0.025157,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2140,
+        "loss": 0.208353,
+        "data": 0.116764,
+        "team": 0.066433,
+        "shrink": 0.025155,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2150,
+        "loss": 0.208336,
+        "data": 0.116751,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2160,
+        "loss": 0.208351,
+        "data": 0.116771,
+        "team": 0.066423,
+        "shrink": 0.025156,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2170,
+        "loss": 0.208336,
+        "data": 0.116751,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2180,
+        "loss": 0.208348,
+        "data": 0.116762,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2190,
+        "loss": 0.208365,
+        "data": 0.116798,
+        "team": 0.066418,
+        "shrink": 0.025149,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2200,
+        "loss": 0.208337,
+        "data": 0.116752,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2210,
+        "loss": 0.210994,
+        "data": 0.120184,
+        "team": 0.065678,
+        "shrink": 0.025132,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2220,
+        "loss": 0.208367,
+        "data": 0.116784,
+        "team": 0.066425,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2230,
+        "loss": 0.208354,
+        "data": 0.116769,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2240,
+        "loss": 0.226597,
+        "data": 0.130084,
+        "team": 0.07183,
+        "shrink": 0.024682,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2250,
+        "loss": 0.208336,
+        "data": 0.116751,
+        "team": 0.066427,
+        "shrink": 0.025158,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2260,
+        "loss": 0.209263,
+        "data": 0.117458,
+        "team": 0.066972,
+        "shrink": 0.024834,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2270,
+        "loss": 0.229442,
+        "data": 0.124605,
+        "team": 0.078354,
+        "shrink": 0.026484,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2280,
+        "loss": 0.208328,
+        "data": 0.116672,
+        "team": 0.066458,
+        "shrink": 0.025197,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2290,
+        "loss": 0.21724,
+        "data": 0.120439,
+        "team": 0.072383,
+        "shrink": 0.024418,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2300,
+        "loss": 0.22112,
+        "data": 0.125339,
+        "team": 0.071012,
+        "shrink": 0.024769,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2310,
+        "loss": 0.208274,
+        "data": 0.116603,
+        "team": 0.06642,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2320,
+        "loss": 0.208275,
+        "data": 0.116603,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2330,
+        "loss": 0.208275,
+        "data": 0.116603,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2340,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2350,
+        "loss": 0.208273,
+        "data": 0.116593,
+        "team": 0.066428,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2360,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2370,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2380,
+        "loss": 0.211767,
+        "data": 0.119642,
+        "team": 0.067026,
+        "shrink": 0.025099,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2390,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2400,
+        "loss": 1.363965,
+        "data": 1.311194,
+        "team": 0.029288,
+        "shrink": 0.023483,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2410,
+        "loss": 0.20827,
+        "data": 0.116593,
+        "team": 0.066425,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2420,
+        "loss": 0.208305,
+        "data": 0.116634,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2430,
+        "loss": 0.208305,
+        "data": 0.116634,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2440,
+        "loss": 0.353805,
+        "data": 0.256823,
+        "team": 0.070895,
+        "shrink": 0.026088,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2450,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2460,
+        "loss": 0.208275,
+        "data": 0.116604,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2470,
+        "loss": 0.208361,
+        "data": 0.116622,
+        "team": 0.066482,
+        "shrink": 0.025257,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2480,
+        "loss": 0.208294,
+        "data": 0.116622,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2490,
+        "loss": 0.208294,
+        "data": 0.116622,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2500,
+        "loss": 0.208294,
+        "data": 0.116622,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2510,
+        "loss": 0.410203,
+        "data": 0.302002,
+        "team": 0.08206,
+        "shrink": 0.026141,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2520,
+        "loss": 0.208413,
+        "data": 0.116826,
+        "team": 0.066342,
+        "shrink": 0.025246,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2530,
+        "loss": 0.208354,
+        "data": 0.116683,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2540,
+        "loss": 0.208338,
+        "data": 0.116667,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2550,
+        "loss": 0.270437,
+        "data": 0.183729,
+        "team": 0.06078,
+        "shrink": 0.025928,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2560,
+        "loss": 0.208548,
+        "data": 0.116907,
+        "team": 0.066388,
+        "shrink": 0.025254,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2570,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2580,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2590,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2600,
+        "loss": 0.226085,
+        "data": 0.133182,
+        "team": 0.06735,
+        "shrink": 0.025553,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2610,
+        "loss": 0.208321,
+        "data": 0.11665,
+        "team": 0.06642,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2620,
+        "loss": 0.283445,
+        "data": 0.184655,
+        "team": 0.073247,
+        "shrink": 0.025543,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2630,
+        "loss": 0.208269,
+        "data": 0.116595,
+        "team": 0.066422,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2640,
+        "loss": 0.208271,
+        "data": 0.116599,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2650,
+        "loss": 0.20827,
+        "data": 0.116599,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2660,
+        "loss": 0.235877,
+        "data": 0.139221,
+        "team": 0.07174,
+        "shrink": 0.024916,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2670,
+        "loss": 0.208288,
+        "data": 0.116617,
+        "team": 0.06642,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2680,
+        "loss": 0.256982,
+        "data": 0.155621,
+        "team": 0.076582,
+        "shrink": 0.024779,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2690,
+        "loss": 0.208331,
+        "data": 0.116661,
+        "team": 0.066418,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2700,
+        "loss": 0.208333,
+        "data": 0.116661,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2710,
+        "loss": 0.208333,
+        "data": 0.116661,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2720,
+        "loss": 0.208292,
+        "data": 0.11662,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2730,
+        "loss": 0.209199,
+        "data": 0.120943,
+        "team": 0.062931,
+        "shrink": 0.025325,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2740,
+        "loss": 0.208317,
+        "data": 0.116646,
+        "team": 0.066419,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2750,
+        "loss": 0.208318,
+        "data": 0.116646,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2760,
+        "loss": 0.218602,
+        "data": 0.129567,
+        "team": 0.063711,
+        "shrink": 0.025323,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2770,
+        "loss": 0.208311,
+        "data": 0.116641,
+        "team": 0.066418,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2780,
+        "loss": 0.208298,
+        "data": 0.116627,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2790,
+        "loss": 0.208298,
+        "data": 0.116627,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2800,
+        "loss": 0.208298,
+        "data": 0.116627,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2810,
+        "loss": 0.211213,
+        "data": 0.118551,
+        "team": 0.067616,
+        "shrink": 0.025047,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2820,
+        "loss": 0.208265,
+        "data": 0.116593,
+        "team": 0.066419,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2830,
+        "loss": 0.208262,
+        "data": 0.116591,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2840,
+        "loss": 0.214857,
+        "data": 0.120114,
+        "team": 0.069085,
+        "shrink": 0.025658,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2850,
+        "loss": 0.208276,
+        "data": 0.116605,
+        "team": 0.066419,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2860,
+        "loss": 0.208277,
+        "data": 0.116605,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2870,
+        "loss": 0.208274,
+        "data": 0.116602,
+        "team": 0.06642,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2880,
+        "loss": 0.21249,
+        "data": 0.118011,
+        "team": 0.068785,
+        "shrink": 0.025693,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2890,
+        "loss": 0.208261,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2900,
+        "loss": 0.208295,
+        "data": 0.116633,
+        "team": 0.06641,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2910,
+        "loss": 0.208262,
+        "data": 0.116587,
+        "team": 0.066422,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2920,
+        "loss": 0.208261,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2930,
+        "loss": 0.208261,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2940,
+        "loss": 0.208261,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2950,
+        "loss": 0.208291,
+        "data": 0.116618,
+        "team": 0.066432,
+        "shrink": 0.025241,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2960,
+        "loss": 0.208261,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2970,
+        "loss": 0.210869,
+        "data": 0.116513,
+        "team": 0.068516,
+        "shrink": 0.025841,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2980,
+        "loss": 0.208263,
+        "data": 0.11659,
+        "team": 0.066421,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 2990,
+        "loss": 0.208297,
+        "data": 0.116624,
+        "team": 0.06642,
+        "shrink": 0.025253,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3000,
+        "loss": 0.208298,
+        "data": 0.116625,
+        "team": 0.066421,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3010,
+        "loss": 0.20826,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025252,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3020,
+        "loss": 0.208262,
+        "data": 0.116568,
+        "team": 0.066416,
+        "shrink": 0.025277,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3030,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3040,
+        "loss": 0.208278,
+        "data": 0.116593,
+        "team": 0.066427,
+        "shrink": 0.025258,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3050,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3060,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3070,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3080,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3090,
+        "loss": 0.208266,
+        "data": 0.116587,
+        "team": 0.066428,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3100,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3110,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3120,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3130,
+        "loss": 0.260107,
+        "data": 0.153877,
+        "team": 0.080022,
+        "shrink": 0.026209,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3140,
+        "loss": 0.208263,
+        "data": 0.116591,
+        "team": 0.066422,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      },
+      {
+        "eval": 3150,
+        "loss": 0.208259,
+        "data": 0.116587,
+        "team": 0.066421,
+        "shrink": 0.025251,
+        "sigma": 0.0,
+        "alpha": 0.0
+      }
+    ],
+    "step_losses": [
+      {
+        "step": 1,
+        "eval": 201,
+        "best_loss": 0.223787,
+        "elapsed": 5.0
+      },
+      {
+        "step": 2,
+        "eval": 453,
+        "best_loss": 0.209618,
+        "elapsed": 11.1
+      },
+      {
+        "step": 3,
+        "eval": 825,
+        "best_loss": 0.208817,
+        "elapsed": 20.2
+      },
+      {
+        "step": 4,
+        "eval": 1288,
+        "best_loss": 0.208453,
+        "elapsed": 31.6
+      },
+      {
+        "step": 5,
+        "eval": 1787,
+        "best_loss": 0.208375,
+        "elapsed": 43.8
+      },
+      {
+        "step": 6,
+        "eval": 2396,
+        "best_loss": 0.208265,
+        "elapsed": 59.0
+      },
+      {
+        "step": 7,
+        "eval": 3158,
+        "best_loss": 0.208259,
+        "elapsed": 78.1
+      }
+    ],
+    "residuals": [
+      {
+        "market": "win",
+        "driver_idx": 0,
+        "observed": 0.4353,
+        "model": 0.4309,
+        "residual": -0.0044,
+        "driver": "VER"
+      },
+      {
+        "market": "win",
+        "driver_idx": 2,
+        "observed": 0.2572,
+        "model": 0.2606,
+        "residual": 0.0034,
+        "driver": "ANT"
+      },
+      {
+        "market": "win",
+        "driver_idx": 3,
+        "observed": 0.0684,
+        "model": 0.0717,
+        "residual": 0.0033,
+        "driver": "NOR"
+      },
+      {
+        "market": "win",
+        "driver_idx": 8,
+        "observed": 0.0684,
+        "model": 0.0775,
+        "residual": 0.0091,
+        "driver": "RUS"
+      },
+      {
+        "market": "win",
+        "driver_idx": 5,
+        "observed": 0.0624,
+        "model": 0.0547,
+        "residual": -0.0078,
+        "driver": "HAM"
+      },
+      {
+        "market": "win",
+        "driver_idx": 1,
+        "observed": 0.0529,
+        "model": 0.0559,
+        "residual": 0.0029,
+        "driver": "LEC"
+      },
+      {
+        "market": "win",
+        "driver_idx": 9,
+        "observed": 0.0272,
+        "model": 0.0261,
+        "residual": -0.001,
+        "driver": "HAD"
+      },
+      {
+        "market": "win",
+        "driver_idx": 4,
+        "observed": 0.0272,
+        "model": 0.0215,
+        "residual": -0.0056,
+        "driver": "PIA"
+      },
+      {
+        "market": "win",
+        "driver_idx": 6,
+        "observed": 0.0002,
+        "model": 0.0003,
+        "residual": 0.0001,
+        "driver": "LAW"
+      },
+      {
+        "market": "win",
+        "driver_idx": 14,
+        "observed": 0.0002,
+        "model": 0.0002,
+        "residual": -0.0,
+        "driver": "LIN"
+      },
+      {
+        "market": "win",
+        "driver_idx": 10,
+        "observed": 0.0002,
+        "model": 0.0004,
+        "residual": 0.0002,
+        "driver": "GAS"
+      },
+      {
+        "market": "win",
+        "driver_idx": 7,
+        "observed": 0.0001,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "HUL"
+      },
+      {
+        "market": "win",
+        "driver_idx": 21,
+        "observed": 0.0001,
+        "model": 0.0,
+        "residual": -0.0001,
+        "driver": "BOR"
+      },
+      {
+        "market": "win",
+        "driver_idx": 12,
+        "observed": 0.0001,
+        "model": 0.0,
+        "residual": -0.0001,
+        "driver": "OCO"
+      },
+      {
+        "market": "win",
+        "driver_idx": 11,
+        "observed": 0.0001,
+        "model": 0.0,
+        "residual": -0.0001,
+        "driver": "BEA"
+      },
+      {
+        "market": "win",
+        "driver_idx": 20,
+        "observed": 0.0001,
+        "model": 0.0002,
+        "residual": 0.0001,
+        "driver": "COL"
+      },
+      {
+        "market": "win",
+        "driver_idx": 15,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "ALO"
+      },
+      {
+        "market": "win",
+        "driver_idx": 17,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "ALB"
+      },
+      {
+        "market": "win",
+        "driver_idx": 13,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "SAI"
+      },
+      {
+        "market": "win",
+        "driver_idx": 18,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "BOT"
+      },
+      {
+        "market": "win",
+        "driver_idx": 19,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": -0.0,
+        "driver": "STR"
+      },
+      {
+        "market": "win",
+        "driver_idx": 16,
+        "observed": 0.0,
+        "model": 0.0,
+        "residual": 0.0,
+        "driver": "PER"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 0,
+        "observed": 0.6762,
+        "model": 0.6727,
+        "residual": -0.0035,
+        "driver": "VER"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 2,
+        "observed": 0.6019,
+        "model": 0.5987,
+        "residual": -0.0031,
+        "driver": "ANT"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 8,
+        "observed": 0.3653,
+        "model": 0.3764,
+        "residual": 0.0111,
+        "driver": "RUS"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 3,
+        "observed": 0.3161,
+        "model": 0.35,
+        "residual": 0.0339,
+        "driver": "NOR"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 5,
+        "observed": 0.2675,
+        "model": 0.3036,
+        "residual": 0.0361,
+        "driver": "HAM"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 1,
+        "observed": 0.2675,
+        "model": 0.2999,
+        "residual": 0.0324,
+        "driver": "LEC"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 4,
+        "observed": 0.2318,
+        "model": 0.1717,
+        "residual": -0.0602,
+        "driver": "PIA"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 9,
+        "observed": 0.2173,
+        "model": 0.2016,
+        "residual": -0.0158,
+        "driver": "HAD"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 14,
+        "observed": 0.0086,
+        "model": 0.0048,
+        "residual": -0.0038,
+        "driver": "LIN"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 10,
+        "observed": 0.0086,
+        "model": 0.0069,
+        "residual": -0.0017,
+        "driver": "GAS"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 6,
+        "observed": 0.0086,
+        "model": 0.0084,
+        "residual": -0.0002,
+        "driver": "LAW"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 20,
+        "observed": 0.0058,
+        "model": 0.0029,
+        "residual": -0.0028,
+        "driver": "COL"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 7,
+        "observed": 0.0043,
+        "model": 0.0006,
+        "residual": -0.0037,
+        "driver": "HUL"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 12,
+        "observed": 0.0035,
+        "model": 0.0002,
+        "residual": -0.0032,
+        "driver": "OCO"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 11,
+        "observed": 0.0035,
+        "model": 0.0002,
+        "residual": -0.0033,
+        "driver": "BEA"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 18,
+        "observed": 0.0019,
+        "model": 0.0,
+        "residual": -0.0019,
+        "driver": "BOT"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 15,
+        "observed": 0.0019,
+        "model": 0.0002,
+        "residual": -0.0017,
+        "driver": "ALO"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 19,
+        "observed": 0.0019,
+        "model": 0.0001,
+        "residual": -0.0018,
+        "driver": "STR"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 17,
+        "observed": 0.0019,
+        "model": 0.0002,
+        "residual": -0.0017,
+        "driver": "ALB"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 16,
+        "observed": 0.0019,
+        "model": 0.0001,
+        "residual": -0.0019,
+        "driver": "PER"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 13,
+        "observed": 0.0019,
+        "model": 0.0001,
+        "residual": -0.0019,
+        "driver": "SAI"
+      },
+      {
+        "market": "podium",
+        "driver_idx": 21,
+        "observed": 0.0019,
+        "model": 0.0008,
+        "residual": -0.0011,
+        "driver": "BOR"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 0,
+        "observed": 0.8067,
+        "model": 0.7843,
+        "residual": -0.0225,
+        "driver": "VER"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 2,
+        "observed": 0.7945,
+        "model": 0.7614,
+        "residual": -0.0331,
+        "driver": "ANT"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 8,
+        "observed": 0.7769,
+        "model": 0.6908,
+        "residual": -0.0861,
+        "driver": "RUS"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 3,
+        "observed": 0.7647,
+        "model": 0.6836,
+        "residual": -0.0811,
+        "driver": "NOR"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 1,
+        "observed": 0.7283,
+        "model": 0.6621,
+        "residual": -0.0662,
+        "driver": "LEC"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 5,
+        "observed": 0.6409,
+        "model": 0.665,
+        "residual": 0.0241,
+        "driver": "HAM"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 9,
+        "observed": 0.4162,
+        "model": 0.605,
+        "residual": 0.1888,
+        "driver": "HAD"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 4,
+        "observed": 0.3884,
+        "model": 0.5784,
+        "residual": 0.1899,
+        "driver": "PIA"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 6,
+        "observed": 0.1589,
+        "model": 0.1537,
+        "residual": -0.0052,
+        "driver": "LAW"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 10,
+        "observed": 0.1345,
+        "model": 0.1295,
+        "residual": -0.005,
+        "driver": "GAS"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 14,
+        "observed": 0.0971,
+        "model": 0.1133,
+        "residual": 0.0162,
+        "driver": "LIN"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 20,
+        "observed": 0.0624,
+        "model": 0.0694,
+        "residual": 0.007,
+        "driver": "COL"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 7,
+        "observed": 0.0416,
+        "model": 0.0245,
+        "residual": -0.0172,
+        "driver": "HUL"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 21,
+        "observed": 0.0416,
+        "model": 0.0249,
+        "residual": -0.0167,
+        "driver": "BOR"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 11,
+        "observed": 0.0336,
+        "model": 0.0109,
+        "residual": -0.0227,
+        "driver": "BEA"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 12,
+        "observed": 0.0336,
+        "model": 0.0105,
+        "residual": -0.0232,
+        "driver": "OCO"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 15,
+        "observed": 0.0257,
+        "model": 0.0091,
+        "residual": -0.0166,
+        "driver": "ALO"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 13,
+        "observed": 0.0171,
+        "model": 0.0066,
+        "residual": -0.0105,
+        "driver": "SAI"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 19,
+        "observed": 0.0171,
+        "model": 0.0076,
+        "residual": -0.0095,
+        "driver": "STR"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 17,
+        "observed": 0.013,
+        "model": 0.0068,
+        "residual": -0.0063,
+        "driver": "ALB"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 18,
+        "observed": 0.0035,
+        "model": 0.0013,
+        "residual": -0.0022,
+        "driver": "BOT"
+      },
+      {
+        "market": "top6",
+        "driver_idx": 16,
+        "observed": 0.0035,
+        "model": 0.0013,
+        "residual": -0.0021,
+        "driver": "PER"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 0,
+        "observed": 0.8477,
+        "model": 0.8301,
+        "residual": -0.0176,
+        "driver": "VER"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 2,
+        "observed": 0.8477,
+        "model": 0.8231,
+        "residual": -0.0246,
+        "driver": "ANT"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 3,
+        "observed": 0.8384,
+        "model": 0.7922,
+        "residual": -0.0462,
+        "driver": "NOR"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 8,
+        "observed": 0.8384,
+        "model": 0.7953,
+        "residual": -0.0431,
+        "driver": "RUS"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 1,
+        "observed": 0.8257,
+        "model": 0.7888,
+        "residual": -0.0369,
+        "driver": "LEC"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 5,
+        "observed": 0.8257,
+        "model": 0.7885,
+        "residual": -0.0372,
+        "driver": "HAM"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 4,
+        "observed": 0.8074,
+        "model": 0.7719,
+        "residual": -0.0354,
+        "driver": "PIA"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 9,
+        "observed": 0.7785,
+        "model": 0.7767,
+        "residual": -0.0018,
+        "driver": "HAD"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 6,
+        "observed": 0.5929,
+        "model": 0.6001,
+        "residual": 0.0072,
+        "driver": "LAW"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 10,
+        "observed": 0.5629,
+        "model": 0.5579,
+        "residual": -0.005,
+        "driver": "GAS"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 14,
+        "observed": 0.5266,
+        "model": 0.5553,
+        "residual": 0.0286,
+        "driver": "LIN"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 20,
+        "observed": 0.4129,
+        "model": 0.4528,
+        "residual": 0.0399,
+        "driver": "COL"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 21,
+        "observed": 0.2595,
+        "model": 0.2749,
+        "residual": 0.0154,
+        "driver": "BOR"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 7,
+        "observed": 0.2595,
+        "model": 0.2758,
+        "residual": 0.0163,
+        "driver": "HUL"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 11,
+        "observed": 0.1651,
+        "model": 0.1696,
+        "residual": 0.0045,
+        "driver": "BEA"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 12,
+        "observed": 0.1514,
+        "model": 0.1728,
+        "residual": 0.0215,
+        "driver": "OCO"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 15,
+        "observed": 0.1298,
+        "model": 0.1481,
+        "residual": 0.0184,
+        "driver": "ALO"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 13,
+        "observed": 0.1009,
+        "model": 0.1217,
+        "residual": 0.0208,
+        "driver": "SAI"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 17,
+        "observed": 0.1009,
+        "model": 0.1175,
+        "residual": 0.0166,
+        "driver": "ALB"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 19,
+        "observed": 0.1009,
+        "model": 0.1105,
+        "residual": 0.0096,
+        "driver": "STR"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 18,
+        "observed": 0.0136,
+        "model": 0.0376,
+        "residual": 0.024,
+        "driver": "BOT"
+      },
+      {
+        "market": "top10",
+        "driver_idx": 16,
+        "observed": 0.0136,
+        "model": 0.0379,
+        "residual": 0.0243,
+        "driver": "PER"
+      }
+    ],
+    "market_inputs": [
+      {
+        "market": "win",
+        "n_drivers": 22,
+        "drivers": [
+          "VER",
+          "LEC",
+          "ANT",
+          "NOR",
+          "PIA",
+          "HAM",
+          "LAW",
+          "HUL",
+          "RUS",
+          "HAD",
+          "GAS",
+          "BEA",
+          "OCO",
+          "SAI",
+          "LIN",
+          "ALO",
+          "PER",
+          "ALB",
+          "BOT",
+          "STR",
+          "COL",
+          "BOR"
+        ]
+      },
+      {
+        "market": "podium",
+        "n_drivers": 22,
+        "drivers": [
+          "VER",
+          "LEC",
+          "ANT",
+          "NOR",
+          "PIA",
+          "HAM",
+          "LAW",
+          "HUL",
+          "RUS",
+          "HAD",
+          "GAS",
+          "BEA",
+          "OCO",
+          "SAI",
+          "LIN",
+          "ALO",
+          "PER",
+          "ALB",
+          "BOT",
+          "STR",
+          "COL",
+          "BOR"
+        ]
+      },
+      {
+        "market": "top6",
+        "n_drivers": 22,
+        "drivers": [
+          "VER",
+          "LEC",
+          "ANT",
+          "NOR",
+          "PIA",
+          "HAM",
+          "LAW",
+          "HUL",
+          "RUS",
+          "HAD",
+          "GAS",
+          "BEA",
+          "OCO",
+          "SAI",
+          "LIN",
+          "ALO",
+          "PER",
+          "ALB",
+          "BOT",
+          "STR",
+          "COL",
+          "BOR"
+        ]
+      },
+      {
+        "market": "top10",
+        "n_drivers": 22,
+        "drivers": [
+          "VER",
+          "LEC",
+          "ANT",
+          "NOR",
+          "PIA",
+          "HAM",
+          "LAW",
+          "HUL",
+          "RUS",
+          "HAD",
+          "GAS",
+          "BEA",
+          "OCO",
+          "SAI",
+          "LIN",
+          "ALO",
+          "PER",
+          "ALB",
+          "BOT",
+          "STR",
+          "COL",
+          "BOR"
+        ]
+      },
+      {
+        "market": "dnf",
+        "n_drivers": 22,
+        "drivers": [
+          "VER",
+          "LEC",
+          "ANT",
+          "NOR",
+          "PIA",
+          "HAM",
+          "LAW",
+          "HUL",
+          "RUS",
+          "HAD",
+          "GAS",
+          "BEA",
+          "OCO",
+          "SAI",
+          "LIN",
+          "ALO",
+          "PER",
+          "ALB",
+          "BOT",
+          "STR",
+          "COL",
+          "BOR"
+        ]
+      }
+    ]
+  },
+  "fit_sprint": null
+}
