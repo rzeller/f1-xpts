@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-10-21T09:59:09.937446+00:00",
+    "generated_at": "2026-10-22T09:59:34.701272+00:00",
     "race": "United States Grand Prix",
     "date": "2026-10-25",
     "is_sprint": false,
@@ -1678,7 +1678,7 @@
     "final_loss": 0.22227047176369838,
     "n_evals": 2542,
     "n_steps": 6,
-    "elapsed_seconds": 37.8,
+    "elapsed_seconds": 39.9,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.005,
@@ -4393,37 +4393,37 @@
         "step": 1,
         "eval": 197,
         "best_loss": 0.235248,
-        "elapsed": 2.9
+        "elapsed": 3.1
       },
       {
         "step": 2,
         "eval": 460,
         "best_loss": 0.223255,
-        "elapsed": 6.9
+        "elapsed": 7.2
       },
       {
         "step": 3,
         "eval": 788,
         "best_loss": 0.222405,
-        "elapsed": 11.9
+        "elapsed": 12.4
       },
       {
         "step": 4,
         "eval": 1252,
         "best_loss": 0.222316,
-        "elapsed": 18.9
+        "elapsed": 19.7
       },
       {
         "step": 5,
         "eval": 1836,
         "best_loss": 0.22229,
-        "elapsed": 27.8
+        "elapsed": 29.0
       },
       {
         "step": 6,
         "eval": 2542,
         "best_loss": 0.22227,
-        "elapsed": 37.8
+        "elapsed": 39.9
       }
     ],
     "residuals": [
