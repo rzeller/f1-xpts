@@ -104,7 +104,14 @@
       "date": "2026-10-25",
       "is_sprint": false,
       "generated_at": "2026-10-25T11:08:48.733168+00:00"
+    },
+    {
+      "slug": "mexico-gp",
+      "name": "Mexico City Grand Prix",
+      "date": "2026-11-01",
+      "is_sprint": false,
+      "generated_at": "2026-10-26T11:00:40.957281+00:00"
     }
   ],
-  "latest": "us-gp"
+  "latest": "mexico-gp"
 }
