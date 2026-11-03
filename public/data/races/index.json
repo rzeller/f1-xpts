@@ -111,7 +111,14 @@
       "date": "2026-11-01",
       "is_sprint": false,
       "generated_at": "2026-11-01T13:03:43.421005+00:00"
+    },
+    {
+      "slug": "sao-paulo-gp",
+      "name": "S\u00e3o Paulo Grand Prix",
+      "date": "2026-11-08",
+      "is_sprint": false,
+      "generated_at": "2026-11-03T02:53:35.684806+00:00"
     }
   ],
-  "latest": "mexico-gp"
+  "latest": "sao-paulo-gp"
 }
