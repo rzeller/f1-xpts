@@ -118,7 +118,14 @@
       "date": "2026-11-08",
       "is_sprint": false,
       "generated_at": "2026-11-07T17:33:32.670093+00:00"
+    },
+    {
+      "slug": "las-vegas-gp",
+      "name": "Las Vegas Grand Prix",
+      "date": "2026-11-22",
+      "is_sprint": false,
+      "generated_at": "2026-11-13T06:09:26.544419+00:00"
     }
   ],
-  "latest": "sao-paulo-gp"
+  "latest": "las-vegas-gp"
 }
