@@ -1,6 +1,6 @@
 {
   "meta": {
-    "generated_at": "2026-11-28T01:26:03.705904+00:00",
+    "generated_at": "2026-11-28T10:03:59.478439+00:00",
     "race": "Qatar Grand Prix",
     "date": "2026-11-29",
     "is_sprint": false,
@@ -11,7 +11,7 @@
     "fit_converged": false,
     "fit_loss_sprint": null,
     "fit_converged_sprint": null,
-    "run_type": "post_fp2",
+    "run_type": "lead_up_daily",
     "correlation": {
       "sigma_team": 0.6634,
       "sigma_drv_base": 0.7,
@@ -1678,7 +1678,7 @@
     "final_loss": 0.13771193132762657,
     "n_evals": 2805,
     "n_steps": 8,
-    "elapsed_seconds": 56.5,
+    "elapsed_seconds": 45.1,
     "n_sims_per_eval": 10000,
     "n_params": 22,
     "team_reg": 0.005,
@@ -4627,49 +4627,49 @@
         "step": 1,
         "eval": 189,
         "best_loss": 0.163792,
-        "elapsed": 3.8
+        "elapsed": 3.0
       },
       {
         "step": 2,
         "eval": 445,
         "best_loss": 0.147421,
-        "elapsed": 9.0
+        "elapsed": 7.2
       },
       {
         "step": 3,
         "eval": 796,
         "best_loss": 0.144272,
-        "elapsed": 16.0
+        "elapsed": 12.8
       },
       {
         "step": 4,
         "eval": 1217,
         "best_loss": 0.14255,
-        "elapsed": 24.4
+        "elapsed": 19.6
       },
       {
         "step": 5,
         "eval": 1647,
         "best_loss": 0.141321,
-        "elapsed": 33.1
+        "elapsed": 26.5
       },
       {
         "step": 6,
         "eval": 1952,
         "best_loss": 0.13984,
-        "elapsed": 39.2
+        "elapsed": 31.4
       },
       {
         "step": 7,
         "eval": 2351,
         "best_loss": 0.138898,
-        "elapsed": 47.2
+        "elapsed": 37.8
       },
       {
         "step": 8,
         "eval": 2805,
         "best_loss": 0.137712,
-        "elapsed": 56.4
+        "elapsed": 45.1
       }
     ],
     "residuals": [
